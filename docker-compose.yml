@@ -1,0 +1,88 @@
+name: my-spin-bot
+
+x-meta:
+  maintainer: Kostas Tzevanidis <ktzevanid@gmail.com>
+  description: >
+    A fully local, open-source platform that turns user images and short audio clips into 
+    personalized talking-bot videos. Runs LoRA, TTS, and diffusion (SadTalker/SVD) pipelines 
+    via LangGraph, ComfyUI, and Ollama — all private, GPU-powered, and self-contained.
+
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: reverse-proxy
+    restart: unless-stopped
+    command: ["--configFile=/etc/traefik/traefik.yml"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /traefik/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
+      - /traefik/data/letsencrypt:/letsencrypt
+      - /traefik/certs:/certs:ro
+      - /traefik/logs:/logs
+    networks: [internal-network]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`proxy.myspinbot.local`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.usersfile=/etc/traefik/htpasswd"
+
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    restart: unless-stopped
+    volumes:
+      - /prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /prometheus/data:/prometheus
+    networks: [internal-network]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prom.rule=Host(`prometheus.myspinbot.local`)"
+      - "traefik.http.routers.prom.entrypoints=websecure"
+      - "traefik.http.routers.prom.tls=true"
+      - "traefik.http.services.prom.loadbalancer.server.port=9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    user: "472"
+    env_file:
+      - .env
+    environment:
+      - GF_PATHS_DATA=/var/lib/grafana
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - /grafana/data:/var/lib/grafana
+      - /grafana/provisioning:/etc/grafana/provisioning
+    networks: [internal-network]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.myspinbot.local`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [internal-network]
+
+  dcgm-exporter:
+    image: nvidia/dcgm-exporter:3.3.6-1-ubuntu22.04
+    restart: unless-stopped
+    runtime: nvidia
+    networks: [internal-network]
+
+networks:
+  internal-network:
+    driver: bridge

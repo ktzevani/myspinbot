@@ -1,0 +1,11 @@
+http:
+  serversTransports:
+    truenasInsecure:
+      insecureSkipVerify: true
+
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/wildcard-myspinbot.local.crt
+        keyFile: /certs/wildcard-myspinbot.local.key

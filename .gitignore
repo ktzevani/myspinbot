@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────
+# MySpinBot Global Git Ignore Rules
+# Security-first configuration for public repository
+# ─────────────────────────────────────────────
+
+# ── System and editor junk ───────────────────
+*.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+*.log
+
+# ── Python / Node artifacts ──────────────────
+.env
+.env.*
+!.env.example
+.venv/
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+
+# ── Docker & Compose ─────────────────────────
+docker-compose.override.yml
+*.pid
+*.sock
+*.lock
+*~tmp/
+tmp/
+logs/
+**/logs/
+
+# ── Secrets, credentials, and certs ──────────
+# These are always local-only; never commit.
+**/secrets/*
+**/certs/*
+**/data/letsencrypt/*
+**/htpasswd
+**/acme.json
+**/*.crt
+**/*.key
+**/*.pem
+**/*.p12
+**/*.jks
+
+# ── Prometheus / Grafana generated data ──────
+**/prometheus/data/
+**/grafana/data/
+
+# ── Local runtime / cache ────────────────────
+**/tmp/
+**/.cache/
+**/*.swp
+**/*.swo
+
+# ── Traefik runtime data ─────────────────────
+**/traefik/data/letsencrypt/
+**/traefik/logs/
+
+# ── Auto-generated dashboards or exports ─────
+**/grafana/exported_dashboards/
+**/dashboards/*.bak.json
+
+# ── Allow secrets documentation files ────────────────
+!**/secrets/README.SECRETS.md
+!**/certs/README.CERTS.md
+
+# ── Allow runtime documentation files ────────────────
+!**/data/letsencrypt/README.RUNTIME.md
+!**/data/README.RUNTIME.md

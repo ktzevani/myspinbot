@@ -1,0 +1,29 @@
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    filename: /etc/traefik/traefik_dynamic.yml
+    watch: true
+
+api:
+  dashboard: true
+  insecure: false
+
+log:
+  level: INFO
+
+accessLog: {}
+certificatesResolvers:
+  default:
+    acme:
+      email: admin@myspinbot.local
+      storage: /letsencrypt/acme.json
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      httpChallenge:
+        entryPoint: web
