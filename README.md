@@ -1,6 +1,6 @@
 # 🌀 MySpinBot
 
-> _“Objectiveness is overrated! We are ditching it responsibly.”_
+> _“Objectiveness is overrated! Let's ditch it responsibly.”_
 
 Welcome to **MySpinBot**, the open-source, fully local platform for generating short personalized AI videos of talking “bots” — the kind that spin their way through LoRA training, voice cloning, and lip-syncing, all while pretending not to melt your GPU.
 
