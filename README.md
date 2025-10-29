@@ -15,8 +15,6 @@ I stole the idea from Computerphile’s [_MikeBot3000: Can We Build an AI Mike f
 
 This is **Phase Subzero**, where the project is still thawing. Only the documentation lives here (see [`/docs`](./docs)), but the architecture is already mapped and the road to Phase 0 (“Infra Bootstrap”) is paved with containers and dreams.
 
----
-
 ## 🧭 Project Overview
 
 | Component | Purpose |
@@ -32,8 +30,6 @@ This is **Phase Subzero**, where the project is still thawing. Only the document
 
 All modules are connected through a Docker Compose setup, forming a self-contained ecosystem that turns pixels and phonemes into performance.
 
----
-
 ## 📚 Documentation
 
 The full set of project documents lives in [`/docs`](./docs).  
@@ -43,9 +39,7 @@ Start with these — they explain everything from *why this madness exists* to *
 - `02_architecture_overview.md` – how the parts fit (and sometimes misfit)  
 - `03_tech_stack.md` – what powers the chaos  
 - `04_modular_breakdown.md` – what does what, and who’s to blame  
-- `05_roadmap.md` – how we plan to get from subzero to showtime  
-
----
+- `05_roadmap.md` – how we plan to get from subzero to showtime
 
 ## 🧱 Current Status
 
@@ -59,8 +53,6 @@ Start with these — they explain everything from *why this madness exists* to *
 | 4 | Quality & Observability | ⏳ Planned |
 | 5 | Polish & Docs | ⏳ Planned |
 
----
-
 ## 🧠 Guiding Principles
 
 - **Local-First.** No data leaves your machine.  
@@ -68,8 +60,6 @@ Start with these — they explain everything from *why this madness exists* to *
 - **Open-Source.** Every dependency is transparent and replaceable.  
 - **GPU-Aware.** Jobs are serialized to protect your VRAM’s dignity.  
 - **Humor-Tolerant.** Because debugging diffusion pipelines without sarcasm is impossible.
-
----
 
 ## 🛠️ Upcoming Sections (to be expanded later)
 
@@ -81,21 +71,15 @@ Start with these — they explain everything from *why this madness exists* to *
 - [ ] **FAQ / Troubleshooting** – the “my GPU caught fire” section  
 - [ ] **License & Credits**
 
----
-
 ## 💬 Contributing
 
 Contributions, ideas, and sarcastic bug reports are welcome.  
 Open an issue, start a discussion, or send a pull request.  
 Be kind — we’re all just trying to make our bots talk before the GPU fans hit Mach 3.
 
----
-
 ## ⚖️ License
 
 This project is licensed under the **AGPL-3.0** License — see the [LICENSE](./LICENSE) file for details.
-
----
 
 ## 🧊 Closing Remark
 
