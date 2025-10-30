@@ -34,7 +34,7 @@ All modules are connected through a Docker Compose setup, forming a self-contain
 
 The full set of project documents lives in [`/docs`](./docs)  — they explain everything from *why this madness exists* to *how it will be contained*.
 
-Begin from [here](../docs/README.md).
+Start [here](./docs/README.md).
 
 ## 🧱 Current Status
 
