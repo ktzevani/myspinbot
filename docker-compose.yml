@@ -10,7 +10,7 @@ x-meta:
 services:
   traefik:
     image: traefik:v2.11
-    container_name: reverse-proxy
+    container_name: traefik
     restart: unless-stopped
     command: ["--configFile=/etc/traefik/traefik.yml"]
     ports:
@@ -18,11 +18,12 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - /traefik/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
-      - /traefik/data/letsencrypt:/letsencrypt
-      - /traefik/certs:/certs:ro
-      - /traefik/logs:/logs
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
+      - ./traefik/data/letsencrypt:/letsencrypt
+      - ./traefik/certs:/certs:ro
+      - ./traefik/logs:/logs
+      - ./traefik/secrets/htpasswd:/etc/traefik/htpasswd:ro
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -30,14 +31,15 @@ services:
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.usersfile=/etc/traefik/htpasswd"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@file"
 
   prometheus:
     image: prom/prometheus:v3.0.0
+    container_name: prometheus
     restart: unless-stopped
     volumes:
-      - /prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - /prometheus/data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/data:/prometheus
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -45,9 +47,11 @@ services:
       - "traefik.http.routers.prom.entrypoints=websecure"
       - "traefik.http.routers.prom.tls=true"
       - "traefik.http.services.prom.loadbalancer.server.port=9090"
+      - "traefik.http.routers.prom.middlewares=dashboard-auth@file"
 
   grafana:
     image: grafana/grafana:11.2.0
+    container_name: grafana
     restart: unless-stopped
     user: "472"
     env_file:
@@ -56,8 +60,8 @@ services:
       - GF_PATHS_DATA=/var/lib/grafana
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     volumes:
-      - /grafana/data:/var/lib/grafana
-      - /grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -66,19 +70,22 @@ services:
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
-
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.51.0
+    container_name: cadvisor
     restart: unless-stopped
+    command:
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--allow_dynamic_housekeeping=false"
     volumes:
-      - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    networks: [internal-network]
+    networks:
+      - internal-network
 
   dcgm-exporter:
-    image: nvidia/dcgm-exporter:3.3.6-1-ubuntu22.04
+    image: nvidia/dcgm-exporter:4.4.0-4.5.0-ubuntu22.04
+    container_name: dcgm-exporter
     restart: unless-stopped
     runtime: nvidia
     networks: [internal-network]

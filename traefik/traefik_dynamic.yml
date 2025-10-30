@@ -2,6 +2,12 @@ http:
   serversTransports:
     truenasInsecure:
       insecureSkipVerify: true
+  middlewares:
+    dashboard-auth:
+      basicauth:
+        usersfile: /etc/traefik/htpasswd
+        realm: "MySpinBot Secure Zone"
+        removeHeader: true
 
 tls:
   stores:

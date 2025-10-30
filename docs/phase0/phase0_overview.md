@@ -41,7 +41,25 @@ When startup completes, open:
 - 🔹 **Prometheus:** `https://prometheus.myspinbot.local`  
 - 🔹 **Traefik Dashboard:** `https://proxy.myspinbot.local`
 
-Login to Grafana using the credentials from `.env`.
+Login to Grafana using the credentials from `.env`. Login to the rest of the facilities with the credentials in `htpasswd`.
+
+> 💡 **DNS / Hostname Configuration**
+>
+> As all internal dashboards are accessed through local subdomains, you must configure your 
+> DNS resolution process (e.g. `/etc/hosts` on Linux/macOS, `C:\Windows\System32\drivers\etc\hosts` 
+> on Windows, or a custom DNS server such as dnsmasq/AdGuard/HomeAssistant)
+> so that these hostnames resolve to the proper IP of the node
+> running the MySpinBot stack — typically `127.0.0.1` when running locally.
+>
+> Example:
+> ```
+> 127.0.0.1 proxy.myspinbot.local
+> 127.0.0.1 prometheus.myspinbot.local
+> 127.0.0.1 grafana.myspinbot.local
+> ```
+> Without proper hostname resolution, Traefik routing and TLS certificate validation
+> (e.g. via mkcert wildcard `*.myspinbot.local`) will fail.
+
 
 ## ✅ Validation Checklist
 
