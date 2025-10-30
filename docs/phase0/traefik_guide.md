@@ -24,16 +24,18 @@ It performs secure TLS termination, routes requests to internal services, and pr
 
 ## 🧰 Secret & Certificate Provisioning
 
-All secrets and certificates are handled via:
+All secrets and certificates are handled via the platform-specific provisioning scripts:
+
+### 🐧 Linux / macOS
 
 ```bash
 ./scripts/provision_secrets.sh
 ```
 
-By default, this script will:
+By default, this script will:  
 1. Create the secrets and cert directories if missing  
 2. Generate a BasicAuth file (`htpasswd`) with default credentials  
-3. Issue a wildcard TLS certificate for `*.myspinbot.local` using mkcert  
+3. Issue a wildcard TLS certificate for `*.myspinbot.local` using **mkcert**
 
 To customize credentials or domain:
 
@@ -46,6 +48,52 @@ To regenerate existing secrets:
 ```bash
 FORCE=true ./scripts/provision_secrets.sh
 ```
+
+### 💠 Windows (PowerShell)
+
+```powershell
+.\scripts\provision_secrets.ps1
+```
+
+By default, this script will:  
+1. Create the secrets and cert directories if missing  
+2. Generate a BasicAuth file (`htpasswd`) with default credentials (via **OpenSSL**)  
+3. Issue a wildcard TLS certificate for `*.myspinbot.local` using **mkcert**
+
+To customize credentials or domain:
+
+```powershell
+$env:AUTH_USER = "ktzev"
+$env:AUTH_PASS = "UltraSecret"
+$env:DOMAIN    = "myspinbot.dev"
+
+.\scripts\provision_secrets.ps1
+```
+
+To regenerate existing secrets:
+
+```powershell
+$env:FORCE = "true"
+.\scripts\provision_secrets.ps1
+```
+
+---
+
+### ⚙️ Notes
+
+- Both scripts produce the same output layout under `traefik/secrets/` and `traefik/certs/`.  
+- Hash algorithm differs by platform:
+  - **Linux/macOS:** `bcrypt` (default for Apache `htpasswd -B`)
+  - **Windows:** `apr1` (Apache MD5, compatible with Traefik)
+- On **Windows**, ensure that **mkcert** and **OpenSSL** are installed and available in your PATH.  
+  You can conveniently install them using **WinGet**:
+
+  ```
+  winget install FiloSottile.mkcert
+  winget install ShiningLight.OpenSSL
+  ```
+
+- These artifacts are sensitive and are **excluded from Git** by default (`.gitignore`).
 
 ## 📁 Directory Structure
 

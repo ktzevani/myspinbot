@@ -17,7 +17,13 @@ that must only exist on your local machine or be injected by CI/CD.
 Secrets are created automatically using the helper script:
 
 ```bash
+# Linux
 ./scripts/provision_secrets.sh
+```
+
+```powershell
+# Windows
+./scripts/provision_secrets.ps1
 ```
 
 ### By default, this will:
@@ -40,16 +46,33 @@ You can customize credentials and domain using environment variables:
 ### Example: custom credentials + domain
 
 ```bash
+# Linux
 AUTH_USER=myusername AUTH_PASS=UltraSecret DOMAIN=myspinbot.dev ./scripts/provision_secrets.sh
+```
+
+```powershell
+# Windows
+$env:AUTH_USER = "ktzev"
+$env:AUTH_PASS = "UltraSecret"
+$env:DOMAIN    = "myspinbot.dev"
+
+.\scripts\provision_secrets.ps1
 ```
 
 ### Example: force regeneration
 
 ```bash
+# Linux
 FORCE=true ./scripts/provision_secrets.sh
 ```
 
-## 🔒 Manual Credential Creation (Alternative)
+```powershell
+# Windows
+$env:FORCE = "true" 
+./scripts/provision_secrets.ps1
+```
+
+## 🔒 Manual Credential Creation (Linux - Alternative)
 
 If you prefer to create them manually:
 
@@ -70,13 +93,7 @@ Only this README is tracked, to explain the folder’s purpose and preserve its 
 
 ## 🔁 Rotation
 
-To rotate or regenerate credentials/certificates:
-
-```bash
-FORCE=true ./scripts/provision_secrets.sh
-```
-
-Then restart Traefik:
+After regenerating credentials/certificates you need to restart Traefik:
 
 ```bash
 docker compose restart traefik
