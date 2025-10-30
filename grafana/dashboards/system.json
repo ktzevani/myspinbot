@@ -1,0 +1,179 @@
+{
+  "id": null,
+  "uid": "sys-metrics",
+  "title": "Overall System",
+  "schemaVersion": 39,
+  "version": 2,
+  "tags": ["MySpinBot", "systel-level"],
+  "refresh": "10s",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "row",
+      "title": "Prometheus & Containers Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus Uptime",
+      "targets": [
+        { "expr": "time() - process_start_time_seconds{job=\"prometheus\"}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dthms",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 }
+    },
+    {
+      "type": "gauge",
+      "title": "Container CPU Usage (%)",
+      "targets": [
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job!=\"\"}[1m])) * 100", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 }
+    },
+    {
+      "type": "gauge",
+      "title": "Container Memory Usage (%)",
+      "targets": [
+        {
+          "expr": "sum(container_memory_usage_bytes{job!=\"\"}) / sum(container_spec_memory_limit_bytes{job!=\"\"} > 0) * 100",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 }
+    },
+    {
+      "type": "gauge",
+      "title": "Container Filesystem Usage (%)",
+      "targets": [
+        {
+          "expr": "sum(container_fs_usage_bytes{job!=\"\"}) / sum(container_fs_limit_bytes{job!=\"\"}) * 100",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 }
+    },
+
+    {
+      "type": "row",
+      "title": "Container Metrics (cAdvisor)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Per-Container CPU Usage (mCores)",
+      "targets": [
+        { "expr": "rate(container_cpu_usage_seconds_total{job=\"cadvisor\"}[1m]) * 1000", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "mc" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Per-Container Memory Usage (MB)",
+      "targets": [
+        { "expr": "container_memory_usage_bytes{job=\"cadvisor\"} / 1024 / 1024", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Mbytes" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 }
+    },
+
+    {
+      "type": "row",
+      "title": "GPU Metrics (DCGM)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 }
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU Utilization (%)",
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_UTIL", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percent" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 13 }
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU Memory Used (MiB)",
+      "targets": [{ "expr": "DCGM_FI_DEV_FB_USED / 1024 / 1024", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "Mbytes" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 13 }
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU Temperature (°C)",
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_TEMP", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "celsius" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 19 }
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU Power Draw (W)",
+      "targets": [{ "expr": "DCGM_FI_DEV_POWER_USAGE / 1000", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "watt" } },
+      "legend": { "show": true },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 19 }
+    }
+  ],
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}
