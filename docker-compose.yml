@@ -91,13 +91,70 @@ services:
     runtime: nvidia
     networks: [internal-network]
 
+  redis:
+    image: redis:8.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - internal-network
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=false"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    networks: [internal-network]
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://redis-exporter:9121/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=false"
+
+  redis-insight:
+    image: redis/redisinsight:2.70.1
+    container_name: redis-insight
+    restart: unless-stopped
+    networks: [internal-network]
+    volumes:
+      - redis-insight-data:/data
+      - ./redis-insight/databases.json:/data/databases.json:ro
+    environment:
+      - RI_PRE_SETUP_DATABASES_PATH=/data/databases.json
+    depends_on:
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redis.rule=Host(`redis.myspinbot.local`)"
+      - "traefik.http.routers.redis.entrypoints=websecure"
+      - "traefik.http.routers.redis.tls=true"
+      - "traefik.http.services.redis.loadbalancer.server.port=5540"
+      - "traefik.http.routers.redis.middlewares=dashboard-auth@file"
+
   api:
     build:
       context: ./backend
     container_name: myspinbot-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
     expose:
       - "3000"
     healthcheck:
@@ -148,3 +205,7 @@ services:
 networks:
   internal-network:
     driver: bridge
+
+volumes:
+  redis-data:
+  redis-insight-data:

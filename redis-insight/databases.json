@@ -1,0 +1,9 @@
+[
+  {
+    "id": "mys-001",
+    "name": "MySpinBot Redis",
+    "host": "redis",
+    "port": 6379,
+    "tls": false
+  }
+]
