@@ -47,6 +47,9 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | [phase1_overview.md](phase1/phase1_overview.md) | High-level plan and scope of the backend & frontend scaffolding phase. |
 | [backend_frontend.md](phase1/phase1_backend_frontend.md) | Implementation details for Fastify (API) and Next.js (UI) services. |
 | [compose_layout.md](phase1/phase1_compose_layout.md) | Docker Compose topology, Traefik routing, and monitoring integration. |
+| [workflow_guide.md](phase1/workflow_guide.md) | Local development and integration testing workflows. |
+| [debugging_backend.md](phase1/debugging_backend.md) | Step-by-step guide for debugging the Fastify backend — covers logging, breakpoints, VS Code setup, and request tracing. |
+| [debugging_frontend.md](phase1/debugging_frontend.md) | Guide for debugging the Next.js frontend — includes browser DevTools, VS Code setup, and React DevTools integration. |
 
 ## 🧱 Structure Summary
 
@@ -62,7 +65,10 @@ docs/
 ├── phase1/
 ├──── backend_frontend.md
 ├──── compose_layout.md
+├──── debugging_backend.md
+├──── debugging_frontend.md
 ├──── phase1_overview.md
+├──── workflow_guide.md
 ├── 01_project_description.md
 ├── 02_architecture_overview.md
 ├── 03_tech_stack.md

@@ -39,9 +39,6 @@ backend/
 │  ├─ index.js           # Fastify bootstrap
 │  ├─ routes/health.js   # /health endpoint
 │  ├─ routes/metrics.js  # /metrics (Prometheus)
-│  ├─ plugins/
-│  │   ├─ redis.js       # BullMQ connection
-│  │   └─ prometheus.js  # Metrics registration
 │  └─ controllers/
 │      └─ queue.js       # Job handling stub
 └─ .dockerignore
@@ -77,15 +74,19 @@ CMD ["node", "src/index.js"]
 ```
 frontend/
 ├─ Dockerfile
-├─ package.json
+├─ next-env.d.ts
 ├─ next.config.mjs
+├─ package.json
+├─ tsconfig.json
 ├─ app/
+│  ├─ globals.css
 │  ├─ page.tsx
 │  └─ layout.tsx
 ├─ components/
 │  └─ StatusCard.tsx
-└─ lib/
-   └─ api.ts
+├─ lib/
+│  └─ api.ts
+└─ .dockerignore
 ```
 
 ### Highlights  

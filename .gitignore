@@ -23,6 +23,20 @@ build/
 .cache/
 coverage/
 
+# ── Node / Next.js ─────────────
+# Next.js build and cache output
+.next/
+out/
+.next/cache/
+
+# Local dependency lockfiles (optional — keep global lockfiles clean)
+backend/package-lock.json
+frontend/package-lock.json
+
+# Local environment overrides
+frontend/.env.local
+backend/.env.local
+
 # ── Docker & Compose ─────────────────────────
 docker-compose.override.yml
 *.pid
