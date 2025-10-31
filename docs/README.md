@@ -23,7 +23,7 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | Phase | Name | Status | Description |
 |:------|:------|:--------|:-------------|
 | 0 | [Infrastructure Bootstrap](phase0/phase0_overview.md) | ✅ Complete | Traefik + Prometheus + Grafana stack with TLS, monitoring, and metrics. |
-| 1 | Backend & Frontend Scaffold | ⏳ Pending | Node.js Fastify API + Next.js frontend + Redis queue. |
+| 1 | [Backend & Frontend Scaffold](phase1/phase1_overview.md) | ⏳ Pending | Node.js Fastify API + Next.js frontend + Redis queue. |
 | 2 | GPU Worker Integration | ⏳ Pending | Python worker (Celery/RQ) with GPU task orchestration. |
 | 3 | AI Pipeline Implementation | ⏳ Planned | LLM → ComfyUI → TTS → Lip-Sync video generation pipeline. |
 | 4 | Observability & Quality | ⏳ Planned | ESRGAN, retries, metrics dashboards, CI hooks. |
@@ -40,6 +40,14 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | [runtime_dirs.md](phase0/runtime_dirs.md) | Explanation of runtime data directories and Git policies. |
 | [directory_summary.md](phase0/directory_summary.md) | Summary table linking all Phase 0 docs and READMEs. |
 
+## 🧩 Phase 1 Reference (Backend & Frontend Scaffold)
+
+| Document | Purpose |
+|-----------|----------|
+| [phase1_overview.md](phase1/phase1_overview.md) | High-level plan and scope of the backend & frontend scaffolding phase. |
+| [backend_frontend.md](phase1/phase1_backend_frontend.md) | Implementation details for Fastify (API) and Next.js (UI) services. |
+| [compose_layout.md](phase1/phase1_compose_layout.md) | Docker Compose topology, Traefik routing, and monitoring integration. |
+
 ## 🧱 Structure Summary
 
 ```
@@ -51,6 +59,10 @@ docs/
 ├──── grafana_guide.md
 ├──── runtime_dirs.md
 ├──── directory_summary.md
+├── phase1/
+├──── backend_frontend.md
+├──── compose_layout.md
+├──── phase1_overview.md
 ├── 01_project_description.md
 ├── 02_architecture_overview.md
 ├── 03_tech_stack.md

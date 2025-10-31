@@ -13,8 +13,6 @@ Think of it as a creative factory where:
 I stole the idea from Computerphile’s [_MikeBot3000: Can We Build an AI Mike from Open Source Tools?_](https://www.youtube.com/watch?v=cP8xpkvs_UI) and used all the help I could get out of my trusty old pal **ChatGPT-5** to make it spin — figuratively, literally, and sometimes uncontrollably.
 
 
-This is **Phase Subzero**, where the project is still thawing. Only the documentation lives here (see [`/docs`](./docs)), but the architecture is already mapped and the road to Phase 0 (“Infra Bootstrap”) is paved with containers and dreams.
-
 ## 🧭 Project Overview
 
 | Component | Purpose |
