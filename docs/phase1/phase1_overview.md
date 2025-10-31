@@ -63,6 +63,13 @@ GPU workloads still wait until Phase 2 — here we make the data and control pat
 * Optional: Redis Insight GUI (`redis.myspinbot.local`)
 * Environment files: shared `.env` + `.env.local`
 
+### 4️⃣ Development Workflow
+
+* MySpinBot frontend/backend development workflow will be donen outside container infrastructure
+
+  * Define workflow for backend
+  * Define workflow for frontend
+
 ## ⚙️ Expected Outputs
 
 | Component         | Deliverable               | Description                                |
