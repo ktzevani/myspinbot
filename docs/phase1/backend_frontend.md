@@ -29,7 +29,7 @@ Although both services use Node.js, they serve **distinct roles** and thus benef
 
 ## ⚙️ Backend Implementation  
 
-### Directory Layout  
+### Initial Directory Layout  
 
 ```
 backend/
@@ -69,7 +69,7 @@ CMD ["node", "src/index.js"]
 
 ## 💅 Frontend Implementation  
 
-### Directory Layout  
+### Initial Directory Layout
 
 ```
 frontend/

@@ -51,32 +51,6 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | [debugging_backend.md](phase1/debugging_backend.md) | Step-by-step guide for debugging the Fastify backend — covers logging, breakpoints, VS Code setup, and request tracing. |
 | [debugging_frontend.md](phase1/debugging_frontend.md) | Guide for debugging the Next.js frontend — includes browser DevTools, VS Code setup, and React DevTools integration. |
 
-## 🧱 Structure Summary
-
-```
-docs/
-├── phase0/
-├──── phase0_overview.md
-├──── traefik_guide.md
-├──── prometheus_guide.md
-├──── grafana_guide.md
-├──── runtime_dirs.md
-├──── directory_summary.md
-├── phase1/
-├──── backend_frontend.md
-├──── compose_layout.md
-├──── debugging_backend.md
-├──── debugging_frontend.md
-├──── phase1_overview.md
-├──── workflow_guide.md
-├── 01_project_description.md
-├── 02_architecture_overview.md
-├── 03_tech_stack.md
-├── 04_modular_breakdown.md
-├── 05_roadmap.md
-└── README.md
-```
-
 ## 💬 Contributing to Documentation
 
 1. Keep all conceptual docs (`01_…05_…`) in root `docs/` — they define *what* and *why*.
