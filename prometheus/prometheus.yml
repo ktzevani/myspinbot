@@ -13,3 +13,6 @@ scrape_configs:
   - job_name: grafana
     metrics_path: /metrics
     static_configs: [{ targets: ["grafana:3000"] }]
+  - job_name: 'myspinbot-backend'
+    static_configs:
+      - targets: ['api:3000']

@@ -7,7 +7,10 @@ const app = Fastify({ logger: true });
 
 // --- Enable CORS for local dev ---
 await app.register(cors, {
-  origin: ['http://localhost:3001'], // frontend dev server
+  origin: [
+    'http://localhost:3001',      // local dev (Next.js)
+    'https://ui.myspinbot.local'  // production via Traefik
+  ],
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
 });

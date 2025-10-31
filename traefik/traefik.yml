@@ -30,6 +30,9 @@ certificatesResolvers:
       httpChallenge:
         entryPoint: web
 
+ping:
+  entryPoint: "web"
+
 metrics:
   prometheus:
     addEntryPointsLabels: true
