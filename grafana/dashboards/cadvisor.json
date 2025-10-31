@@ -838,6 +838,7 @@
   "schemaVersion": 40,
   "tags": [
     "cadvisor",
+    "docker",
     "prometheus"
   ],
   "templating": {

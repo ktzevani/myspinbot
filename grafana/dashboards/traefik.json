@@ -1577,6 +1577,7 @@
   "schemaVersion": 39,
   "tags": [
     "traefik",
+    "proxy",
     "prometheus"
   ],
   "templating": {
