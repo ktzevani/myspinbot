@@ -1,6 +1,6 @@
 # 🧭 MySpinBot Documentation Index
 
-> *"Objectiveness is overrated! Let's ditch it responsibly."*  
+> *"Objectiveness is overrated, ditching it responsibly."*  
 > — MySpinBot Project Motto
 
 Welcome to the **MySpinBot** documentation hub.  
@@ -45,18 +45,15 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | Document | Purpose |
 |-----------|----------|
 | [phase1_overview.md](phase1/phase1_overview.md) | High-level plan and scope of the backend & frontend scaffolding phase. |
-| [backend_frontend.md](phase1/phase1_backend_frontend.md) | Implementation details for Fastify (API) and Next.js (UI) services. |
-| [compose_layout.md](phase1/phase1_compose_layout.md) | Docker Compose topology, Traefik routing, and monitoring integration. |
-| [workflow_guide.md](phase1/workflow_guide.md) | Local development and integration testing workflows. |
-| [debugging_backend.md](phase1/debugging_backend.md) | Step-by-step guide for debugging the Fastify backend — covers logging, breakpoints, VS Code setup, and request tracing. |
-| [debugging_frontend.md](phase1/debugging_frontend.md) | Guide for debugging the Next.js frontend — includes browser DevTools, VS Code setup, and React DevTools integration. |
+| [implementation_details.md](phase1/implementation_details.md) | Implementation details for Fastify (API) and Next.js (UI) services. |
+| [container_infrastructure.md](phase1/container_infrastructure.md) | Docker Compose topology, Traefik routing, and monitoring integration. |
+| [development_workflow.md](phase1/development_workflow.md) | Local development and integration testing workflows. With step-by-step guide for debugging both backend and frontend. |
 
 ## 💬 Contributing to Documentation
 
 1. Keep all conceptual docs (`01_…05_…`) in root `docs/` — they define *what* and *why*.
 2. Place all phase-specific operational docs under `docs/phaseX/`.
-3. Keep diagrams in `assets/diagrams/` and cross-link with relative paths.
-4. Use plain Markdown; keep formatting simple and readable on GitHub.
+3. Use plain Markdown; keep formatting simple and readable on GitHub.
 
 ## 🧭 Quick Navigation
 
