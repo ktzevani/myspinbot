@@ -5,20 +5,16 @@
 // 'train' queue and responsds with the generated job ID.
 // ------------------------------------------------------------
 
+import { enqueueTrainJob } from "../controllers/queue.js";
+
 export default async function trainRoutes(fastify) {
   fastify.post('/train', async (req, reply) => {
-    // Example of extracting JSON body data
     const payload = req.body || {};
-    // Generate a mock job ID — later BullMQ will generate this
-    const jobId = `train-${Date.now()}`;
-    // Log the request (Fastify has a built-in logger)
-    fastify.log.info({ jobId, payload }, 'Received training request');
-
-    // Respond with a standard JSON object
+    const jobId = await enqueueTrainJob(payload);
+    fastify.log.info({ jobId }, 'Training job queued');
     return reply.send({
       jobId,
       status: 'queued',
-      message: 'Training job accepted',
     });
   });
 }
