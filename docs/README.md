@@ -48,6 +48,7 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | [implementation_details.md](phase1/implementation_details.md) | Implementation details for Fastify (API) and Next.js (UI) services. |
 | [container_infrastructure.md](phase1/container_infrastructure.md) | Docker Compose topology, Traefik routing, and monitoring integration. |
 | [development_workflow.md](phase1/development_workflow.md) | Local development and integration testing workflows. With step-by-step guide for debugging both backend and frontend. |
+| [jobs_and_ws.md](phase1/jobs_and_ws.md) | Details on architecture of asynchronous job execution and real-time UI update. |
 
 ## 💬 Contributing to Documentation
 

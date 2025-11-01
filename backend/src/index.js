@@ -1,7 +1,5 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import healthRoute from './routes/health.js';
-import metricsRoute from './routes/metrics.js';
 
 const app = Fastify({ logger: true });
 
@@ -16,8 +14,12 @@ await app.register(cors, {
 });
 
 // --- Register routes ---
-app.register(healthRoute);
-app.register(metricsRoute);
+// await for the on-demand imports to get resolved before registering
+await app.register(import('./routes/health.js'));
+await app.register(import('./routes/metrics.js'));
+await app.register(import('./routes/train.js'), { prefix: '/api' });
+await app.register(import('./routes/generate.js'), { prefix: '/api' });
+await app.register(import('./routes/status.js'), { prefix: '/api' });
 
 const port = 3000;
 app.listen({ port, host: '0.0.0.0' })
