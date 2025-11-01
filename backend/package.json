@@ -3,7 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "dev:debug": "node --inspect=0.0.0.0:9229 src/index.js",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint . --ext .js,.ts --max-warnings=0",
+    "lint:fix": "eslint . --ext .js,.ts --fix",
+    "format": "prettier --write .",
+    "clean": "rm -rf dist coverage .cache",
+    "check": "npm run lint && npm run test"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
@@ -13,14 +23,17 @@
     "prom-client": "^15.1.0"
   },
   "devDependencies": {
+    "@testcontainers/redis": "^11.7.2",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
+    "@vitest/coverage-v8": "^4.0.6",
     "eslint": "^9.39.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-unused-imports": "^4.3.0",
     "prettier": "^3.6.2",
     "supertest": "^7.1.4",
+    "testcontainers": "^11.7.2",
     "vitest": "^4.0.6"
   }
 }
