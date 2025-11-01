@@ -6,11 +6,20 @@
 # ── System and editor junk ───────────────────
 *.DS_Store
 Thumbs.db
-.vscode/
 .idea/
 __pycache__/
 *.py[cod]
 *.log
+
+# VS Code configuration — keep shared configs, ignore personal caches
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+# workspace caches / history
+.vscode/history/
+.vscode/workspaceStorage/
+.vscode/*.db
 
 # ── Python / Node artifacts ──────────────────
 .env
@@ -22,6 +31,8 @@ dist/
 build/
 .cache/
 coverage/
+*.coverage
+*.lcov
 
 # ── Node / Next.js ─────────────
 # Next.js build and cache output
@@ -85,3 +96,7 @@ logs/
 # ── Allow runtime documentation files ────────────────
 !**/data/letsencrypt/README.RUNTIME.md
 !**/data/README.RUNTIME.md
+
+# ── VS Code workspace file ───────────────────────────
+# The shared workspace definition is safe to commit
+!myspinbot.code-workspace

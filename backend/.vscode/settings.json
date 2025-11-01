@@ -1,0 +1,5 @@
+{
+  "vitest.command": "npm test",
+  "vitest.configFile": "vitest.config.ts",
+  "vitest.enableCoverage": true
+}

@@ -11,5 +11,16 @@
     "fastify": "^4.27.0",
     "ioredis": "^5.8.2",
     "prom-client": "^15.1.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "vitest": "^4.0.6"
   }
 }

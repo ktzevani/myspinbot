@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Fastify Backend",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/backend/src/index.js",
+      "runtimeArgs": ["--inspect-brk"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Next.js Frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 9229,
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal"
+    }
+  ]
+}
