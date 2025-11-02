@@ -50,6 +50,7 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | [development_workflow.md](phase1/development_workflow.md)         | Local development and integration testing workflows. With step-by-step guide for debugging both backend and frontend.         |
 | [jobs_and_ws.md](phase1/jobs_and_ws.md)                           | Details on architecture of asynchronous job execution and real-time UI update.                                                |
 | [testing_and_workspace.md](phase1/testing_and_workspace.md)       | Description of the unified VSCode workspace environment making testing, debugging and formatting seamless across the project. |
+| [ui_and_basic_workflow.md](phase1/ui_and_basic_workflow.md)       | Details on basic workflow with an overview of frontend architecture.                                                          |
 
 ## 💬 Contributing to Documentation
 
