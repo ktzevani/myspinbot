@@ -14,12 +14,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug Next.js Frontend",
+      "name": "Next.js: Debug Frontend Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 9229,
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      },
       "cwd": "${workspaceFolder}/frontend",
       "console": "integratedTerminal"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Next.js: Debug Frontend Client",
+      "url": "http://localhost:3001",
+      "webRoot": "${workspaceFolder}/frontend"
     }
   ]
 }

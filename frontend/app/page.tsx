@@ -1,18 +1,49 @@
 "use client";
-import { useEffect, useState } from 'react';
-export default function HomePage() {
-  const [status, setStatus] = useState('checking...');
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`)
-      .then(r => r.json())
-      .then(d => setStatus(d.status))
-      .catch(() => setStatus('unreachable'));
+
+import { useCallback, useMemo, useState } from "react";
+import UploadForm from "@/components/UploadForm";
+import StatusCard from "@/components/StatusCard";
+import type { Job } from "@/lib/api";
+import { useWebSocket } from "@/lib/useWebSocket";
+
+export default function Page() {
+  const [jobs, setJobs] = useState<Record<string, Job>>({});
+
+  const onJob = useCallback((job: Job) => {
+    setJobs((prev) => ({ ...prev, [job.jobId]: job }));
   }, []);
+
+  const onUpdate = useCallback((u: Partial<Job> & { jobId: string }) => {
+    setJobs((prev) => {
+      const old = prev[u.jobId] ?? {
+        jobId: u.jobId,
+        type: (u as any).type ?? "train",
+        status: "queued",
+        createdAt: Date.now(),
+      };
+      const merged: Job = { ...old, ...u };
+      return { ...prev, [u.jobId]: merged };
+    });
+  }, []);
+
+  useWebSocket(onUpdate);
+
+  const sorted = useMemo(
+    () =>
+      Object.values(jobs).sort(
+        (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)
+      ),
+    [jobs]
+  );
+
   return (
-    <div>
-      <h1 className='text-3xl font-bold mb-4'>🌀 MySpinBot Dashboard</h1>
-      <p>Backend health: <span className='font-mono'>{status}</span></p>
+    <div className="space-y-6">
+      <UploadForm onJob={onJob} />
+      <div className="grid gap-4">
+        {sorted.map((job) => (
+          <StatusCard key={job.jobId} job={job} />
+        ))}
+      </div>
     </div>
   );
 }
-

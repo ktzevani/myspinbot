@@ -5,14 +5,32 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3001 -H 0.0.0.0"
+    "start": "next start -p 3001 -H 0.0.0.0",
+    "serve": "next start -p 3001",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:ui": "vitest --ui",
+    "test:cov": "vitest run --coverage",
+    "test:ci": "vitest run --coverage --reporter=junit --reporter=default",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "docker:build": "docker build -t myspinbot-frontend .",
+    "docker:run": "docker run -it --rm -p 3001:3001 myspinbot-frontend",
+    "clean": "rm -rf .next coverage vitest-temp",
+    "analyze": "ANALYZE=true next build",
+    "precommit": "npm run lint && npm run format:check && npm run typecheck"
   },
   "dependencies": {
-    "next": "14.2.33",
+    "next": "^14.2.33",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "24.9.2",
@@ -28,6 +46,7 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "jsdom": "^27.1.0",
     "prettier": "^3.6.2",
+    "tailwindcss": "^4.1.16",
     "typescript": "5.9.3",
     "vitest": "^4.0.6"
   }

@@ -1,3 +1,9 @@
+# dependency junk
 node_modules
 npm-debug.log
-.next/cache
+# build artifacts on host (we rebuild cleanly in container)
+.next
+dist
+# environment files
+.env*
+!.env.production    # optional: allow production env
