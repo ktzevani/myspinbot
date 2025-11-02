@@ -1,0 +1,112 @@
+// ------------------------------------------------------------
+// /ws — WebSocket endpoint for real-time job updates
+// ------------------------------------------------------------
+// This route upgrades HTTP connections to WebSocket, allowing
+// clients to subscribe to specific job IDs and receive live
+// progress/state updates from BullMQ via Redis.
+//
+// Clients connect to:
+//    wss://api.myspinbot.local/ws
+//
+// Message format examples:
+//    → {"type": "subscribe", "jobId": "abcd123"}
+//    ← {"type": "subscribed", "jobId": "abcd123"}
+//    ← {"type": "update", "jobId": "abcd123", "state": "active", "progress": 42}
+//
+// Internally, the server polls or listens to BullMQ job events
+// and pushes JSON messages over the WebSocket channel.
+// ------------------------------------------------------------
+
+import { getJobStatus } from "../controllers/queue.js";
+import client from "prom-client";
+import websocketPlugin from "@fastify/websocket";
+import { register } from "./metrics.js";
+
+function getOrCreateMetrics(name, type, opts) {
+  return (
+    register.getSingleMetric(name) ||
+    new type({ name, ...opts, registers: [register] })
+  );
+}
+
+const connected = getOrCreateMetrics(
+  "websocket_clients_connected",
+  client.Gauge,
+  { help: "Current WS clients" }
+);
+const connections = getOrCreateMetrics(
+  "websocket_connections_total",
+  client.Counter,
+  { help: "Total WS connects" }
+);
+const received = getOrCreateMetrics(
+  "websocket_messages_received_total",
+  client.Counter,
+  { help: "WS messages in" }
+);
+const sent = getOrCreateMetrics(
+  "websocket_messages_sent_total",
+  client.Counter,
+  { help: "WS messages out" }
+);
+const lifetime = getOrCreateMetrics(
+  "websocket_client_lifetime_seconds",
+  client.Histogram,
+  { help: "Client session length" }
+);
+const wsErrors = getOrCreateMetrics("websocket_errors_total", client.Counter, {
+  help: "Invalid WS operations",
+});
+
+export default async function wsRoute(fastify) {
+  await fastify.register(websocketPlugin);
+
+  fastify.get(
+    "/ws",
+    { websocket: true },
+    (connection /* SocketStream */, req /* FastifyRequest */) => {
+      const start = Date.now();
+      connected.inc();
+      connections.inc();
+      fastify.log.info("WebSocket client connected");
+      fastify.log.info({ event: "ws_connect", ip: req.ip });
+
+      // Store active subscriptions per client
+      const subscriptions = new Set();
+
+      connection.socket.on("message", async (msg) => {
+        received.inc();
+        try {
+          const data = JSON.parse(msg.toString());
+          if (data.type === "subscribe" && data.jobId) {
+            subscriptions.add(data.jobId);
+            connection.socket.send(
+              JSON.stringify({ type: "subscribed", jobId: data.jobId })
+            );
+          }
+        } catch (err) {
+          wsErrors.inc();
+          connection.socket.send(
+            JSON.stringify({ type: "error", message: err.message })
+          );
+        }
+      });
+
+      // Periodically push job state to client
+      const interval = setInterval(async () => {
+        for (const jobId of subscriptions) {
+          const status = await getJobStatus(jobId);
+          sent.inc();
+          connection.socket.send(JSON.stringify({ type: "update", ...status }));
+        }
+      }, 2000);
+
+      connection.socket.on("close", () => {
+        connected.dec();
+        clearInterval(interval);
+        lifetime.observe((Date.now() - start) / 1000);
+        fastify.log.info("WebSocket client disconnected");
+      });
+    }
+  );
+}

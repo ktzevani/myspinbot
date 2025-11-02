@@ -19,8 +19,8 @@ let generateEvents = null;
 /**
  * Lazily construct a shared Redis connection for BullMQ.
  */
-function getConnection() {
-  if (!redisConnection) {
+function getConnection(createConnection = true) {
+  if (createConnection && !redisConnection) {
     const url = process.env.REDIS_URL || "redis://redis:6379";
     redisConnection = new IORedis(url, {
       maxRetriesPerRequest: null,
@@ -30,13 +30,9 @@ function getConnection() {
   return redisConnection;
 }
 
-// ------------------------------------------------------------
-// Exported helper functions
-// ------------------------------------------------------------
-
-export async function enqueueTrainJob(data) {
-  if (!trainQueue) {
-    const connection = getConnection();
+function getTrainQueue(createConnection = true) {
+  const connection = getConnection(createConnection);
+  if (!trainQueue && connection) {
     trainQueue = new Queue("train", { connection });
     trainEvents = new QueueEvents("train", { connection });
     trainEvents.on("completed", ({ jobId }) =>
@@ -46,13 +42,12 @@ export async function enqueueTrainJob(data) {
       console.error(`[BullMQ] ❌ Train job ${jobId} failed: ${failedReason}`)
     );
   }
-  const job = await trainQueue.add("train", data);
-  return job.id;
+  return trainQueue;
 }
 
-export async function enqueueGenerateJob(data) {
-  if (!generateQueue) {
-    const connection = getConnection();
+function getGenerateQueue(createConnection = true) {
+  const connection = getConnection(createConnection);
+  if (!generateQueue && connection) {
     generateQueue = new Queue("generate", { connection });
     generateEvents = new QueueEvents("generate", { connection });
     generateEvents.on("completed", ({ jobId }) =>
@@ -62,16 +57,39 @@ export async function enqueueGenerateJob(data) {
       console.error(`[BullMQ] ❌ Generate job ${jobId} failed: ${failedReason}`)
     );
   }
-  const job = await generateQueue.add("generate", data);
+  return generateQueue;
+}
+
+// ------------------------------------------------------------
+// Exported helper functions
+// ------------------------------------------------------------
+
+export async function enqueueTrainJob(data) {
+  const job = await getTrainQueue().add("train", data);
+  return job.id;
+}
+
+export async function enqueueGenerateJob(data) {
+  const job = await getGenerateQueue().add("generate", data);
   return job.id;
 }
 
 export async function getJobStatus(jobId) {
   // Try both queues to find the job
-  let job = await Job.fromId(trainQueue, jobId);
-  if (!job) job = await Job.fromId(generateQueue, jobId);
-  if (!job) return { state: "not_found" };
-
+  let queue = getTrainQueue(false);
+  let job = null;
+  if (queue) {
+    job = await Job.fromId(queue, jobId);
+  }
+  if (!job) {
+    queue = getGenerateQueue(false);
+    if (queue) {
+      job = await Job.fromId(queue, jobId);
+    }
+  }
+  if (!job) {
+    return { state: "not_found" };
+  }
   const state = await job.getState();
   const progress = job.progress || 0;
   return { id: job.id, state, progress };
