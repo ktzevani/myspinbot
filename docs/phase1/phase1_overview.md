@@ -1,5 +1,17 @@
 # 🧫 Phase 1 — Backend & Frontend Scaffold
 
+## 📚 Docs Reference
+
+| Document                                                     | Purpose                                                                                                                       |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| [phase1_overview.md](./phase1_overview.md)                   | **This document**, phase overview.                                                                                            |
+| [implementation_details.md](./implementation_details.md)     | Implementation details for Fastify (API) and Next.js (UI) services.                                                           |
+| [container_infrastructure.md](./container_infrastructure.md) | Docker Compose topology, Traefik routing, and monitoring integration.                                                         |
+| [development_workflow.md](./development_workflow.md)         | Local development and integration testing workflows. With step-by-step guide for debugging both backend and frontend.         |
+| [jobs_and_ws.md](./jobs_and_ws.md)                           | Details on architecture of asynchronous job execution and real-time UI update.                                                |
+| [testing_and_workspace.md](./testing_and_workspace.md)       | Description of the unified VSCode workspace environment making testing, debugging and formatting seamless across the project. |
+| [ui_and_basic_workflow.md](./ui_and_basic_workflow.md)       | Details on basic workflow with an overview of frontend architecture.                                                          |
+
 ## 🎯 Objective
 
 Phase 1 brings MySpinBot out of cryogenic sleep and gives it a **spine and pulse** — the backend–frontend scaffolding that ties the UI, API, Redis, and infrastructure into a single system.

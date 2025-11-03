@@ -29,29 +29,6 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | 4     | Observability & Quality                                  | ⏳ Planned  | ESRGAN, retries, metrics dashboards, CI hooks.                          |
 | 5     | Polish & Docs                                            | ⏳ Planned  | Authentication, UX refinement, public documentation.                    |
 
-## 🗂 Phase 0 Reference (Infrastructure)
-
-| Document                                            | Purpose                                                          |
-| --------------------------------------------------- | ---------------------------------------------------------------- |
-| [phase0_overview.md](phase0/phase0_overview.md)     | Overview and deployment guide for the base infrastructure stack. |
-| [traefik_guide.md](phase0/traefik_guide.md)         | Traefik configuration, secrets, and certificate management.      |
-| [prometheus_guide.md](phase0/prometheus_guide.md)   | Prometheus setup and metrics configuration.                      |
-| [grafana_guide.md](phase0/grafana_guide.md)         | Grafana provisioning, `.env` setup, and dashboards.              |
-| [runtime_dirs.md](phase0/runtime_dirs.md)           | Explanation of runtime data directories and Git policies.        |
-| [directory_summary.md](phase0/directory_summary.md) | Summary table linking all Phase 0 docs and READMEs.              |
-
-## 🧩 Phase 1 Reference (Backend & Frontend Scaffold)
-
-| Document                                                          | Purpose                                                                                                                       |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| [phase1_overview.md](phase1/phase1_overview.md)                   | High-level plan and scope of the backend & frontend scaffolding phase.                                                        |
-| [implementation_details.md](phase1/implementation_details.md)     | Implementation details for Fastify (API) and Next.js (UI) services.                                                           |
-| [container_infrastructure.md](phase1/container_infrastructure.md) | Docker Compose topology, Traefik routing, and monitoring integration.                                                         |
-| [development_workflow.md](phase1/development_workflow.md)         | Local development and integration testing workflows. With step-by-step guide for debugging both backend and frontend.         |
-| [jobs_and_ws.md](phase1/jobs_and_ws.md)                           | Details on architecture of asynchronous job execution and real-time UI update.                                                |
-| [testing_and_workspace.md](phase1/testing_and_workspace.md)       | Description of the unified VSCode workspace environment making testing, debugging and formatting seamless across the project. |
-| [ui_and_basic_workflow.md](phase1/ui_and_basic_workflow.md)       | Details on basic workflow with an overview of frontend architecture.                                                          |
-
 ## 💬 Contributing to Documentation
 
 1. Keep all conceptual docs (`01_…05_…`) in root `docs/` — they define _what_ and _why_.

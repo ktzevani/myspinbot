@@ -1,5 +1,16 @@
 # 🧭 Phase 0 — Infrastructure Bootstrap
 
+## 📚 Docs Reference
+
+| Document                                       | Purpose                                                     |
+| ---------------------------------------------- | ----------------------------------------------------------- |
+| [phase0_overview.md](./phase0_overview.md)     | **This document**, phase overview.                          |
+| [traefik_guide.md](./traefik_guide.md)         | Traefik configuration, secrets, and certificate management. |
+| [prometheus_guide.md](./prometheus_guide.md)   | Prometheus setup and metrics configuration.                 |
+| [grafana_guide.md](./grafana_guide.md)         | Grafana provisioning, `.env` setup, and dashboards.         |
+| [runtime_dirs.md](./runtime_dirs.md)           | Explanation of runtime data directories and Git policies.   |
+| [directory_summary.md](./directory_summary.md) | Summary table linking all Phase 0 docs and READMEs.         |
+
 ## 🎯 Objective
 
 Phase 0 establishes the **infrastructure foundation** of the MySpinBot platform.  
