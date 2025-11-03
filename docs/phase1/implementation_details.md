@@ -10,9 +10,8 @@ These components form the operational spine of MySpinBot, bridging infrastructur
 | Service      | Stack                                          | Purpose                                                      | Exposed At                    | Observability                                 |
 | ------------ | ---------------------------------------------- | ------------------------------------------------------------ | ----------------------------- | --------------------------------------------- |
 | **Backend**  | Node 20 + Fastify + BullMQ + Redis             | REST API, job orchestrator, metrics & WebSocket events       | `https://api.myspinbot.local` | Prometheus scrape target                      |
-| **Frontend** | Next.js 14 + TypeScript + Tailwind + shadcn/ui | User interface for uploads, status tracking, and job control | `https://ui.myspinbot.local`  | Client telemetry (future)                     |
+| **Frontend** | Next.js 15 + TypeScript + Tailwind + shadcn/ui | User interface for uploads, status tracking, and job control | `https://ui.myspinbot.local`  | Client telemetry (future)                     |
 | **Redis**    | Redis 7                                        | Queue & pub/sub backbone for BullMQ                          | internal                      | `redis.myspinbot.local` (optional Insight UI) |
-
 
 ## 🤖 Architecture Rationale
 
@@ -121,11 +120,11 @@ frontend/
 
 ### Features
 
-* Dashboard displays health + job list.
-* Upload form for images/audio and text prompts.
-* Live job progress via WebSocket.
-* API config from `NEXT_PUBLIC_API_URL`.
-* Tailwind + shadcn/ui styling.
+- Dashboard displays health + job list.
+- Upload form for images/audio and text prompts.
+- Live job progress via WebSocket.
+- API config from `NEXT_PUBLIC_API_URL`.
+- Tailwind + shadcn/ui styling.
 
 ### Example Dockerfile
 
@@ -150,10 +149,11 @@ CMD ["npm", "run", "start"]
 ```
 
 ## 📊 Monitoring Integration
+
 ~~
-| Component    | Metric Source                        | Target                        |
+| Component | Metric Source | Target |
 | ------------ | ------------------------------------ | ----------------------------- |
-| **Backend**  | `/metrics`                           | Prometheus scrape             |
-| **Redis**    | queue stats                          | optional exporter (Phase 2)   |
-| **Frontend** | none (for now)                       | client metrics optional       |
-| **Grafana**  | Dashboard: *Backend & Frontend* | job rate, WS clients, latency |
+| **Backend** | `/metrics` | Prometheus scrape |
+| **Redis** | queue stats | optional exporter (Phase 2) |
+| **Frontend** | none (for now) | client metrics optional |
+| **Grafana** | Dashboard: _Backend & Frontend_ | job rate, WS clients, latency |

@@ -2,7 +2,7 @@
 
 ### 🎯 Objective
 
-Build a small **Next.js 14 + Tailwind + WebSocket** interface that implements the **first foundational workflow** of MySpinBot:
+Build a small **Next.js 15 + Tailwind + WebSocket** interface that implements the **first foundational workflow** of MySpinBot:
 
 > User uploads an image and a text prompt to **train a LoRA** and then **generate a video** from that trained model.
 
@@ -12,7 +12,7 @@ Later phases will introduce the second workflow — using **existing LoRAs** to 
 
 ## ⚙️ Architecture Overview
 
-The frontend follows the **canonical Next.js 14 App Router layout**, matching modern best practices used in official templates.
+The frontend follows the **canonical Next.js 15 App Router layout**, matching modern best practices used in official templates.
 
 ```
 frontend/
@@ -153,5 +153,5 @@ A running UI on `https://ui.myspinbot.local` that:
 - Displays job chaining: **train → generate**.
 - Shows mock status and progress from WebSocket updates.
 - Includes upload form and branding logo in layout.
-- Uses canonical Next.js 14 project structure and Tailwind configuration.
+- Uses canonical Next.js 15 project structure and Tailwind configuration.
 - Establishes a solid foundation for **Phase 2** (LoRA library selection, advanced job control, real video previews).

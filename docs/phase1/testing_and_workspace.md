@@ -2,7 +2,7 @@
 
 ## 🎯 Objective
 
-Establish a unified, developer-friendly testing and workspace environment across **backend** (Fastify + BullMQ) and **frontend** (Next.js 14 + React 19).
+Establish a unified, developer-friendly testing and workspace environment across **backend** (Fastify + BullMQ) and **frontend** (Next.js 15 + React 19).
 The goal is to make testing, debugging, and formatting seamless for every contributor while keeping personalized VS Code settings separate from team-wide configuration.
 
 ## 🧰 Workspace Architecture
@@ -86,7 +86,7 @@ Keep these **untracked** or add to `.gitignore`:
 | Scope            | Tech Stack                                               | Purpose                                                             |
 | ---------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
 | **Backend**      | Node 20 + Fastify + Vitest + Supertest                   | API integration and queue tests (e.g., `/api/train`, `/api/status`) |
-| **Frontend**     | Next.js 14 + React 19 + Vitest + Testing Library + jsdom | Component and UI logic tests                                        |
+| **Frontend**     | Next.js 15 + React 19 + Vitest + Testing Library + jsdom | Component and UI logic tests                                        |
 | **E2E (future)** | Playwright                                               | Full browser-level flows (UI ↔ API ↔ Redis)                         |
 
 All test layers share **Vitest** as the execution framework for consistent syntax and tooling integration.

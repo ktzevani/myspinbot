@@ -19,13 +19,16 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
 
     setBusy(true);
     try {
-      const { trainJobId } = await postTrain({ file, prompt });
+      const { type, jobId, progress, status } = await postTrain({
+        file,
+        prompt,
+      });
       onJob({
-        jobId: trainJobId,
+        jobId: jobId,
         type: "train",
         prompt,
-        progress: 0,
-        status: "queued",
+        progress: progress,
+        status: status,
         createdAt: Date.now(),
       });
       setPrompt("");
@@ -40,7 +43,14 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-3">
+        <label
+          className="block text-sm font-medium text-gray-700"
+          htmlFor="file-input"
+        >
+          Image
+        </label>
         <input
+          data-testid="file-input"
           ref={fileRef}
           type="file"
           accept="image/*"

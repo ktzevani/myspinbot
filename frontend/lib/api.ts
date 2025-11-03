@@ -1,19 +1,22 @@
-export type JobStatus = "queued" | "processing" | "done" | "failed";
-export type JobType = "train" | "generate";
+// export type JobStatus = "queued" | "processing" | "done" | "failed";
+// export type JobType = "train" | "generate";
 
 export interface Job {
   jobId: string;
-  type: JobType;
+  type: string;
   prompt?: string;
-  progress?: number; // 0..1
-  status: JobStatus;
+  progress: number; // 0..1
+  status: string;
   resultUrl?: string;
   createdAt: number;
   parentJobId?: string; // for generate linked to train
 }
 
 export interface TrainResponse {
-  trainJobId: string;
+  type: string;
+  jobId: string;
+  progress: number;
+  status: string;
 }
 
 const API_BASE =
@@ -30,7 +33,8 @@ export async function postTrain(opts: {
 
   const res = await fetch(`${API_BASE}/api/train`, {
     method: "POST",
-    body: form,
+    // body: form,
+    body: "dummy",
   });
   if (!res.ok) throw new Error(`Train failed: ${res.status}`);
   return res.json();

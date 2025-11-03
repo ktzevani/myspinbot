@@ -17,8 +17,9 @@ export default function Page() {
     setJobs((prev) => {
       const old = prev[u.jobId] ?? {
         jobId: u.jobId,
-        type: (u as any).type ?? "train",
-        status: "queued",
+        type: u.type,
+        status: u.status,
+        progress: u.progress,
         createdAt: Date.now(),
       };
       const merged: Job = { ...old, ...u };

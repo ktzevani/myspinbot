@@ -1,3 +1,5 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = { reactStrictMode: true, output: 'standalone' };
+const nextConfig = {
+  typedRoutes: true,
+  reactStrictMode: true,
+};
 export default nextConfig;

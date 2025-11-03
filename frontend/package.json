@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev --turbopack -p 3001",
     "build": "next build",
     "start": "next start -p 3001 -H 0.0.0.0",
     "serve": "next start -p 3001",
@@ -25,16 +25,17 @@
     "precommit": "npm run lint && npm run format:check && npm run typecheck"
   },
   "dependencies": {
-    "next": "^14.2.33",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next": "^15.5.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.16",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "24.9.2",
-    "@types/react": "19.2.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vitejs/plugin-react": "^5.1.0",
@@ -47,7 +48,8 @@
     "jsdom": "^27.1.0",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.16",
-    "typescript": "5.9.3",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.0.6"
   }
 }

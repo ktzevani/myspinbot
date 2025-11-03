@@ -14,6 +14,19 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug Fastify Backend (ephemeral Redis)",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/backend/debug.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "restart": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Next.js: Debug Frontend Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
