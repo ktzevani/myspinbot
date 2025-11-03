@@ -85,3 +85,8 @@ GPU workloads still wait until Phase 2 — here we make the data and control pat
 | **Redis**         | `redis:7` service         | Queue storage + pub/sub backend                     |
 | **Compose Stack** | `docker-compose.yml v1.1` | Adds `api`,`ui` and `redis` services and new labels |
 | **Grafana**       | Dashboard update          | Job metrics + WS connections                        |
+
+## 🧭 Quick Navigation
+
+➡️ [Go to Phase 2 Overview](phase2/phase2_overview.md)  
+⬅️ [Back to Phase 0 Overview](phase0/phase0_overview.md)
