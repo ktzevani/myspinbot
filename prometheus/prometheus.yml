@@ -13,8 +13,12 @@ scrape_configs:
   - job_name: grafana
     metrics_path: /metrics
     static_configs: [{ targets: ["grafana:3000"] }]
-  - job_name: 'myspinbot-backend'
-    static_configs: [{ targets: ['api:3000'] }]
-  - job_name: 'redis'
+  - job_name: "myspinbot-backend"
+    static_configs: [{ targets: ["api:3000"] }]
+  - job_name: "redis"
     metrics_path: /metrics
-    static_configs: [{ targets: ['redis-exporter:9121'] }]
+    static_configs: [{ targets: ["redis-exporter:9121"] }]
+  - job_name: "minio"
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ["minio:9000"]

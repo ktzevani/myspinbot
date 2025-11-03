@@ -1,16 +1,29 @@
-﻿<# 
+﻿<#
 .SYNOPSIS
-    MySpinBot - Local Secret & Certificate Provisioning (PowerShell)
+    MySpinBot - Local Secrets, Certificates & MinIO Provisioning (PowerShell)
 
 .DESCRIPTION
-    Generates BasicAuth credentials (via OpenSSL) and wildcard TLS certificates (via mkcert)
-    for local Traefik-based HTTPS routing.
+    Prepares the local development environment for MySpinBot by generating:
+      • BasicAuth credentials (via OpenSSL) for Traefik-protected services
+      • MinIO root credentials synchronized with Traefik BasicAuth
+      • Wildcard TLS certificates (via mkcert) for local HTTPS routing
+
+    The script ensures all secret directories exist, installs dependencies (OpenSSL & mkcert) if missing,
+    and keeps all generated files outside of version control under the /secrets directory.
 
 .PARAMETERS
-    AUTH_USER : Optional username (default = "admin")
-    AUTH_PASS : Optional password (default = "admin")
-    DOMAIN    : Optional domain (default = "myspinbot.local")
+    AUTH_USER : Optional username for BasicAuth and MinIO (default = "admin")
+    AUTH_PASS : Optional password for BasicAuth and MinIO (default = "password")
+    DOMAIN    : Optional local domain for certificates (default = "myspinbot.local")
     FORCE     : Overwrite existing files if "true"
+
+.NOTES
+    All sensitive files (htpasswd, root.env, certs) are generated in the secrets/ directory
+    and should remain untracked by git.
+
+    Example usage:
+        PS> ./scripts/provision_secrets.ps1
+        PS> AUTH_USER=myuser AUTH_PASS=SuperSecret DOMAIN=myspinbot.dev ./scripts/provision_secrets.ps1
 #>
 
 param(
@@ -22,7 +35,7 @@ param(
 
 # Defaults
 if (-not $AUTH_USER) { $AUTH_USER = 'admin' }
-if (-not $AUTH_PASS) { $AUTH_PASS = 'admin' }
+if (-not $AUTH_PASS) { $AUTH_PASS = 'password' }
 if (-not $DOMAIN)    { $DOMAIN    = 'myspinbot.local' }
 if (-not $FORCE)     { $FORCE     = 'false' }
 
@@ -102,6 +115,43 @@ try {
     Write-Host '(!) Unable to adjust file permissions (non-critical).'
 }
 
+# 5) Provision MinIO root credentials (synchronized with Traefik)
+
+$MinioDir = Join-Path $RootDir 'minio\secrets'
+$MinioEnv = Join-Path $MinioDir 'root.env'
+New-Item -ItemType Directory -Force -Path $MinioDir | Out-Null
+
+if (($FORCE -eq 'true') -or -not (Test-Path $MinioEnv)) {
+    Write-Host '-> Generating MinIO root.env (synchronized with Traefik BasicAuth)...'
+    try {
+        # Same credentials as Traefik BasicAuth
+        $content = @()
+        $content += "MINIO_ROOT_USER=$AUTH_USER"
+        $content += "MINIO_ROOT_PASSWORD=$AUTH_PASS"
+        Set-Content -Path $MinioEnv -Value $content -Encoding Ascii
+        Write-Host ("   Created MinIO root.env: {0}" -f $MinioEnv)
+    }
+    catch {
+        Write-Error "[X] Failed to write MinIO credentials: $_"
+        exit 1
+    }
+} else {
+    Write-Host '-> MinIO root.env already exists (use FORCE=true to regenerate).'
+}
+
+# 6) Final Summary
+$minioDomain = "s3.$DOMAIN"
+
+Write-Host ''
+Write-Host '--- [MySpinBot] Provisioning Summary ---'
+Write-Host ('   -> BasicAuth user:  {0}' -f $AUTH_USER)
+Write-Host ('   -> Domain:          {0}' -f $DOMAIN)
+Write-Host ('   -> Traefik secrets: {0}' -f $SecretsDir)
+Write-Host ('   -> MinIO secrets:   {0}' -f $MinioDir)
+Write-Host ('   -> Certificates:    {0}' -f $CertsDir)
+Write-Host ''
+Write-Host ('✅  Access MinIO Console at: https://{0}' -f $minioDomain)
+Write-Host ('    Username: {0}' -f $AUTH_USER)
+Write-Host ('    Password: (stored in minio\secrets\root.env)')
+Write-Host ''
 Write-Host '✅ [MySpinBot] Local provisioning complete.'
-Write-Host ('   Secrets directory: {0}' -f $SecretsDir)
-Write-Host ('   Certificates:      {0}' -f $CertsDir)

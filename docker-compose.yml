@@ -99,7 +99,16 @@ services:
       - internal-network
     volumes:
       - redis-data:/data
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "512mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -202,6 +211,26 @@ services:
       - api
       - traefik
 
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio
+    command: server /data --console-address ":9001" --anonymous
+    restart: unless-stopped
+    env_file:
+      - ./minio/config.env
+      - ./minio/secrets/root.env
+    volumes:
+      - minio-data:/data
+    networks:
+      - internal-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`s3.myspinbot.local`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls=true"
+      - "traefik.http.services.minio.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio.middlewares=dashboard-auth@file"
+
 networks:
   internal-network:
     driver: bridge
@@ -209,3 +238,4 @@ networks:
 volumes:
   redis-data:
   redis-insight-data:
+  minio-data:
