@@ -106,5 +106,5 @@ Once Phase 0 is running and validated:
 
 ## 🧭 Quick Navigation
 
-➡️ [Go to Phase 1 Overview](phase1/phase1_overview.md)  
-⬅️ [Back to Documentation Root](./README.md)
+➡️ [Go to Phase 1 Overview](../phase1/phase1_overview.md)  
+⬅️ [Back to Documentation Root](../README.md)
