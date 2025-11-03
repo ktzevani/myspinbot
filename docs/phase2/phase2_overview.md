@@ -1,5 +1,11 @@
 # 🧠 Phase 2 — GPU Worker Integration
 
+## 📚 Docs Reference
+
+| Document                                   | Purpose                            |
+| ------------------------------------------ | ---------------------------------- |
+| [phase2_overview.md](./phase2_overview.md) | **This document**, phase overview. |
+
 ## 🎯 Objective
 
 Phase 2 breathes computational life into the system: our first GPU-powered backend service, the **Python GPU Worker**, becomes operational. This service will execute the core AI workflows (LoRA training, voice cloning, and video rendering) using GPU-accelerated libraries — all fully integrated into the existing infrastructure, which already includes Redis, Postgres, and MinIO.
