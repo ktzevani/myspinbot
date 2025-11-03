@@ -1,0 +1,26 @@
+{
+  "name": "🐍 MySpinBot GPU Worker",
+  "dockerComposeFile": ["../../docker-compose.yml"],
+  "service": "worker",
+  "workspaceFolder": "/app",
+  "runServices": ["worker"],
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/venv/bin/python",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.typeCheckingMode": "basic",
+        "python.testing.pytestEnabled": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

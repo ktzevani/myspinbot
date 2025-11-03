@@ -1,0 +1,17 @@
+[project]
+name = "myspinbot-worker"
+version = "0.1.0"
+description = "GPU-enabled AI worker for MySpinBot Phase 2"
+authors = [{ name = "Konstantinos Tzevanidis" }]
+requires-python = ">=3.10"
+dependencies = [
+    "redis>=5.0",
+    "prometheus-client>=0.17",
+    "fastapi",
+    "uvicorn",
+    "python-dotenv"
+]
+
+[tool.uv]
+# ensure local virtualenv is used
+path = "/venv"

@@ -5,34 +5,30 @@
   // "editor.insertSpaces": true,
   // "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "files.associations": {
-    "*.css": "tailwindcss"
-  },
+  "tailwindCSS.experimental.classRegex": [
+    ["className\\s*=\\s*\"([^\"]*)\"", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "tailwindCSS.emmetCompletions": true,
+  "tailwindCSS.showPixelEquivalents": true,
   "tailwindCSS.includeLanguages": {
     "plaintext": "html",
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  "tailwindCSS.experimental.classRegex": [
-    ["className\\s*=\\s*\"([^\"]*)\"", "[\"'`]([^\"'`]*).*?[\"'`]"]
-  ],
-  "tailwindCSS.emmetCompletions": true,
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
   "tailwindCSS.colorDecorators": true,
-  "tailwindCSS.showPixelEquivalents": true,
   "eslint.format.enable": true,
   "eslint.validate": ["typescript", "typescriptreact"],
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
-  "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.quoteStyle": "double",
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
-  // "vitest.command": "npm test",
-  "vitest.configFile": "vitest.config.ts",
-  "vitest.enableCoverage": true,
-  "vitest.commandLine": "npm run test:watch",
+  "typescript.tsdk": "node_modules/typescript/lib",
   "workbench.iconTheme": "material-icon-theme",
   "workbench.colorTheme": "Default Dark Modern",
   "explorer.compactFolders": false,

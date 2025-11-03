@@ -1,10 +1,6 @@
 {
   "name": "🌀 MySpinBot Workspace",
-  "folders": [
-    { "path": "." },
-    { "path": "backend" },
-    { "path": "frontend" }
-  ],
+  "folders": [{ "path": "." }, { "path": "backend" }, { "path": "frontend" }],
   "settings": {
     // Shared formatting & linting defaults for everything
     "editor.formatOnSave": true,

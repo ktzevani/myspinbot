@@ -231,6 +231,41 @@ services:
       - "traefik.http.services.minio.loadbalancer.server.port=9001"
       - "traefik.http.routers.minio.middlewares=dashboard-auth@file"
 
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    image: myspinbot/worker:v0.2
+    container_name: myspinbot-worker
+    restart: unless-stopped
+    networks:
+      - internal-network
+    depends_on:
+      - redis
+      - minio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    env_file:
+      - ./minio/secrets/root.env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_BUCKETS=loras,voices,videos
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./worker:/app
+      - models-cache:/opt/models
+    gpus: all
+
 networks:
   internal-network:
     driver: bridge
@@ -239,3 +274,4 @@ volumes:
   redis-data:
   redis-insight-data:
   minio-data:
+  models-cache:

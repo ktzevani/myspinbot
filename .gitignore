@@ -22,6 +22,7 @@ __pycache__/
 .vscode/*.db
 
 # ── Python / Node artifacts ──────────────────
+.pytest_cache/
 .env
 .env.*
 !.env.example
@@ -33,6 +34,8 @@ build/
 coverage/
 *.coverage
 *.lcov
+*.egg-info/
+*.egg-info
 
 # ── Node / Next.js ─────────────
 # Next.js build and cache output
