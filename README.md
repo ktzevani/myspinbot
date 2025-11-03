@@ -41,7 +41,7 @@ Start [here](./docs/README.md).
 | 🧊 Subzero | Repo setup + docs freeze               | ✅ Completed |
 | 0          | Infra Bootstrap (Traefik + Monitoring) | ✅ Completed |
 | 1          | Backend & Frontend Scaffold            | ✅ Completed |
-| 2          | GPU Worker Integration                 | 🕓 Pendin    |
+| 2          | GPU Worker Integration                 | 🕓 Pending   |
 | 3          | AI Pipeline Implementation             | ⏳ Planned   |
 | 4          | Quality & Observability                | ⏳ Planned   |
 | 5          | Polish & Docs                          | ⏳ Planned   |
