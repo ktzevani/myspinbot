@@ -66,6 +66,9 @@ RUN mkdir -p /tmp/src && \
     patch -p1 < cu13.patch && \
     uv pip install -v --no-cache-dir --no-build-isolation .
 
+# ---- Add Orchestration/SDK Libraries ----------------------------------------
+RUN uv pip install --no-cache-dir dramatiq pydantic prometheus-client minio langgraph
+
 # ---- Final setup ------------------------------------------------------------
 ENV NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
