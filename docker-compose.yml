@@ -214,12 +214,13 @@ services:
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
-    command: server /data --console-address ":9001" --anonymous
+    entrypoint: ["/bin/sh", "/init.sh"]
     restart: unless-stopped
     env_file:
       - ./minio/config.env
       - ./minio/secrets/root.env
     volumes:
+      - ./minio/init.sh:/init.sh:ro
       - minio-data:/data
     networks:
       - internal-network
@@ -229,7 +230,6 @@ services:
       - "traefik.http.routers.minio.entrypoints=websecure"
       - "traefik.http.routers.minio.tls=true"
       - "traefik.http.services.minio.loadbalancer.server.port=9001"
-      - "traefik.http.routers.minio.middlewares=dashboard-auth@file"
 
   worker:
     build:
