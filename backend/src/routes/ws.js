@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // This route upgrades HTTP connections to WebSocket, allowing
 // clients to subscribe to specific job IDs and receive live
-// progress/state updates from BullMQ via Redis.
+// progress/status updates from Redis.
 //
 // Clients connect to:
 //    wss://api.myspinbot.local/ws
@@ -11,10 +11,10 @@
 // Message format examples:
 //    → {"type": "subscribe", "jobId": "abcd123"}
 //    ← {"type": "subscribed", "jobId": "abcd123"}
-//    ← {"type": "update", "jobId": "abcd123", "state": "active", "progress": 42}
+//    ← {"type": "update", "jobId": "abcd123", "status": "running", "progress": 42}
 //
-// Internally, the server polls or listens to BullMQ job events
-// and pushes JSON messages over the WebSocket channel.
+// Internally, the server polls or listens to Redis Pub/Sub
+// events and pushes JSON messages over the WebSocket channel.
 // ------------------------------------------------------------
 
 import { getJobStatus } from "../controllers/queue.js";
@@ -92,7 +92,7 @@ export default async function wsRoute(fastify) {
         }
       });
 
-      // Periodically push job state to client
+      // Periodically push job status to client
       const interval = setInterval(async () => {
         for (const jobId of subscriptions) {
           const status = await getJobStatus(jobId);

@@ -24,7 +24,7 @@ describe("GET /api/status/:id", () => {
       url: `/api/status/${jobId}`,
     });
     const body = JSON.parse(res.body);
-    expect(body).toHaveProperty("state");
+    expect(body).toHaveProperty("status");
     expect(body).toHaveProperty("progress");
   });
 });

@@ -7,9 +7,9 @@ function pillColor(status: Job["status"]) {
   switch (status) {
     case "queued":
       return "bg-gray-200 text-gray-800";
-    case "processing":
+    case "running":
       return "bg-blue-200 text-blue-900";
-    case "done":
+    case "completed":
       return "bg-green-200 text-green-900";
     case "failed":
       return "bg-red-200 text-red-900";

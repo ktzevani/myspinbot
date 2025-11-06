@@ -65,6 +65,6 @@ describe("WebSocket /ws route", () => {
     expect(subscribed.jobId).toBe("test123");
 
     expect(update).toBeDefined();
-    expect(update).toHaveProperty("state");
+    expect(update).toHaveProperty("status");
   }, 15000); // allow 15s for WS loop
 });

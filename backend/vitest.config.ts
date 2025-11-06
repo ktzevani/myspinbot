@@ -6,5 +6,7 @@ export default defineConfig({
     environment: "node",
     globalSetup: ["./tests/globalConfig.js"],
     setupFiles: ["./tests/setupQueue.js"],
+    sequence: { concurrent: false },
+    pool: "threads",
   },
 });

@@ -1,8 +1,8 @@
 // ------------------------------------------------------------
 // /api/train — Enqueue a training job
 // ------------------------------------------------------------
-// This endpoint interacts with BullMQ to add a job to the
-// 'train' queue and responsds with the generated job ID.
+// This endpoint introduces a job to the 'train' job queue and
+// responsds with the generated job ID.
 // ------------------------------------------------------------
 
 import { enqueueTrainJob } from "../controllers/queue.js";
