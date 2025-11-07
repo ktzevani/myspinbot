@@ -1,17 +1,34 @@
 [project]
 name = "myspinbot-worker"
-version = "0.1.0"
-description = "GPU-enabled AI worker for MySpinBot Phase 2"
+version = "0.2.0"
+description = "GPU-enabled AI worker for MySpinBot"
 authors = [{ name = "Konstantinos Tzevanidis" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12.3"
+scripts = { "myspinbot-worker" = "worker.main:run" }
 dependencies = [
-    "redis>=5.0",
-    "prometheus-client>=0.17",
-    "fastapi",
-    "uvicorn",
-    "python-dotenv"
+    # Core runtime
+    "redis>=6.4",
+    "dramatiq[redis]>=1.18.0",
+    "pydantic>=2.12.4",
+    "prometheus-client>=0.23.1",
+    "minio>=7.2.18",
+    "langgraph>=1.0.2",
+    # Web / metrics serving
+    "fastapi>=0.121.0",
+    "uvicorn>=0.38.0",
+    # Configuration / env
+    "python-dotenv>=1.2.1"
 ]
 
-[tool.uv]
-# ensure local virtualenv is used
-path = "/venv"
+[project.optional-dependencies]
+dev = ["debugpy"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.dramatiq]
+broker = "redis://redis:6379"
+
+[tool.setuptools.packages.find]
+where = ["src"]

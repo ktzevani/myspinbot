@@ -59,6 +59,8 @@ if [[ "$FORCE" == "true" || ! -f "$MINIO_ENV_FILE" ]]; then
   {
     echo "MINIO_ROOT_USER=${AUTH_USER}"
     echo "MINIO_ROOT_PASSWORD=${AUTH_PASS}"
+    echo "MINIO_ACCESS_KEY=${AUTH_USER}"
+    echo "MINIO_SECRET_KEY=${AUTH_PASS}"
   } >"$MINIO_ENV_FILE"
   chmod 600 "$MINIO_ENV_FILE"
   echo "   Created MinIO root.env: $MINIO_ENV_FILE"

@@ -128,6 +128,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $MinioEnv)) {
         $content = @()
         $content += "MINIO_ROOT_USER=$AUTH_USER"
         $content += "MINIO_ROOT_PASSWORD=$AUTH_PASS"
+        $content += "MINIO_ACCESS_KEY=$AUTH_USER"
+        $content += "MINIO_SECRET_KEY=$AUTH_PASS"
         Set-Content -Path $MinioEnv -Value $content -Encoding Ascii
         Write-Host ("   Created MinIO root.env: {0}" -f $MinioEnv)
     }

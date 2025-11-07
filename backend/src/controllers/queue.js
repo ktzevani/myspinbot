@@ -9,7 +9,7 @@
 //   - closeQueues()              -> gracefully close Redis clients
 //
 // Runtime conventions (mirrors your Phase 2 plan):
-//   • Enqueue -> XADD to jobs:<name> with fields: jid, type, ts, data(JSON)
+//   • Enqueue -> XADD to jobs:<name> with fields: jid, type, timestamp, data(JSON)
 //   • Status  -> HSET job:<jid> { status, progress, type, enqueued_at, ... }
 //   • Events  -> PUBLISH status:<jid> "queued|running|completed|failed"
 //                PUBLISH progress:<jid> "<0..1|−1>"
@@ -212,8 +212,8 @@ async function enqueueJob(kind, data) {
     "jid",
     jobId,
     "type",
-    kind,
-    "ts",
+    kind + "_lora",
+    "timestamp",
     timestamp,
     "data",
     serializedPayload
@@ -234,7 +234,6 @@ async function enqueueJob(kind, data) {
   pipeline.expire(jobStatusKey(jobId), JOB_KEY_TTL_SECONDS);
   pipeline.expire(jobProgressKey(jobId), JOB_KEY_TTL_SECONDS);
   pipeline.publish(statusChannel(jobId), "queued");
-  pipeline.publish(progressChannel(jobId), "0");
   await pipeline.exec();
 
   return jobId;

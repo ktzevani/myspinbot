@@ -69,10 +69,16 @@ RUN mkdir -p /tmp/src && \
 # ---- Add Orchestration/SDK Libraries ----------------------------------------
 RUN uv pip install --no-cache-dir dramatiq pydantic prometheus-client minio langgraph
 
+# ---- Install gdb ------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends gdb \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---- Final setup ------------------------------------------------------------
 ENV NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 COPY . /app
-ENTRYPOINT ["sh", "-lc"]
-CMD ["uv pip install --no-cache-dir -e .[dev,test] && tail -f /dev/null"]
+RUN uv pip install --no-cache-dir -e .[dev,test]
+# Production version
+# CMD ["python", "-m", "worker.main"]
+CMD ["python", "-Xfrozen_modules=off", "-m", "worker.main"]

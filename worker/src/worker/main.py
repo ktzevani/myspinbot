@@ -1,25 +1,154 @@
-import os
+from __future__ import annotations
 import time
-import redis
-from prometheus_client import start_http_server, Counter, Gauge
 
-# simple startup metrics
-jobs_processed = Counter("gpu_jobs_processed_total", "Number of GPU jobs processed")
-gpu_busy = Gauge("gpu_busy", "Whether GPU is active (1=busy,0=idle)")
+time.sleep(30)
+print("Awoken!!!")
+
+import asyncio
+from contextlib import asynccontextmanager, suppress
+from fastapi import FastAPI, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+from .bridge import RedisBridge
+from .schemas import JobMessage, ProgressUpdate
+from .tasks import get_task_for_job, PublishHook, TASK_PUBSUB_CHANNEL
+from .utils import get_config, get_metrics, setup_graceful_shutdown
+
+# -- Configuration & Metrics
+
+worker_config = get_config()
+prometheus_registry, prometheus_metrics = get_metrics()
+
+worker_active_tasks = prometheus_metrics["worker_active_tasks"]
+worker_jobs_total = prometheus_metrics["worker_jobs_total"]
+worker_job_duration_seconds = prometheus_metrics["worker_job_duration_seconds"]
+worker_loop_iterations_total = prometheus_metrics["worker_loop_iterations_total"]
+worker_poll_batch_size = prometheus_metrics["worker_poll_batch_size"]
+
+# Module singleton
+app = FastAPI()
 
 
-def main():
-    redis_host = os.getenv("REDIS_HOST", "redis")
-    r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
-    start_http_server(9080)
-    print("✅ Worker ready. Listening for jobs...")
-    while True:
-        gpu_busy.set(0)
-        time.sleep(5)
-        gpu_busy.set(1)
-        jobs_processed.inc()
-        print("Simulated GPU job completed.")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Application lifespan: manages Redis bridge and dispatch loop lifecycle."""
+
+    app.state.bridge = RedisBridge(
+        worker_config["REDIS_URL"],
+        worker_config["WORKER_STREAMS"],
+        worker_config["WORKER_GROUP"],
+    )
+    bridge = app.state.bridge
+
+    await bridge.connect()
+
+    stop_event = asyncio.Event()
+    setup_graceful_shutdown(stop_event)
+
+    app.state.dispatcher = asyncio.create_task(dispatch_loop(bridge, stop_event))
+    dispatcher = app.state.dispatcher
+
+    try:
+        yield
+    finally:
+        stop_event.set()
+        if dispatcher:
+            dispatcher.cancel()
+            with suppress(asyncio.CancelledError):
+                await dispatcher
+        if bridge:
+            await bridge.close()
+
+
+app.router.lifespan_context = lifespan
+
+
+# -- Task dispatcher logic
+
+
+async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
+    """Main dispatch loop that continuously consumes from Redis bridge."""
+
+    print("[Worker] 🚀 Starting dispatch loop...")
+
+    async def publish_update(payload: ProgressUpdate):
+        """
+        Publish a job update message to Redis Pub/Sub.
+        """
+        channel = f"{TASK_PUBSUB_CHANNEL}:{payload.jid}"
+        try:
+            await bridge.publish(channel, payload.model_dump_json())
+            # print(f"[Worker] 📣 {channel} -> {payload}")
+        except Exception as exc:
+            print(f"[Worker] ⚠️ Failed to publish {channel}: {exc}")
+
+    while not stop_event.is_set():
+        worker_loop_iterations_total.inc()
+        try:
+            raw_messages = await bridge.poll(worker_config["WORKER_BATCH_SIZE"], 1000)
+            messages = [
+                JobMessage.model_validate(
+                    {**msg["fields"], "xid": msg["xid"], "stream": msg["stream"]}
+                )
+                for msg in raw_messages
+            ]
+            worker_poll_batch_size.observe(len(messages))
+            for entry in messages:
+                await process_entry(entry, publish_update)
+                await bridge.ack(entry.stream, entry.xid)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            print(f"[Worker] ⚠️ Polling error: {exc}")
+            await asyncio.sleep(1)
+    print("[Worker] 💤 Worker loop stopped.")
+
+
+async def process_entry(entry: JobMessage, publish_hook: PublishHook):
+    """Process an entry pulled from Redis Stream."""
+    try:
+        task = get_task_for_job(entry.type)
+        worker_active_tasks.inc()
+        worker_jobs_total.labels(type=entry.type).inc()
+        with worker_job_duration_seconds.labels(type=entry.type).time():
+            await task(entry.jid, publish_hook)
+    except Exception as exc:
+        print(f"[Worker] ❌ Error while processing {entry.jid}: {exc}")
+    finally:
+        worker_active_tasks.dec()
+
+
+# -- Routes
+
+
+@app.get("/health")
+async def health():
+    """Simple health endpoint."""
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics():
+    """Expose Prometheus metrics."""
+    return Response(
+        generate_latest(prometheus_registry), media_type=CONTENT_TYPE_LATEST
+    )
+
+
+# -- Entrypoint
+
+
+def run():
+    """Entry point for local execution."""
+    import uvicorn
+
+    uvicorn.run(
+        "worker.main:app",
+        host=worker_config["WORKER_HTTP_HOST"],
+        port=worker_config["WORKER_HTTP_PORT"],
+        reload=False,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    run()
