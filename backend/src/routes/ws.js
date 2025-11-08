@@ -21,6 +21,7 @@ import { getJobStatus } from "../controllers/queue.js";
 import client from "prom-client";
 import websocketPlugin from "@fastify/websocket";
 import { register } from "./metrics.js";
+import { WsAction, WsResponse } from "../lib/enums.js";
 
 function getOrCreateMetrics(name, type, opts) {
   return (
@@ -78,16 +79,32 @@ export default async function wsRoute(fastify) {
         received.inc();
         try {
           const data = JSON.parse(msg.toString());
-          if (data.type === "subscribe" && data.jobId) {
+          if (data.action === WsAction.SUBSCRIBE && data.jobId) {
             subscriptions.add(data.jobId);
             connection.socket.send(
-              JSON.stringify({ type: "subscribed", jobId: data.jobId })
+              JSON.stringify({
+                action: WsAction.RESPONSE,
+                message: WsResponse.SUBSCRIBED,
+                jobId: data.jobId,
+              })
+            );
+          } else if (data.action === WsAction.UNSUBSCRIBE && data.jobId) {
+            subscriptions.delete(data.jobId);
+            connection.socket.send(
+              JSON.stringify({
+                action: WsAction.RESPONSE,
+                message: WsResponse.UNSUBSCRIBED,
+                jobId: data.jobId,
+              })
             );
           }
         } catch (err) {
           wsErrors.inc();
           connection.socket.send(
-            JSON.stringify({ type: "error", message: err.message })
+            JSON.stringify({
+              action: WsAction.RESPONSE,
+              message: WsResponse.FAILED,
+            })
           );
         }
       });
@@ -99,7 +116,7 @@ export default async function wsRoute(fastify) {
           sent.inc();
           connection.socket.send(JSON.stringify({ type: "update", ...status }));
         }
-      }, 2000);
+      }, 750);
 
       connection.socket.on("close", () => {
         connected.dec();

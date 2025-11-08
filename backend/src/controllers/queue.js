@@ -31,6 +31,7 @@
 
 import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
+import { JobStatus } from "../lib/enums.js";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
 
@@ -47,6 +48,14 @@ const JOB_KEY_TTL_SECONDS = parseInt(
 let redisDBClient = null;
 let redisSubscriber = null;
 let subscribed = false;
+
+// ============================================================
+// Redis Key & Channel Helpers
+// ============================================================
+
+const jobHashKey = (jobId) => `job:${jobId}`;
+const jobStatusKey = (jobId) => `job:${jobId}:status`;
+const jobProgressKey = (jobId) => `job:${jobId}:progress`;
 
 // ============================================================
 // Redis Connection Helpers
@@ -67,13 +76,16 @@ function getSubscriber(create = true) {
       try {
         if (channel.startsWith("status:")) {
           const jobId = channel.slice("status:".length);
-          await persistStatus(jobId, message);
+          await persistStatus(jobId, JSON.parse(message.toString())?.status);
           logStatus(jobId, message);
           return;
         }
         if (channel.startsWith("progress:")) {
           const jobId = channel.slice("progress:".length);
-          await persistProgress(jobId, message);
+          await persistProgress(
+            jobId,
+            JSON.parse(message.toString())?.progress
+          );
           return;
         }
       } catch (error) {
@@ -96,16 +108,6 @@ async function ensureEventLogging() {
   subscribed = true;
   console.log("[Streams] Subscribed to status:* and progress:*");
 }
-
-// ============================================================
-// Redis Key & Channel Helpers
-// ============================================================
-
-const jobHashKey = (jobId) => `job:${jobId}`;
-const jobStatusKey = (jobId) => `job:${jobId}:status`;
-const jobProgressKey = (jobId) => `job:${jobId}:progress`;
-const statusChannel = (jobId) => `status:${jobId}`;
-const progressChannel = (jobId) => `progress:${jobId}`;
 
 // ============================================================
 // Persistence
@@ -136,13 +138,13 @@ async function persistProgress(jobId, rawProgress) {
 }
 
 function logStatus(jobId, status) {
-  if (status === "completed") {
+  if (status === JobStatus.COMPLETED) {
     console.log(`[Streams] ✅ Job ${jobId} completed`);
-  } else if (status === "failed") {
+  } else if (status === JobStatus.FAILED) {
     console.error(`[Streams] ❌ Job ${jobId} failed`);
-  } else if (status === "running") {
+  } else if (status === JobStatus.RUNNING) {
     console.log(`[Streams] ▶️  Job ${jobId} running`);
-  } else if (status === "queued") {
+  } else if (status === JobStatus.QUEUED) {
     console.log(`[Streams] ⏳ Job ${jobId} queued`);
   } else {
     console.log(`[Streams] ℹ️  Job ${jobId} status: ${status}`);
@@ -150,15 +152,8 @@ function logStatus(jobId, status) {
 }
 
 // ============================================================
-// Status Constants & Validation
+// Status Validation
 // ============================================================
-
-export const JOB_STATUS = Object.freeze({
-  QUEUED: "queued",
-  RUNNING: "running",
-  COMPLETED: "completed",
-  FAILED: "failed",
-});
 
 function validateJobState(status, progress) {
   const normalizedStatus = (status || "").toLowerCase();
@@ -170,19 +165,20 @@ function validateJobState(status, progress) {
   }
 
   switch (normalizedStatus) {
-    case JOB_STATUS.QUEUED:
+    case JobStatus.QUEUED:
       return numericProgress === 0
         ? { status: normalizedStatus, progress: numericProgress }
         : { status: "something_went_wrong", progress: -1 };
-    case JOB_STATUS.RUNNING:
-      return numericProgress > 0 && numericProgress < 1
+    case JobStatus.RUNNING:
+      return numericProgress > 0 &&
+        (numericProgress < 1 || numericProgress === 1)
         ? { status: normalizedStatus, progress: numericProgress }
         : { status: "something_went_wrong", progress: -1 };
-    case JOB_STATUS.COMPLETED:
+    case JobStatus.COMPLETED:
       return numericProgress === 1
         ? { status: normalizedStatus, progress: numericProgress }
         : { status: "something_went_wrong", progress: -1 };
-    case JOB_STATUS.FAILED:
+    case JobStatus.FAILED:
       return numericProgress === -1
         ? { status: normalizedStatus, progress: numericProgress }
         : { status: "something_went_wrong", progress: -1 };
@@ -212,6 +208,7 @@ async function enqueueJob(kind, data) {
     "jid",
     jobId,
     "type",
+    // TODO: Just for aiding manual integration testing (will change)
     kind + "_lora",
     "timestamp",
     timestamp,
@@ -224,16 +221,13 @@ async function enqueueJob(kind, data) {
   pipeline.hset(jobKey, {
     id: jobId,
     type: kind,
-    status: "queued",
+    status: JobStatus.QUEUED,
     progress: "0",
     enqueued_at: timestamp,
   });
-  pipeline.set(jobStatusKey(jobId), "queued");
-  pipeline.set(jobProgressKey(jobId), "0");
   pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
   pipeline.expire(jobStatusKey(jobId), JOB_KEY_TTL_SECONDS);
   pipeline.expire(jobProgressKey(jobId), JOB_KEY_TTL_SECONDS);
-  pipeline.publish(statusChannel(jobId), "queued");
   await pipeline.exec();
 
   return jobId;
@@ -252,10 +246,10 @@ export async function enqueueGenerateJob(data) {
 }
 
 export async function getJobStatus(jobId) {
-  if (!jobId) return { status: "not_found" };
+  if (!jobId) return { status: JobStatus.NOT_FOUND };
 
   const dbClient = getRedis(false);
-  if (!dbClient) return { status: "not_found" };
+  if (!dbClient) return { status: JobStatus.NOT_FOUND };
 
   const jobKey = jobHashKey(jobId);
   const jobData = await dbClient.hgetall(jobKey);
@@ -279,12 +273,13 @@ export async function getJobStatus(jobId) {
     pipeline.get(jobProgressKey(jobId));
     const [[, storedStatus], [, storedProgress]] = await pipeline.exec();
 
-    if (!storedStatus && !storedProgress) return { status: "not_found" };
+    if (!storedStatus && !storedProgress)
+      return { status: JobStatus.NOT_FOUND };
     currentStatus = normalizeStatus(storedStatus ?? "unknown");
     currentProgress = parseProgress(storedProgress);
   }
 
-  return { id: jobId, ...validateJobState(currentStatus, currentProgress) };
+  return { jobId: jobId, ...validateJobState(currentStatus, currentProgress) };
 }
 
 export async function closeQueues() {

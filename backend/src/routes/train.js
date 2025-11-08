@@ -6,6 +6,7 @@
 // ------------------------------------------------------------
 
 import { enqueueTrainJob } from "../controllers/queue.js";
+import { JobStatus } from "../lib/enums.js";
 
 export default async function trainRoutes(fastify) {
   fastify.post("/train", async (req, reply) => {
@@ -14,7 +15,7 @@ export default async function trainRoutes(fastify) {
     fastify.log.info({ jobId }, "Training job queued");
     return reply.send({
       jobId,
-      status: "queued",
+      status: JobStatus.QUEUED,
       progress: 0,
     });
   });

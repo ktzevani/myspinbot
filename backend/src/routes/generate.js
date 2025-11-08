@@ -5,6 +5,7 @@
 // ------------------------------------------------------------
 
 import { enqueueGenerateJob } from "../controllers/queue.js";
+import { JobStatus } from "../lib/enums.js";
 
 export default async function generateRoutes(fastify) {
   fastify.post("/generate", async (req, reply) => {
@@ -13,7 +14,7 @@ export default async function generateRoutes(fastify) {
     fastify.log.info({ jobId }, "Generation job queued");
     return reply.send({
       jobId,
-      status: "queued",
+      status: JobStatus.QUEUED,
       progress: 0,
     });
   });

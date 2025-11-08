@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useRef } from "react";
 import UploadForm from "@/components/UploadForm";
 import StatusCard from "@/components/StatusCard";
 import type { Job } from "@/lib/api";
-import { useWebSocket } from "@/lib/useWebSocket";
+import { useWebSocket } from "@/lib/ws";
+import { JobStatus } from "@/lib/enums";
 
 export default function Page() {
   const [jobs, setJobs] = useState<Record<string, Job>>({});
 
   const onJob = useCallback((job: Job) => {
+    subscribe(job.jobId);
     setJobs((prev) => ({ ...prev, [job.jobId]: job }));
   }, []);
 
@@ -23,11 +25,14 @@ export default function Page() {
         createdAt: Date.now(),
       };
       const merged: Job = { ...old, ...u };
+      if (merged.status === JobStatus.COMPLETED) {
+        unsubscribe(u.jobId);
+      }
       return { ...prev, [u.jobId]: merged };
     });
   }, []);
 
-  useWebSocket(onUpdate);
+  const { subscribe, unsubscribe } = useWebSocket(onUpdate);
 
   const sorted = useMemo(
     () =>

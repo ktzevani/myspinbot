@@ -1,17 +1,26 @@
 from __future__ import annotations
-import time
 
-time.sleep(30)
-print("Awoken!!!")
+# Debug mode initialization
+import os
+
+if os.getenv("DEBUG_WORKER"):
+    import time
+
+    print("[Worker] Debug mode enabled.")
+    sleep_duration = 30
+
+    time.sleep(sleep_duration)
+    print(f"[Worker] Awaken from debug mode sleep ({sleep_duration}).")
 
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .bridge import RedisBridge
-from .schemas import JobMessage, ProgressUpdate
-from .tasks import get_task_for_job, PublishHook, TASK_PUBSUB_CHANNEL
+from .bridge import RedisBridge, PubSubChannels
+from .schemas import JobMessage, ProgressUpdate, StatusUpdate
+from .tasks import get_task_for_job
+
 from .utils import get_config, get_metrics, setup_graceful_shutdown
 
 # -- Configuration & Metrics
@@ -71,16 +80,18 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
 
     print("[Worker] 🚀 Starting dispatch loop...")
 
-    async def publish_update(payload: ProgressUpdate):
-        """
-        Publish a job update message to Redis Pub/Sub.
-        """
-        channel = f"{TASK_PUBSUB_CHANNEL}:{payload.jid}"
+    channels = {
+        "ProgressUpdate": PubSubChannels.PROGRESS,
+        "StatusUpdate": PubSubChannels.STATUS,
+    }
+
+    async def publish_message(payload: ProgressUpdate | StatusUpdate):
         try:
+            base = channels[payload.__class__.__name__]
+            channel = f"{base}:{payload.jid}"
             await bridge.publish(channel, payload.model_dump_json())
-            # print(f"[Worker] 📣 {channel} -> {payload}")
         except Exception as exc:
-            print(f"[Worker] ⚠️ Failed to publish {channel}: {exc}")
+            print(f"[Worker] ⚠️ Failed to publish: {exc}")
 
     while not stop_event.is_set():
         worker_loop_iterations_total.inc()
@@ -94,7 +105,7 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
             ]
             worker_poll_batch_size.observe(len(messages))
             for entry in messages:
-                await process_entry(entry, publish_update)
+                await process_entry(entry, publish_message)
                 await bridge.ack(entry.stream, entry.xid)
         except asyncio.CancelledError:
             break

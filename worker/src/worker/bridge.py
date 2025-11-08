@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional
-
 import redis.asyncio as redis
+
+from typing import Any, Dict, List, Optional, TypeAlias, Callable, Awaitable
 from redis.exceptions import ResponseError
+from enum import StrEnum
+
 from .utils import json_dumps_safe
+from .schemas import ProgressUpdate, StatusUpdate
+
+PublishHook: TypeAlias = Callable[[ProgressUpdate | StatusUpdate], Awaitable[None]]
+
+
+class PubSubChannels(StrEnum):
+    PROGRESS = "progress"
+    STATUS = "status"
 
 
 class RedisBridge:

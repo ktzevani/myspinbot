@@ -73,7 +73,7 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <p className="text-xs text-gray-500">
-        Phase 1: trains a LoRA from your image then generates a video (chained
+        Phase 2: trains a LoRA from your image then generates a video (chained
         jobs).
       </p>
     </form>

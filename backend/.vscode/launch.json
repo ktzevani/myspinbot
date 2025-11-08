@@ -16,6 +16,17 @@
         "NODE_ENV": "test",
         "DEBUG": "testcontainers*"
       }
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Node (backend container)",
+      "address": "localhost",
+      "port": 9229,
+      "restart": false,
+      "localRoot": "${workspaceFolder}/src",
+      "remoteRoot": "/app/src",
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }

@@ -4,19 +4,26 @@ from __future__ import annotations
 import asyncio
 import io
 from datetime import datetime, timezone
-from typing import Awaitable, Callable, Dict, TypeAlias
+from typing import Awaitable, Callable, TypeAlias
 
 from minio import Minio
 from minio.error import S3Error
 
-from .schemas import ArtifactMeta, ArtifactUploadResult, ProgressUpdate
+from .schemas import (
+    ArtifactMeta,
+    ArtifactUploadResult,
+    ProgressUpdate,
+    StatusUpdate,
+    JobStatus,
+)
+from .bridge import PublishHook
 from .utils import get_config
 
-PublishHook: TypeAlias = Callable[[ProgressUpdate], Awaitable[None]]
+
 WorkerTask: TypeAlias = Callable[[str, PublishHook], Awaitable[None]]
 
 worker_config = get_config()
-TASK_PUBSUB_CHANNEL = "progress"
+
 _TASK_MAP: dict[str, WorkerTask] = {}
 
 
@@ -94,6 +101,7 @@ async def upload_dummy_artifact(
 async def train_lora(jid: str, publish: PublishHook):
     """LoRA training task."""
     print(f"[Worker] 🎨 Starting LoRA training for {jid}")
+    await publish(StatusUpdate(jid=jid, status=JobStatus.RUNNING))
     # Simulated artifact
     result = await upload_dummy_artifact(
         "loras",
@@ -102,6 +110,7 @@ async def train_lora(jid: str, publish: PublishHook):
     )
     # Simulated progress
     await simulate_progress(publish, jid, total_steps=6, delay=0.8)
+    await publish(StatusUpdate(jid=jid, status=JobStatus.COMPLETED))
     print(f"[Worker] ✅ LoRA training completed: {result.meta.key}")
 
 

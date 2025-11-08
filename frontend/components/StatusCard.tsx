@@ -2,16 +2,17 @@
 import React from "react";
 import ProgressBar from "./ProgressBar";
 import type { Job } from "@/lib/api";
+import { JobStatus } from "@/lib/enums";
 
 function pillColor(status: Job["status"]) {
   switch (status) {
-    case "queued":
+    case JobStatus.QUEUED:
       return "bg-gray-200 text-gray-800";
-    case "running":
+    case JobStatus.RUNNING:
       return "bg-blue-200 text-blue-900";
-    case "completed":
+    case JobStatus.COMPLETED:
       return "bg-green-200 text-green-900";
-    case "failed":
+    case JobStatus.FAILED:
       return "bg-red-200 text-red-900";
     default:
       return "bg-gray-200 text-gray-800";

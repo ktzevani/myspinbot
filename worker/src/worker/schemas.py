@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field
+from enum import StrEnum
 
 
 class JobMessage(BaseModel):
@@ -15,11 +16,29 @@ class JobMessage(BaseModel):
     xid: str = Field(..., description="Redis Stream entry ID")
 
 
+class JobStatus(StrEnum):
+    """Allowed job lifecycle states."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    NOT_FOUND = "not_found"
+
+
 class ProgressUpdate(BaseModel):
-    """Payload published on progress:<jid> channel."""
+    """Payload for job progress updates."""
 
     jid: str
     progress: float
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class StatusUpdate(BaseModel):
+    """Payload for job status updates."""
+
+    jid: str
+    status: JobStatus
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
