@@ -2,9 +2,10 @@
 
 ## 📚 Docs Reference
 
-| Document                                   | Purpose                            |
-| ------------------------------------------ | ---------------------------------- |
-| [phase2_overview.md](./phase2_overview.md) | **This document**, phase overview. |
+| Document                                         | Purpose                                                                      |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| [phase2_overview.md](./phase2_overview.md)       | **This document**, phase overview.                                           |
+| [dual_orchestration.md](./dual_orchestration.md) | Definition and overview of the **Dual-Plane LangGraph Orchestration** model. |
 
 ## 🎯 Objective
 

@@ -5,11 +5,9 @@
 Describe the architecture and logic that power **asynchronous job execution** and **real-time UI updates**.
 This layer glues together:
 
-* The **Fastify API** endpoints (`/train`, `/generate`, `/status`)
-* **BullMQ queues** backed by Redis 8.2
-* The **WebSocket gateway** that streams live progress back to the UI
-
----
+- The **Fastify API** endpoints (`/train`, `/generate`, `/status`)
+- **BullMQ queues** backed by Redis 8.2
+- The **WebSocket gateway** that streams live progress back to the UI
 
 ## 🧱 System Components & Responsibilities
 
@@ -21,8 +19,6 @@ This layer glues together:
 | **Worker Processes** | Consume jobs, perform work (training, generation).                |
 | **WebSocket Server** | Push job-state and progress events to connected clients.          |
 | **Frontend Client**  | Upload inputs, subscribe to job progress, display results.        |
-
----
 
 ## 🔄 High-Level Flow
 
@@ -44,8 +40,6 @@ sequenceDiagram
   API-->>UI: job result / final status
 ```
 
----
-
 ## 🧩 API Endpoints
 
 | Method | Path              | Purpose                              | Response (Example)                                            |
@@ -57,8 +51,6 @@ sequenceDiagram
 Each POST call returns a `jobId` that the frontend uses to:
 1️⃣ open a WebSocket channel (`/ws?jobId=gen-456`) and
 2️⃣ display queued/active/completed state.
-
----
 
 ## 🧠 BullMQ Integration Summary
 
@@ -73,32 +65,30 @@ Each POST call returns a `jobId` that the frontend uses to:
 
 ```js
 const connection = { connection: { url: process.env.REDIS_URL } };
-export const trainQueue = new Queue('train', connection);
-export const generateQueue = new Queue('generate', connection);
+export const trainQueue = new Queue("train", connection);
+export const generateQueue = new Queue("generate", connection);
 ```
 
 **Worker Template**
 
 ```js
-import { Worker } from 'bullmq';
-import { sendProgress } from '../ws.js';
+import { Worker } from "bullmq";
+import { sendProgress } from "../ws.js";
 
-const worker = new Worker('generate', async job => {
-  sendProgress(job.id, 10, 'Initializing');
+const worker = new Worker("generate", async (job) => {
+  sendProgress(job.id, 10, "Initializing");
   // ... perform AI work ...
-  sendProgress(job.id, 100, 'Completed');
-  return { outputPath: '/videos/output.mp4' };
+  sendProgress(job.id, 100, "Completed");
+  return { outputPath: "/videos/output.mp4" };
 });
 ```
 
----
-
 ## 📡 WebSocket Gateway
 
-* Implemented via **Fastify WebSocket Plugin** (`@fastify/websocket`)
-* Endpoint: `/ws`
-* Clients subscribe with query `?jobId=<id>`
-* Messages are JSON payloads:
+- Implemented via **Fastify WebSocket Plugin** (`@fastify/websocket`)
+- Endpoint: `/ws`
+- Clients subscribe with query `?jobId=<id>`
+- Messages are JSON payloads:
 
 ```json
 { "jobId": "gen-456", "progress": 42, "message": "Rendering frames" }
@@ -107,7 +97,7 @@ const worker = new Worker('generate', async job => {
 **Server Pattern**
 
 ```js
-fastify.get('/ws', { websocket: true }, (connection, req) => {
+fastify.get("/ws", { websocket: true }, (connection, req) => {
   const { jobId } = req.query;
   wsRegistry.register(jobId, connection);
 });
@@ -117,11 +107,12 @@ fastify.get('/ws', { websocket: true }, (connection, req) => {
 
 ```js
 function sendProgress(jobId, percent, msg) {
-  wsRegistry.broadcast(jobId, JSON.stringify({ jobId, progress: percent, message: msg }));
+  wsRegistry.broadcast(
+    jobId,
+    JSON.stringify({ jobId, progress: percent, message: msg })
+  );
 }
 ```
-
----
 
 ## 📊 Metrics Integration
 
@@ -136,8 +127,6 @@ Prometheus metrics exposed by the backend:
 
 These appear automatically in the **Grafana dashboard named “Monitoring: Jobs”**, which visualizes queue throughput, job duration histograms, and WebSocket activity in real time.
 
----
-
 ## 🔍 Verification Checklist
 
 | Step | Command / URL                                                            | Expected Result                  |
@@ -145,12 +134,10 @@ These appear automatically in the **Grafana dashboard named “Monitoring: Jobs�
 | 1    | `curl -X POST https://api.myspinbot.local/api/train -d '{"sample":"x"}'` | Returns job ID                   |
 | 2    | `curl https://api.myspinbot.local/api/status/<jobId>`                    | Shows `active` → `completed`     |
 | 3    | Connect to `wss://api.myspinbot.local/ws?jobId=<id>`                     | Receives progress JSONs          |
-| 4    | Grafana → *Monitoring: Jobs* dashboard                                   | Shows rising `bullmq_jobs_total` |
-| 5    | Grafana → *Monitoring: Jobs* dashboard                                   | Shows live WebSocket connections |
-
----
+| 4    | Grafana → _Monitoring: Jobs_ dashboard                                   | Shows rising `bullmq_jobs_total` |
+| 5    | Grafana → _Monitoring: Jobs_ dashboard                                   | Shows live WebSocket connections |
 
 ## 🧊 Closing Remark
 
 This layer turns MySpinBot from a simple web app into a **live orchestrator**:
-users submit a job, Redis carries it, BullMQ manages it, and WebSockets make it *feel instant*.
+users submit a job, Redis carries it, BullMQ manages it, and WebSockets make it _feel instant_.
