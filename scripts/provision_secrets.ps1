@@ -108,12 +108,14 @@ if (($FORCE -eq 'true') -or -not (Test-Path $Crt) -or -not (Test-Path $Key)) {
 }
 
 # 4) Permissions
+
 try {
-    icacls $SecretsDir /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
-    icacls $CertsDir   /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
+    icacls $SecretsDir /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
+    icacls $CertsDir   /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
 } catch {
     Write-Host '(!) Unable to adjust file permissions (non-critical).'
 }
+
 
 # 5) Provision MinIO root credentials (synchronized with Traefik)
 
