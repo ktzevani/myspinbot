@@ -17,10 +17,9 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     ln -s /root/.local/bin/uv /usr/local/bin/uv && \
     ln -s /root/.local/bin/uvx /usr/local/bin/uvx
 
-RUN mkdir -p /venv /app
+RUN mkdir -p /venv
 ENV PATH=/venv/bin:$PATH
 ENV VIRTUAL_ENV=/venv
-WORKDIR /app
 
 RUN uv venv --python "$(command -v python3)" /venv && \
     uv pip install --no-cache-dir numpy cython mako setuptools wheel pip ninja patchelf
@@ -30,12 +29,12 @@ ENV CFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNIN
     CXXFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS"
 
 RUN printf '%s\n' \
-'def get_config():' \
-'    return {' \
-'        "CUDA_ROOT": "/usr/local/cuda",' \
-'        "CUDADRV_LIB_DIR": "/usr/local/cuda/lib64/stubs",' \
-'        "CUDADRV_LIB_NAME": "cuda",' \
-'    }' > /root/.aksetup-defaults.py
+    'def get_config():' \
+    '    return {' \
+    '        "CUDA_ROOT": "/usr/local/cuda",' \
+    '        "CUDADRV_LIB_DIR": "/usr/local/cuda/lib64/stubs",' \
+    '        "CUDADRV_LIB_NAME": "cuda",' \
+    '    }' > /root/.aksetup-defaults.py
 
 RUN mkdir -p /tmp/src && \
     pip download --no-binary=:all: --no-deps --index-url https://pypi.org/simple -d /tmp/src pycuda==2025.1.1 && \
@@ -43,26 +42,26 @@ RUN mkdir -p /tmp/src && \
     bash -lc 'ls -d /tmp/src/pycuda-* | head -n1' > /tmp/pycuda_dir && \
     cd "$(cat /tmp/pycuda_dir)" && \
     printf '%s\n' \
-'--- a/src/cpp/cuda.hpp' \
-'+++ b/src/cpp/cuda.hpp' \
-'@@ -856,11 +856,16 @@' \
-'   inline' \
-'   boost::shared_ptr<context> device::make_context(unsigned int flags)' \
-'   {' \
-'     context::prepare_context_switch();' \
-'' \
-'     CUcontext ctx;' \
-'-    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, flags, m_device));' \
-'+#if CUDAPP_CUDA_VERSION >= 13000' \
-'+    CUctxCreateParams params{};' \
-'+    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, &params, flags, m_device));' \
-'+#else' \
-'+    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, flags, m_device));' \
-'+#endif' \
-'     boost::shared_ptr<context> result(new context(ctx));' \
-'     context_stack::get().push(result);' \
-'     return result;' \
-'   }' > cu13.patch && \
+    '--- a/src/cpp/cuda.hpp' \
+    '+++ b/src/cpp/cuda.hpp' \
+    '@@ -856,11 +856,16 @@' \
+    '   inline' \
+    '   boost::shared_ptr<context> device::make_context(unsigned int flags)' \
+    '   {' \
+    '     context::prepare_context_switch();' \
+    '' \
+    '     CUcontext ctx;' \
+    '-    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, flags, m_device));' \
+    '+#if CUDAPP_CUDA_VERSION >= 13000' \
+    '+    CUctxCreateParams params{};' \
+    '+    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, &params, flags, m_device));' \
+    '+#else' \
+    '+    CUDAPP_CALL_GUARDED_THREADED(cuCtxCreate, (&ctx, flags, m_device));' \
+    '+#endif' \
+    '     boost::shared_ptr<context> result(new context(ctx));' \
+    '     context_stack::get().push(result);' \
+    '     return result;' \
+    '   }' > cu13.patch && \
     patch -p1 < cu13.patch && \
     uv pip install -v --no-cache-dir --no-build-isolation .
 
@@ -77,8 +76,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends gdb \
 ENV NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-COPY . /app
+WORKDIR /app
+
+ARG WORKER_ENVIRONMENT
+ENV WORKER_ENVIRONMENT=$WORKER_ENVIRONMENT
+
+COPY . .
+RUN mv /app/docker-entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 RUN uv pip install --no-cache-dir -e .[dev,test]
-# Production version
-# CMD ["python", "-m", "worker.main"]
-CMD ["python", "-Xfrozen_modules=off", "-m", "worker.main"]
+
+ENTRYPOINT [ "docker-entrypoint.sh" ]

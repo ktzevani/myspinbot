@@ -1,17 +1,5 @@
 from __future__ import annotations
 
-# Debug mode initialization
-import os
-
-if os.getenv("DEBUG_WORKER"):
-    import time
-
-    print("[Worker] Debug mode enabled.")
-    sleep_duration = 30
-
-    time.sleep(sleep_duration)
-    print(f"[Worker] Awaken from debug mode sleep ({sleep_duration}).")
-
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Response

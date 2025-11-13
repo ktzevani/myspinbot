@@ -2,30 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Worker: Debug",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "worker.main",
-      "cwd": "/app/src/worker",
-      "env": {
-        "PYTHONUNBUFFERED": "1",
-        "REDIS_URL": "redis://redis:6379"
-      },
-      "justMyCode": false,
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "Worker: Attach by Process ID",
-      "type": "debugpy",
+      "name": "Attach to Python Process",
+      "type":"python",
       "request": "attach",
-      "processId": "${command:pickProcess}",
-      "justMyCode": false,
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}/src/worker",
           "remoteRoot": "/app/src/worker"
         }
-      ]
+      ],
+      "justMyCode": false
     }
   ]
 }

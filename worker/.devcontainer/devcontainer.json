@@ -1,9 +1,14 @@
 {
   "name": "🐍 MySpinBot GPU Worker",
-  "dockerComposeFile": ["../../docker-compose.yml"],
+  "dockerComposeFile": [
+    "../../docker-compose.yml",
+    "../../docker-compose.dev.yml"
+  ],
   "service": "worker",
   "workspaceFolder": "/app",
-  "runServices": ["worker"],
+  "runServices": [
+    "worker"
+  ],
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
@@ -16,9 +21,22 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
       },
       "extensions": [
+        "batisteo.vscode-django",
+        "bierner.markdown-mermaid",
+        "charliermarsh.ruff",
+        "donjayamanne.python-environment-manager",
+        "donjayamanne.python-extension-pack",
+        "kevinrose.vsc-python-indent",
+        "ms-python.black-formatter",
+        "ms-python.debugpy",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-python.black-formatter"
+        "ms-python.vscode-python-envs",
+        "njpwerner.autodocstring",
+        "tamasfe.even-better-toml",
+        "visualstudioexptteam.intellicode-api-usage-examples",
+        "visualstudioexptteam.vscodeintellicode",
+        "wholroyd.jinja"
       ]
     }
   },
