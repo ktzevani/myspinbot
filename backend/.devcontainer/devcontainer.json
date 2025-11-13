@@ -1,9 +1,14 @@
 {
   "name": "⚙️ MySpinBot Node.js Backend",
-  "dockerComposeFile": ["../../docker-compose.yml", "../../docker-compose.dev.yml"],
+  "dockerComposeFile": [
+    "../../docker-compose.yml",
+    "../../docker-compose.dev.yml"
+  ],
   "service": "api",
   "workspaceFolder": "/app",
-  "runServices": ["api"],
+  "runServices": [
+    "api"
+  ],
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
@@ -16,6 +21,7 @@
         "esbenp.prettier-vscode",
         "firsttris.vscode-jest-runner",
         "ms-vscode.js-debug-nightly",
+        "openai.chatgpt",
         "vitest.explorer"
       ]
     }

@@ -7,6 +7,7 @@ services:
     ports:
       - "9229:9229"
     volumes:
+      - ./docs:/app/docs
       - ./backend/.vscode:/app/.vscode
       - ./backend/src:/app/src
       - ./backend/tests:/app/tests
@@ -23,6 +24,7 @@ services:
     ports:
       - "9230:9230"
     volumes:
+      - ./docs:/app/docs
       - ./frontend/.vscode:/app/.vscode
       - ./frontend/app:/app/app
       - ./frontend/components:/app/components
@@ -46,6 +48,7 @@ services:
     ports:
       - "5678:5678"
     volumes:
+      - ./docs:/app/docs
       - ./worker/.vscode:/app/.vscode
       - ./worker/src:/app/src
       - ./worker/pyproject.toml:/app/pyproject.toml

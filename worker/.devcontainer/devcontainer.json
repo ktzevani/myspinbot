@@ -33,6 +33,7 @@
         "ms-python.vscode-pylance",
         "ms-python.vscode-python-envs",
         "njpwerner.autodocstring",
+        "openai.chatgpt",
         "tamasfe.even-better-toml",
         "visualstudioexptteam.intellicode-api-usage-examples",
         "visualstudioexptteam.vscodeintellicode",

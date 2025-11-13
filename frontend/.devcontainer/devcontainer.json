@@ -22,6 +22,7 @@
         "esbenp.prettier-vscode",
         "firsttris.vscode-jest-runner",
         "ms-vscode.js-debug-nightly",
+        "openai.chatgpt",
         "vitest.explorer"
       ]
     }
