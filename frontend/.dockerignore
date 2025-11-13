@@ -1,9 +1,6 @@
-# dependency junk
-node_modules
-npm-debug.log
-# build artifacts on host (we rebuild cleanly in container)
-.next
-dist
-# environment files
-.env*
-!.env.production    # optional: allow production env
+.devcontainer
+.vscode
+tests
+.dockerignore
+Dockerfile
+vitest.config.ts

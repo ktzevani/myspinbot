@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Next.js Process",
+      "address": "localhost",
+      "port": 9230,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug React Frontend",
+      "url": "https://ui.myspinbot.local/",
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": true,
+      "trace": false
+    }
+  ]
+}

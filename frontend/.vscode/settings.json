@@ -5,20 +5,9 @@
   // "editor.insertSpaces": true,
   // "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "tailwindCSS.experimental.classRegex": [
-    ["className\\s*=\\s*\"([^\"]*)\"", "[\"'`]([^\"'`]*).*?[\"'`]"]
-  ],
-  "tailwindCSS.emmetCompletions": true,
-  "tailwindCSS.showPixelEquivalents": true,
-  "tailwindCSS.includeLanguages": {
-    "plaintext": "html",
-    "typescript": "javascript",
-    "typescriptreact": "javascript"
-  },
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  "tailwindCSS.colorDecorators": true,
   "eslint.format.enable": true,
   "eslint.validate": ["typescript", "typescriptreact"],
   "css.lint.unknownAtRules": "ignore",
