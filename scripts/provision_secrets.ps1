@@ -29,24 +29,24 @@
 param(
     [string]$AUTH_USER = $env:AUTH_USER,
     [string]$AUTH_PASS = $env:AUTH_PASS,
-    [string]$DOMAIN    = $env:DOMAIN,
-    [string]$FORCE     = $env:FORCE
+    [string]$DOMAIN = $env:DOMAIN,
+    [string]$FORCE = $env:FORCE
 )
 
 # Defaults
 if (-not $AUTH_USER) { $AUTH_USER = 'admin' }
 if (-not $AUTH_PASS) { $AUTH_PASS = 'password' }
-if (-not $DOMAIN)    { $DOMAIN    = 'myspinbot.local' }
-if (-not $FORCE)     { $FORCE     = 'false' }
+if (-not $DOMAIN) { $DOMAIN = 'myspinbot.local' }
+if (-not $FORCE) { $FORCE = 'false' }
 
 Write-Host '--- [MySpinBot] Provisioning local secrets and certificates ---'
 Write-Host ('   -> Domain: {0}' -f $DOMAIN)
 Write-Host ('   -> User:   {0}' -f $AUTH_USER)
 
 # Paths
-$RootDir    = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$RootDir = (Resolve-Path (Join-Path $PSScriptRoot '..\infra')).Path
 $SecretsDir = Join-Path $RootDir 'traefik\secrets'
-$CertsDir   = Join-Path $RootDir 'traefik\certs'
+$CertsDir = Join-Path $RootDir 'traefik\certs'
 
 New-Item -ItemType Directory -Force -Path $SecretsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $CertsDir   | Out-Null
@@ -77,7 +77,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $HtpasswdFile)) {
         if (-not $hash) {
             Write-Host '   bcrypt not supported in this OpenSSL build; using apr1 instead...'
             $hash = (& openssl passwd -apr1 $AUTH_PASS).Trim()
-        } else {
+        }
+        else {
             $hash = $hash.Trim()
         }
         if (-not $hash) { throw 'OpenSSL failed to generate any hash.' }
@@ -88,7 +89,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $HtpasswdFile)) {
         Write-Error "[X] Failed to generate password hash: $_"
         exit 1
     }
-} else {
+}
+else {
     Write-Host '-> htpasswd already exists (use FORCE=true to regenerate).'
 }
 
@@ -103,7 +105,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $Crt) -or -not (Test-Path $Key)) {
     Write-Host '   Certificate created:'
     Write-Host ('     {0}' -f $Crt)
     Write-Host ('     {0}' -f $Key)
-} else {
+}
+else {
     Write-Host '-> Certificates already exist (use FORCE=true to regenerate).'
 }
 
@@ -112,7 +115,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $Crt) -or -not (Test-Path $Key)) {
 try {
     icacls $SecretsDir /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
     icacls $CertsDir   /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
-} catch {
+}
+catch {
     Write-Host '(!) Unable to adjust file permissions (non-critical).'
 }
 
@@ -139,7 +143,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $MinioEnv)) {
         Write-Error "[X] Failed to write MinIO credentials: $_"
         exit 1
     }
-} else {
+}
+else {
     Write-Host '-> MinIO root.env already exists (use FORCE=true to regenerate).'
 }
 
@@ -156,6 +161,6 @@ Write-Host ('   -> Certificates:    {0}' -f $CertsDir)
 Write-Host ''
 Write-Host ('✅  Access MinIO Console at: https://{0}' -f $minioDomain)
 Write-Host ('    Username: {0}' -f $AUTH_USER)
-Write-Host ('    Password: (stored in minio\secrets\root.env)')
+Write-Host ('    Password: (stored in infra\minio\secrets\root.env)')
 Write-Host ''
 Write-Host '✅ [MySpinBot] Local provisioning complete.'

@@ -23,7 +23,7 @@ DOMAIN="${DOMAIN:-myspinbot.local}"
 FORCE="${FORCE:-false}"  # set FORCE=true to overwrite existing files
 
 # ── Directory setup ─────────────────────────────────────────────
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../infra" && pwd)"
 TRAEFIK_SECRETS_DIR="$ROOT_DIR/traefik/secrets"
 CERTS_DIR="$ROOT_DIR/traefik/certs"
 MINIO_SECRETS_DIR="$ROOT_DIR/minio/secrets"
@@ -105,6 +105,6 @@ printf "   → Certificates:    %s\n" "$CERTS_DIR"
 echo ""
 echo "✅  Access MinIO Console at: https://$MINIO_DOMAIN"
 echo "    Username: $AUTH_USER"
-echo "    Password: (stored in minio/secrets/root.env)"
+echo "    Password: (stored in infra/minio/secrets/root.env)"
 echo ""
 echo "✅ [MySpinBot] Local provisioning complete."

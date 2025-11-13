@@ -18,12 +18,12 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
-      - ./traefik/data/letsencrypt:/letsencrypt
-      - ./traefik/certs:/certs:ro
-      - ./traefik/logs:/logs
-      - ./traefik/secrets/htpasswd:/etc/traefik/htpasswd:ro
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
+      - ./infra/traefik/data/letsencrypt:/letsencrypt
+      - ./infra/traefik/certs:/certs:ro
+      - ./infra/traefik/logs:/logs
+      - ./infra/traefik/secrets/htpasswd:/etc/traefik/htpasswd:ro
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -38,8 +38,8 @@ services:
     container_name: prometheus
     restart: unless-stopped
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/data:/prometheus
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/data:/prometheus
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -61,9 +61,9 @@ services:
       - GF_PATHS_DATA=/var/lib/grafana
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     volumes:
-      - ./grafana/data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./infra/grafana/data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+      - ./infra/grafana/dashboards:/etc/grafana/dashboards
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
@@ -150,7 +150,7 @@ services:
     networks: [internal-network]
     volumes:
       - redis-insight-data:/data
-      - ./redis-insight/databases.json:/data/databases.json:ro
+      - ./infra/redis-insight/databases.json:/data/databases.json:ro
     environment:
       - RI_PRE_SETUP_DATABASES_PATH=/data/databases.json
     depends_on:
@@ -163,6 +163,26 @@ services:
       - "traefik.http.routers.redis.tls=true"
       - "traefik.http.services.redis.loadbalancer.server.port=5540"
       - "traefik.http.routers.redis.middlewares=dashboard-auth@file"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio
+    entrypoint: ["/bin/sh", "/init.sh"]
+    restart: unless-stopped
+    env_file:
+      - ./infra/minio/config.env
+      - ./infra/minio/secrets/root.env
+    volumes:
+      - ./infra/minio/init.sh:/init.sh:ro
+      - minio-data:/data
+    networks:
+      - internal-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`s3.myspinbot.local`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls=true"
+      - "traefik.http.services.minio.loadbalancer.server.port=9001"
 
   api:
     image: myspinbot-backend:prod
@@ -217,26 +237,6 @@ services:
     depends_on:
       - api
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    container_name: minio
-    entrypoint: ["/bin/sh", "/init.sh"]
-    restart: unless-stopped
-    env_file:
-      - ./minio/config.env
-      - ./minio/secrets/root.env
-    volumes:
-      - ./minio/init.sh:/init.sh:ro
-      - minio-data:/data
-    networks:
-      - internal-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.minio.rule=Host(`s3.myspinbot.local`)"
-      - "traefik.http.routers.minio.entrypoints=websecure"
-      - "traefik.http.routers.minio.tls=true"
-      - "traefik.http.services.minio.loadbalancer.server.port=9001"
-
   worker:
     build:
       context: ./worker
@@ -262,7 +262,7 @@ services:
               count: all
               capabilities: [gpu]
     env_file:
-      - ./minio/secrets/root.env
+      - ./infra/minio/secrets/root.env
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
