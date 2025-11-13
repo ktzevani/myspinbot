@@ -11,6 +11,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
 import wsRoute from "../src/routes/ws.js";
+import { WsAction, WsResponse } from "../src/lib/enums.js";
 import { WebSocket } from "ws";
 
 let fastify;
@@ -36,7 +37,7 @@ describe("WebSocket /ws route", () => {
     const testPromise = new Promise((resolve, reject) => {
       ws.on("open", () => {
         // Send a subscribe request
-        ws.send(JSON.stringify({ type: "subscribe", jobId: "test123" }));
+        ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId: "test123" }));
       });
 
       ws.on("message", (data) => {
@@ -44,7 +45,7 @@ describe("WebSocket /ws route", () => {
         received.push(msg);
 
         // resolve once we've seen both message types
-        const hasSubscribed = received.some((m) => m.type === "subscribed");
+        const hasSubscribed = received.some((m) => m.message === WsResponse.SUBSCRIBED);
         const hasUpdate = received.some((m) => m.type === "update");
         if (hasSubscribed && hasUpdate) {
           ws.close();
@@ -58,7 +59,7 @@ describe("WebSocket /ws route", () => {
     const messages = await testPromise;
 
     // Basic shape checks
-    const subscribed = messages.find((m) => m.type === "subscribed");
+    const subscribed = messages.find((m) => m.message === WsResponse.SUBSCRIBED);
     const update = messages.find((m) => m.type === "update");
 
     expect(subscribed).toBeDefined();

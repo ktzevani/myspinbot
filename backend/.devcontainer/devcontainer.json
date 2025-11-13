@@ -1,0 +1,24 @@
+{
+  "name": "⚙️ MySpinBot Node.js Backend",
+  "dockerComposeFile": ["../../docker-compose.yml", "../../docker-compose.dev.yml"],
+  "service": "api",
+  "workspaceFolder": "/app",
+  "runServices": ["api"],
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "bierner.markdown-mermaid",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "firsttris.vscode-jest-runner",
+        "ms-vscode.js-debug-nightly",
+        "vitest.explorer"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

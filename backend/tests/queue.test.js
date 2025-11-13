@@ -3,9 +3,9 @@ import Fastify from "fastify";
 import IORedis from "ioredis";
 import {
   enqueueTrainJob,
-  getJobStatus,
-  JOB_STATUS,
+  getJobStatus
 } from "../src/controllers/queue.js";
+import { JobStatus, WsAction } from "../src/lib/enums.js";
 import { WebSocket } from "ws";
 import wsRoute from "../src/routes/ws.js";
 import trainRoutes from "../src/routes/train.js";
@@ -34,7 +34,7 @@ describe("Queue integration", () => {
     const status = await getJobStatus(jobId);
     expect(status).toHaveProperty("status");
     expect(status).toHaveProperty("progress");
-    expect(status.status).toBe(JOB_STATUS.QUEUED);
+    expect(status.status).toBe(JobStatus.QUEUED);
     expect(status.progress).toBe(0);
   });
 
@@ -48,7 +48,7 @@ describe("Queue integration", () => {
 
     const body = JSON.parse(response.body);
     expect(body).toHaveProperty("jobId");
-    expect(body.status).toBe(JOB_STATUS.QUEUED);
+    expect(body.status).toBe(JobStatus.QUEUED);
 
     const jobId = body.jobId;
     const url = `ws://localhost:${port}/ws`;
@@ -56,7 +56,7 @@ describe("Queue integration", () => {
 
     const subscriptionPromise = new Promise((resolve, reject) => {
       ws.on("open", () => {
-        ws.send(JSON.stringify({ type: "subscribe", jobId }));
+        ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId }));
       });
       ws.on("message", (data) => {
         const message = JSON.parse(data.toString());
@@ -69,37 +69,37 @@ describe("Queue integration", () => {
     });
 
     const updateMessage = await subscriptionPromise;
-    expect(updateMessage.id).toBe(jobId);
-    expect(updateMessage.status).toBe(JOB_STATUS.QUEUED);
+    expect(updateMessage.jobId).toBe(jobId);
+    expect(updateMessage.status).toBe(JobStatus.QUEUED);
     expect(updateMessage.progress).toBe(0);
   }, 15000);
 
   it("Job Lifecycle: status flow end-to-end", async () => {
     const jobId = await enqueueTrainJob({ dataset: "lifecycle" });
 
-    await redisPub.publish(`status:${jobId}`, "running");
-    await redisPub.publish(`progress:${jobId}`, "0.5");
+    await redisPub.publish(`status:${jobId}`, JSON.stringify({ jobId: jobId, status: JobStatus.RUNNING }));
+    await redisPub.publish(`progress:${jobId}`, JSON.stringify({ jobId: jobId, progress: 0.5 }));
     await new Promise((r) => setTimeout(r, 150));
 
     let jobStatus = await getJobStatus(jobId);
-    expect(jobStatus.status).toBe(JOB_STATUS.RUNNING);
+    expect(jobStatus.status).toBe(JobStatus.RUNNING);
     expect(jobStatus.progress).toBeCloseTo(0.5, 2);
 
-    await redisPub.publish(`status:${jobId}`, "completed");
-    await redisPub.publish(`progress:${jobId}`, "1");
+    await redisPub.publish(`status:${jobId}`, JSON.stringify({ jobId: jobId, status: JobStatus.COMPLETED }));
+    await redisPub.publish(`progress:${jobId}`, JSON.stringify({ jobId: jobId, progress: 1 }));
     await new Promise((r) => setTimeout(r, 150));
 
     jobStatus = await getJobStatus(jobId);
-    expect(jobStatus.status).toBe(JOB_STATUS.COMPLETED);
+    expect(jobStatus.status).toBe(JobStatus.COMPLETED);
     expect(jobStatus.progress).toBe(1);
   });
 
   it("Job Validation: inconsistent status/progress reported", async () => {
     const jobId = await enqueueTrainJob({ dataset: "invalid-combo" });
 
-    // Worker emits impossible pair: status=running, progress=1
-    await redisPub.publish(`status:${jobId}`, "running");
-    await redisPub.publish(`progress:${jobId}`, "1");
+    // Worker emits impossible pair: status=running, progress=0
+    await redisPub.publish(`status:${jobId}`, JSON.stringify({ jobId: jobId, status: JobStatus.RUNNING }));
+    await redisPub.publish(`progress:${jobId}`, JSON.stringify({ jobId: jobId, progress: 0 }));
     await new Promise((r) => setTimeout(r, 150));
 
     const jobStatus = await getJobStatus(jobId);
@@ -111,8 +111,8 @@ describe("Queue integration", () => {
     const jobId = await enqueueTrainJob({ dataset: "invalid-numeric" });
 
     // Worker emits NaN progress
-    await redisPub.publish(`status:${jobId}`, "running");
-    await redisPub.publish(`progress:${jobId}`, "not_a_number");
+    await redisPub.publish(`status:${jobId}`, JSON.stringify({ jobId: jobId, status: JobStatus.RUNNING }));
+    await redisPub.publish(`progress:${jobId}`, JSON.stringify({ jobId: jobId, progress: NaN }));
     await new Promise((r) => setTimeout(r, 150));
 
     const jobStatus = await getJobStatus(jobId);
