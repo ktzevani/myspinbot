@@ -43,10 +43,6 @@ coverage/
 out/
 .next/cache/
 
-# Local dependency lockfiles (optional — keep global lockfiles clean)
-backend/package-lock.json
-frontend/package-lock.json
-
 # Local environment overrides
 frontend/.env.local
 backend/.env.local

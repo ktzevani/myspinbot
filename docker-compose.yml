@@ -1,4 +1,4 @@
-name: my-spin-bot
+name: myspinbot
 
 x-meta:
   maintainer: Kostas Tzevanidis <ktzevanid@gmail.com>
@@ -10,7 +10,7 @@ x-meta:
 services:
   traefik:
     image: traefik:v2.11
-    container_name: traefik
+    container_name: myspinbot-proxy
     restart: unless-stopped
     command: ["--configFile=/etc/traefik/traefik.yml"]
     ports:
@@ -48,6 +48,7 @@ services:
       - "traefik.http.routers.prom.tls=true"
       - "traefik.http.services.prom.loadbalancer.server.port=9090"
       - "traefik.http.routers.prom.middlewares=dashboard-auth@file"
+    profiles: ["observability"]
 
   grafana:
     image: grafana/grafana:11.2.0
@@ -70,6 +71,10 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    profiles: ["observability"]
+    depends_on:
+      prometheus:
+        condition: service_started
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.51.0
@@ -83,6 +88,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - internal-network
+    profiles: ["observability"]
 
   dcgm-exporter:
     image: nvidia/dcgm-exporter:4.4.0-4.5.0-ubuntu22.04
@@ -90,10 +96,11 @@ services:
     restart: unless-stopped
     runtime: nvidia
     networks: [internal-network]
+    profiles: ["observability"]
 
   redis:
     image: redis:8.2-alpine
-    container_name: redis
+    container_name: myspinbot-redis
     restart: unless-stopped
     networks:
       - internal-network
@@ -119,7 +126,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.67.0
-    container_name: redis-exporter
+    container_name: myspinbot-redis-exporter
     restart: unless-stopped
     networks: [internal-network]
     environment:
@@ -134,10 +141,11 @@ services:
       retries: 5
     labels:
       - "traefik.enable=false"
+    profiles: ["observability"]
 
   redis-insight:
     image: redis/redisinsight:2.70.1
-    container_name: redis-insight
+    container_name: myspinbot-redis-insight
     restart: unless-stopped
     networks: [internal-network]
     volumes:
@@ -157,17 +165,15 @@ services:
       - "traefik.http.routers.redis.middlewares=dashboard-auth@file"
 
   api:
+    image: myspinbot-backend:prod
     build:
       context: ./backend
+      args:
+        NODE_ENV: production
     container_name: myspinbot-backend
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
-    expose:
-      - "3000"
-    ports:
-      - "9229:9229"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://api:3000/health"]
       interval: 30s
@@ -185,20 +191,19 @@ services:
     networks:
       - internal-network
     depends_on:
-      - traefik
+      redis:
+        condition: service_healthy
 
   ui:
+    image: myspinbot-frontend:prod
     build:
       context: ./frontend
+      target: runtime
       args:
         NEXT_PUBLIC_API_URL: https://api.myspinbot.local
+        NODE_ENV: production
     container_name: myspinbot-frontend
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://api.myspinbot.local
-    expose:
-      - "3001"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ui.rule=Host(`ui.myspinbot.local`)"
@@ -211,7 +216,6 @@ services:
       - internal-network
     depends_on:
       - api
-      - traefik
 
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
@@ -236,14 +240,13 @@ services:
   worker:
     build:
       context: ./worker
-      dockerfile: Dockerfile
-    image: myspinbot/worker:v0.2
+      args:
+        WORKER_ENVIRONMENT: production
+    image: myspinbot/worker:prod
     container_name: myspinbot-worker
     restart: unless-stopped
     networks:
       - internal-network
-    ports:
-      - "5678:5678"
     depends_on:
       - redis
       - minio
@@ -268,9 +271,7 @@ services:
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_BUCKETS=loras,voices,videos
       - MINIO_USE_SSL=false
-      - DEBUG_WORKER=1
     volumes:
-      - ./worker:/app
       - models-cache:/opt/models
     gpus: all
 

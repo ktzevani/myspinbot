@@ -1,0 +1,51 @@
+services:
+  api:
+    image: myspinbot-backend:dev
+    build:
+      args:
+        NODE_ENV: development
+    ports:
+      - "9229:9229"
+    volumes:
+      - ./backend/.vscode:/app/.vscode
+      - ./backend/src:/app/src
+      - ./backend/tests:/app/tests
+      - ./backend/package-lock.json:/app/package-lock.json
+      - ./backend/package.json:/app/package.json
+      - ./backend/vitest.config.ts:/app/vitest.config.ts
+
+  ui:
+    image: myspinbot-frontend:dev
+    build:
+      target: development
+      args:
+        NODE_ENV: development
+    ports:
+      - "9230:9230"
+    volumes:
+      - ./frontend/.vscode:/app/.vscode
+      - ./frontend/app:/app/app
+      - ./frontend/components:/app/components
+      - ./frontend/lib:/app/lib
+      - ./frontend/public:/app/public
+      - ./frontend/tests:/app/tests
+      - ./frontend/next-env.d.ts:/app/next-env.d.ts
+      - ./frontend/next.config.mjs:/app/next.config.mjs
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/package-lock.json:/app/package-lock.json
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - ./frontend/tailwind.config.ts:/app/tailwind.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/vitest.config.ts:/app/vitest.config.ts
+
+  worker:
+    image: myspinbot/worker:dev
+    build:
+      args:
+        WORKER_ENVIRONMENT: development
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./worker/.vscode:/app/.vscode
+      - ./worker/src:/app/src
+      - ./worker/pyproject.toml:/app/pyproject.toml
