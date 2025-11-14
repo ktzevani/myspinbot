@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "job-messaging.schema.json",
+  "title": "Job Messaging Schemas",
+  "type": "object",
+
+  "$defs": {
+    "JobMessage": {
+      "type": "object",
+      "title": "JobMessage",
+      "description": "Raw message pulled directly from Redis Streams (before normalization).",
+      "properties": {
+        "xid": {
+          "type": "string",
+          "description": "Redis Stream entry ID"
+        },
+        "stream": {
+          "type": "string",
+          "description": "Stream name"
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Unique job ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Job type identifier (train/generate/etc.)"
+        },
+        "created": {
+          "type": ["string", "null"],
+          "description": "Timestamp in ms (stringified)"
+        },
+        "input": {
+          "type": ["string", "null"],
+          "description": "Generic data input serialized to string"
+        }
+      },
+      "required": ["xid", "stream", "jobId", "name"],
+      "additionalProperties": false
+    },
+
+    "JobStatus": {
+      "type": "string",
+      "title": "JobStatus",
+      "description": "Allowed job lifecycle states.",
+      "enum": ["advertised", "queued", "running", "completed", "failed"]
+    },
+
+    "DataUpdate": {
+      "type": "object",
+      "title": "DataUpdate",
+      "description": "Pub/Sub payload containing generic job updates.",
+      "properties": {
+        "jobId": { "type": "string" },
+        "data": { "type": "string" },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["jobId", "data", "timestamp"],
+      "additionalProperties": false
+    },
+
+    "ProgressUpdate": {
+      "type": "object",
+      "title": "ProgressUpdate",
+      "description": "Payload for job progress updates.",
+      "properties": {
+        "jobId": { "type": "string" },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized progress value between 0 and 1 inclusive"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["jobId", "progress", "timestamp"],
+      "additionalProperties": false
+    },
+
+    "StatusUpdate": {
+      "type": "object",
+      "title": "StatusUpdate",
+      "description": "Payload for job status updates.",
+      "properties": {
+        "jobId": { "type": "string" },
+        "status": { "$ref": "#/$defs/JobStatus" },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["jobId", "status", "timestamp"],
+      "additionalProperties": false
+    }
+  }
+}

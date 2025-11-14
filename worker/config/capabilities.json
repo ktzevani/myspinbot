@@ -1,0 +1,246 @@
+{
+  "generatedAt": "2025-11-14T18:08:12.392Z",
+  "capabilities": [
+    {
+      "id": "train.train_lora",
+      "label": "Train LoRA",
+      "description": "Fine-tunes a Stable Diffusion LoRA using uploaded identity/style datasets.",
+      "version": "2025.02.0",
+      "plane": "python",
+      "runtime": { "kind": "gpu", "timeoutSeconds": 1800, "concurrency": 1 },
+      "handler": { "module": "worker.tasks", "method": "train_lora" },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["profileId", "dataset"],
+          "properties": {
+            "profileId": { "type": "string" },
+            "dataset": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "MinIO object key"
+                  },
+                  "minItems": 10
+                },
+                "resolution": { "type": "integer", "minimum": 256 }
+              }
+            },
+            "hyperparameters": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Optional training overrides (steps, lr, scheduler)."
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "object",
+              "properties": {
+                "bucket": { "type": "string" },
+                "key": { "type": "string" },
+                "sizeBytes": { "type": "number" }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "maxSteps",
+          "type": "integer",
+          "description": "Override maximum training steps.",
+          "required": false,
+          "default": 800
+        },
+        {
+          "name": "scheduler",
+          "type": "string",
+          "description": "Training scheduler identifier.",
+          "required": false,
+          "enum": ["cosine", "constant", "linear"],
+          "default": "cosine"
+        }
+      ],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["worker_job_duration_seconds", "minio_upload_bytes"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": false, "sideEffects": "model-write" }
+    },
+    {
+      "id": "train.train_voice",
+      "label": "Train Voice",
+      "description": "Creates a few-shot TTS voice profile from uploaded audio samples.",
+      "version": "2025.02.0",
+      "plane": "python",
+      "runtime": { "kind": "gpu", "timeoutSeconds": 2400, "concurrency": 1 },
+      "handler": { "module": "worker.tasks", "method": "train_voice" },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["profileId", "audioSamples"],
+          "properties": {
+            "profileId": { "type": "string" },
+            "audioSamples": {
+              "type": "array",
+              "items": { "type": "string", "description": "MinIO object key" },
+              "minItems": 1
+            },
+            "language": { "type": "string" }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "object",
+              "properties": {
+                "bucket": { "type": "string" },
+                "key": { "type": "string" },
+                "format": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "speakerAugmentation",
+          "type": "boolean",
+          "description": "Whether to synthesize support utterances for low-data profiles.",
+          "required": false,
+          "default": false
+        },
+        {
+          "name": "samplingRate",
+          "type": "integer",
+          "description": "Target sampling rate for the model.",
+          "required": false,
+          "default": 22050
+        }
+      ],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["worker_job_duration_seconds"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": false, "sideEffects": "model-write" }
+    },
+    {
+      "id": "generate.render_video",
+      "label": "Render Video",
+      "description": "Converts stage prompts + voice tracks into short avatar clips using ComfyUI + lip sync.",
+      "version": "2025.02.0",
+      "plane": "python",
+      "runtime": { "kind": "gpu", "timeoutSeconds": 900, "concurrency": 1 },
+      "handler": { "module": "worker.tasks", "method": "render_video" },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["stagePrompt", "voiceArtifact"],
+          "properties": {
+            "stagePrompt": { "type": "string" },
+            "voiceArtifact": {
+              "type": "object",
+              "properties": {
+                "bucket": { "type": "string" },
+                "key": { "type": "string" }
+              }
+            },
+            "loraArtifact": {
+              "type": "object",
+              "properties": {
+                "bucket": { "type": "string" },
+                "key": { "type": "string" }
+              }
+            },
+            "durationSeconds": { "type": "number", "minimum": 1, "maximum": 60 }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "video": {
+              "type": "object",
+              "properties": {
+                "bucket": { "type": "string" },
+                "key": { "type": "string" },
+                "durationSeconds": { "type": "number" }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "resolution",
+          "type": "string",
+          "description": "Output resolution preset.",
+          "required": false,
+          "enum": ["576p", "720p", "1080p"],
+          "default": "720p"
+        },
+        {
+          "name": "generator",
+          "type": "string",
+          "description": "Pipeline choice (svd_wav2lip | sadtalker).",
+          "required": false,
+          "enum": ["svd_wav2lip", "sadtalker"],
+          "default": "svd_wav2lip"
+        }
+      ],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["worker_job_duration_seconds"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": false, "sideEffects": "artifact-write" }
+    },
+    {
+      "id": "info.get_capabilities",
+      "label": "Get Worker Capabilities",
+      "description": "Returns the current Python-plane capability manifest for planner agents.",
+      "version": "2025.02.0",
+      "plane": "python",
+      "runtime": { "kind": "gpu", "timeoutSeconds": 60, "concurrency": 2 },
+      "handler": { "module": "worker.tasks", "method": "get_capabilities" },
+      "io": {
+        "input": {
+          "type": "object",
+          "properties": {
+            "includeSchema": {
+              "type": "boolean",
+              "description": "If true, include schema metadata alongside capabilities."
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "plane": { "type": "string" },
+            "generatedAt": { "type": "string", "format": "date-time" },
+            "capabilities": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      },
+      "parameters": [],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["worker_job_duration_seconds"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": true, "sideEffects": "read-only" }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plane-manifest.schema.json",
+  "title": "Plane Capability Manifest",
+  "description": "A capability manifest for a single execution plane (backend or worker).",
+  "type": "object",
+  "properties": {
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this manifest was generated."
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "List of capabilities supported by this plane.",
+      "items": {
+        "$ref": "capability.schema.json#"
+      }
+    }
+  },
+  "required": ["generatedAt", "capabilities"],
+  "additionalProperties": false
+}

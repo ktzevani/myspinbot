@@ -1,3 +1,15 @@
 {
-  "url": "redis://redis:6379"
+  "url": "redis://redis:6379",
+  "streams": {
+    "info": "stream:info",
+    "process": "stream:process"
+  },
+  "channels": {
+    "progress": "channel:progress",
+    "status": "channel:status",
+    "data": "channel:data"
+  },
+  "jobs": {
+    "ttl": 43200
+  }
 }

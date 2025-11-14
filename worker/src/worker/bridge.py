@@ -82,14 +82,14 @@ class RedisBridge:
     # Job publishing
     # ------------------------------------------------------------
 
-    async def enqueue(self, stream: str, jid: str, payload: Dict[str, Any]) -> None:
+    async def enqueue(self, stream: str, jobId: str, payload: Dict[str, Any]) -> None:
         """Add a job to the specified stream."""
         if not self.redis:
             raise RuntimeError("Redis not connected")
 
         data = {k: json_dumps_safe(v) for k, v in payload.items()}
         await self.redis.xadd(stream, fields=data)  # type: ignore[arg-type]
-        print(f"[RedisBridge] ➕ Enqueued job {jid} into stream '{stream}'")
+        print(f"[RedisBridge] ➕ Enqueued job {jobId} into stream '{stream}'")
 
     # ------------------------------------------------------------
     # Polling interface

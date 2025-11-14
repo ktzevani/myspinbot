@@ -55,14 +55,14 @@ def connect_minio() -> Minio:
 
 async def simulate_progress(
     publish: PublishHook,
-    jid: str,
+    jobId: str,
     total_steps: int = 5,
     delay: float = 0.5,
 ):
     """Simulate progressive updates for demonstration purposes."""
     for i in range(total_steps):
         progress = round((i + 1) / total_steps, 3)
-        await publish(ProgressUpdate(jid=jid, progress=progress))
+        await publish(ProgressUpdate(jobId=jobId, progress=progress))
         await asyncio.sleep(delay)
 
 
@@ -100,63 +100,63 @@ async def upload_dummy_artifact(
 
 
 @task("train_lora")
-async def train_lora(jid: str, publish: PublishHook):
+async def train_lora(jobId: str, publish: PublishHook):
     """LoRA training task."""
-    print(f"[Worker] 🎨 Starting LoRA training for {jid}")
-    await publish(StatusUpdate(jid=jid, status=JobStatus.RUNNING))
+    print(f"[Worker] 🎨 Starting LoRA training for {jobId}")
+    await publish(StatusUpdate(jobId=jobId, status=JobStatus.RUNNING))
     # Simulated artifact
     result = await upload_dummy_artifact(
         "loras",
-        f"{jid}_model.pt",
+        f"{jobId}_model.pt",
         content=b"dummy lora weights",
     )
     # Simulated progress
-    await simulate_progress(publish, jid, total_steps=6, delay=0.8)
-    await publish(StatusUpdate(jid=jid, status=JobStatus.COMPLETED))
+    await simulate_progress(publish, jobId, total_steps=6, delay=0.8)
+    await publish(StatusUpdate(jobId=jobId, status=JobStatus.COMPLETED))
     print(f"[Worker] ✅ LoRA training completed: {result.meta.key}")
 
 
 @task("train_voice")
-async def train_voice(jid: str, publish: PublishHook):
+async def train_voice(jobId: str, publish: PublishHook):
     """Simulated voice model training task."""
-    print(f"[Worker] 🎤 Starting voice training for {jid}")
+    print(f"[Worker] 🎤 Starting voice training for {jobId}")
     # Simulated artifact
     result = await upload_dummy_artifact(
         "voices",
-        f"{jid}_voice.bin",
+        f"{jobId}_voice.bin",
         content=b"dummy voice weights",
     )
     # Simulated progress
-    await simulate_progress(publish, jid, total_steps=5, delay=1.0)
+    await simulate_progress(publish, jobId, total_steps=5, delay=1.0)
     print(f"[Worker] ✅ Voice model training completed: {result.meta.key}")
 
 
 @task("render_video")
-async def render_video(jid: str, publish: PublishHook):
+async def render_video(jobId: str, publish: PublishHook):
     """Simulated video rendering task."""
-    print(f"[Worker] 🎬 Starting video rendering for {jid}")
+    print(f"[Worker] 🎬 Starting video rendering for {jobId}")
     # Simulated artifact
     result = await upload_dummy_artifact(
         "videos",
-        f"{jid}_output.mp4",
+        f"{jobId}_output.mp4",
         content=b"dummy video content",
     )
     # Simulated progress
-    await simulate_progress(publish, jid, total_steps=8, delay=0.6)
+    await simulate_progress(publish, jobId, total_steps=8, delay=0.6)
     print(f"[Worker] ✅ Video rendering completed: {result.meta.key}")
 
 
 @task("get_capabilities")
-async def get_capabilities(jid: str, publish: PublishHook):
+async def get_capabilities(jobId: str, publish: PublishHook):
     """Return the registered capabilities manifest to callers."""
 
-    print(f"[Worker] 📋 Emitting capability registry for {jid}")
-    await publish(StatusUpdate(jid=jid, status=JobStatus.RUNNING))
+    print(f"[Worker] 📋 Emitting capability registry for {jobId}")
+    await publish(StatusUpdate(jobId=jobId, status=JobStatus.RUNNING))
     manifest_data = capability_registry.manifest_payload()
     manifest_json = json_dumps_safe(manifest_data)
-    await publish(DataUpdate(jid=jid, data=manifest_json))
-    await publish(ProgressUpdate(jid=jid, progress=1.0))
-    await publish(StatusUpdate(jid=jid, status=JobStatus.COMPLETED))
+    await publish(DataUpdate(jobId=jobId, data=manifest_json))
+    await publish(ProgressUpdate(jobId=jobId, progress=1.0))
+    await publish(StatusUpdate(jobId=jobId, status=JobStatus.COMPLETED))
 
 
 # Task provider

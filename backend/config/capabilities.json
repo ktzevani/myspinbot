@@ -1,0 +1,210 @@
+{
+  "generatedAt": "2025-11-14T18:08:12.392Z",
+  "capabilities": [
+    {
+      "id": "artifacts.upload_artifact",
+      "label": "Upload Artifact",
+      "description": "Persists user-provided images (and optional audio) into MinIO as a versioned artifact.",
+      "version": "2025.02.0",
+      "plane": "node",
+      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
+      "handler": {
+        "module": "services/artifacts.js",
+        "method": "uploadArtifact"
+      },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["images"],
+          "properties": {
+            "artifactId": {
+              "type": ["string", "null"],
+              "description": "Optional id override"
+            },
+            "images": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "description": "Base64 or presigned URL"
+              }
+            },
+            "audio": {
+              "type": ["string", "null"],
+              "description": "Optional audio sample (Base64 / presigned URL)"
+            },
+            "metadata": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "artifactId": { "type": "string" },
+            "bucket": { "type": "string" },
+            "objects": {
+              "type": "object",
+              "properties": {
+                "images": { "type": "array", "items": { "type": "string" } },
+                "audio": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "bucket",
+          "type": "string",
+          "description": "MinIO bucket destination",
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "description": "Object key prefix for grouped assets",
+          "required": false
+        }
+      ],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["minio_upload_bytes"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": {
+        "idempotent": false,
+        "sideEffects": "persistent-storage-write"
+      }
+    },
+    {
+      "id": "artifacts.prepare_assets",
+      "label": "Prepare Assets",
+      "description": "Builds an asset manifest describing stored artifact contents (locations, checksums, media metadata).",
+      "version": "2025.02.0",
+      "plane": "node",
+      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
+      "handler": {
+        "module": "services/artifacts.js",
+        "method": "prepareAssets"
+      },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["artifactId"],
+          "properties": {
+            "artifactId": { "type": "string" },
+            "requestedKinds": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["images", "audio"] }
+            },
+            "enrichments": {
+              "type": "object",
+              "properties": {
+                "imageHashes": { "type": "boolean" },
+                "audioDuration": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "artifactId": { "type": "string" },
+            "manifest": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": { "type": "string" },
+                      "checksum": { "type": "string" },
+                      "width": { "type": "number" },
+                      "height": { "type": "number" }
+                    }
+                  }
+                },
+                "audio": {
+                  "type": ["object", "null"],
+                  "properties": {
+                    "key": { "type": "string" },
+                    "durationSeconds": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": false,
+        "metrics": ["asset_manifest_latency_ms"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": true, "sideEffects": "bounded" }
+    },
+    {
+      "id": "llm.generate_script",
+      "label": "Generate Script",
+      "description": "Transforms a user prompt into a stage description + narration using a local LLM and prompt template.",
+      "version": "2025.02.0",
+      "plane": "node",
+      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
+      "handler": {
+        "module": "services/scriptGenerator.js",
+        "method": "generateScript"
+      },
+      "io": {
+        "input": {
+          "type": "object",
+          "required": ["prompt"],
+          "properties": {
+            "prompt": { "type": "string" },
+            "tone": {
+              "type": "string",
+              "enum": ["casual", "formal", "playful", "dramatic"]
+            },
+            "length": {
+              "type": "number",
+              "description": "Desired narration length in seconds"
+            },
+            "persona": { "type": "string" }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "stagePrompt": { "type": "string" },
+            "narration": { "type": "string" },
+            "tokensUsed": { "type": "number" }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "model",
+          "type": "string",
+          "description": "Local LLM model identifier served by Ollama/OpenWebUI",
+          "required": true
+        },
+        {
+          "name": "temperature",
+          "type": "number",
+          "description": "LLM sampling temperature",
+          "required": false,
+          "default": 0.4
+        }
+      ],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": false,
+        "metrics": ["llm_tokens_total"]
+      },
+      "security": { "requiresSecrets": false },
+      "contracts": { "idempotent": false, "sideEffects": "bounded" }
+    }
+  ]
+}

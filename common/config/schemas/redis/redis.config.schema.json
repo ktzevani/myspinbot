@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "redis.config.schema.json",
+  "title": "Redis Configuration",
+  "type": "object",
+  "description": "Configuration for Redis connection, stream names, pub/sub channels, and job management.",
+  "required": ["url", "streams", "channels", "jobs"],
+
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Redis connection string (e.g. 'redis://redis:6379').",
+      "pattern": "^redis://.+"
+    },
+
+    "streams": {
+      "type": "object",
+      "description": "List of Redis streams used by the bridge.",
+      "required": ["info", "process"],
+      "properties": {
+        "info": {
+          "type": "string",
+          "description": "Name of stream for exchanging high level information (e.g. 'stream:info')."
+        },
+        "process": {
+          "type": "string",
+          "description": "Name of stream for exchanging job messages (e.g. 'stream:process')."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "channels": {
+      "type": "object",
+      "description": "List of pub/sub channels used by the bridge.",
+      "required": ["progress", "status", "data"],
+      "properties": {
+        "progress": {
+          "type": "string",
+          "description": "Channel onto which jobs publish their progress (e.g. 'channel:progress')."
+        },
+        "status": {
+          "type": "string",
+          "description": "Channel onto which jobs publish their status (e.g. 'channel:status')."
+        },
+        "data": {
+          "type": "string",
+          "description": "Channel onto which jobs publish intermediate generic data (e.g. 'channel:data')."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "jobs": {
+      "type": "object",
+      "description": "Configuration for jobs.",
+      "required": ["ttl"],
+      "properties": {
+        "ttl": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "additionalProperties": false
+}

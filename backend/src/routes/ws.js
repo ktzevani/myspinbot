@@ -17,7 +17,7 @@
 // events and pushes JSON messages over the WebSocket channel.
 // ------------------------------------------------------------
 
-import { getJobStatus } from "../controllers/queue.js";
+import { getJobState } from "../controllers/queue.js";
 import client from "prom-client";
 import websocketPlugin from "@fastify/websocket";
 import { register } from "./metrics.js";
@@ -112,7 +112,7 @@ export default async function wsRoute(fastify) {
       // Periodically push job status to client
       const interval = setInterval(async () => {
         for (const jobId of subscriptions) {
-          const status = await getJobStatus(jobId);
+          const status = await getJobState(jobId);
           sent.inc();
           connection.socket.send(JSON.stringify({ type: "update", ...status }));
         }

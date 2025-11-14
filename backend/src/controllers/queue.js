@@ -50,16 +50,10 @@ let redisSubscriber = null;
 let subscribed = false;
 
 // ============================================================
-// Redis Key & Channel Helpers
+// Redis Helpers
 // ============================================================
 
-const jobHashKey = (jobId) => `job:${jobId}`;
-const jobStatusKey = (jobId) => `job:${jobId}:status`;
-const jobProgressKey = (jobId) => `job:${jobId}:progress`;
-
-// ============================================================
-// Redis Connection Helpers
-// ============================================================
+const jobMsgKey = (channel, jobId) => `job:${jobId}:${channel}`;
 
 function getRedis(create = true) {
   if (!redisDBClient && create) {
@@ -72,27 +66,10 @@ function getRedis(create = true) {
 function getSubscriber(create = true) {
   if (!redisSubscriber && create) {
     redisSubscriber = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
-    redisSubscriber.on("pmessage", async (_pattern, channel, message) => {
+    redisSubscriber.on("pmessage", async (_pattern, message, payload) => {
       try {
-        if (channel.startsWith("status:")) {
-          const jobId = channel.slice("status:".length);
-          await persistStatus(jobId, JSON.parse(message.toString())?.status);
-          logStatus(jobId, message);
-          return;
-        }
-        if (channel.startsWith("progress:")) {
-          const jobId = channel.slice("progress:".length);
-          await persistProgress(
-            jobId,
-            JSON.parse(message.toString())?.progress
-          );
-          return;
-        }
-        if (channel.startsWith("data:")) {
-          const jobId = channel.slice("data:".length);
-          await persistData(jobId, JSON.parse(message.toString())?.data);
-          return;
-        }
+        let [channel, jobId] = message.split(":");
+        await persistChannelData(channel, jobId, JSON.parse(payload)[channel]);
       } catch (error) {
         console.error(
           "[Streams] Event persistence error:",
@@ -119,95 +96,20 @@ async function ensureEventLogging() {
 // Persistence
 // ============================================================
 
-async function persistStatus(jobId, rawStatus) {
+async function persistChannelData(channel, jobId, data) {
   const dbClient = getRedis();
-  const status = String(rawStatus || "").toLowerCase();
-  const jobKey = jobHashKey(jobId);
+  if (!dbClient) return;
   const pipeline = dbClient.pipeline();
-  pipeline.hset(jobKey, { id: jobId, status });
-  pipeline.set(jobStatusKey(jobId), status);
-  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobStatusKey(jobId), JOB_KEY_TTL_SECONDS);
+  pipeline.set(jobMsgKey(channel, jobId), data);
+  pipeline.expire(jobMsgKey(channel, jobId), JOB_KEY_TTL_SECONDS);
   await pipeline.exec();
-}
-
-async function persistProgress(jobId, rawProgress) {
-  const dbClient = getRedis();
-  const progressValue = String(rawProgress ?? "0").trim();
-  const jobKey = jobHashKey(jobId);
-  const pipeline = dbClient.pipeline();
-  pipeline.hset(jobKey, { id: jobId, progress: progressValue });
-  pipeline.set(jobProgressKey(jobId), progressValue);
-  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobProgressKey(jobId), JOB_KEY_TTL_SECONDS);
-  await pipeline.exec();
-}
-
-async function persistData(jobId, rawData) {
-  const dbClient = getRedis();
-  const data = String(rawData || "").toLowerCase();
-  const jobKey = jobHashKey(jobId);
-  const pipeline = dbClient.pipeline();
-  pipeline.hset(jobKey, { id: jobId, data });
-  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
-  await pipeline.exec();
-}
-
-function logStatus(jobId, status) {
-  if (status === JobStatus.COMPLETED) {
-    console.log(`[Streams] ✅ Job ${jobId} completed`);
-  } else if (status === JobStatus.FAILED) {
-    console.error(`[Streams] ❌ Job ${jobId} failed`);
-  } else if (status === JobStatus.RUNNING) {
-    console.log(`[Streams] ▶️  Job ${jobId} running`);
-  } else if (status === JobStatus.QUEUED) {
-    console.log(`[Streams] ⏳ Job ${jobId} queued`);
-  } else {
-    console.log(`[Streams] ℹ️  Job ${jobId} status: ${status}`);
-  }
-}
-
-// ============================================================
-// Status Validation
-// ============================================================
-
-function validateJobState(status, progress) {
-  const normalizedStatus = (status || "").toLowerCase();
-  const numericProgress = Number(progress);
-  const isProgressValid = Number.isFinite(numericProgress);
-
-  if (!isProgressValid) {
-    return { status: "something_went_wrong", progress: -1 };
-  }
-
-  switch (normalizedStatus) {
-    case JobStatus.QUEUED:
-      return numericProgress === 0
-        ? { status: normalizedStatus, progress: numericProgress }
-        : { status: "something_went_wrong", progress: -1 };
-    case JobStatus.RUNNING:
-      return numericProgress > 0 &&
-        (numericProgress < 1 || numericProgress === 1)
-        ? { status: normalizedStatus, progress: numericProgress }
-        : { status: "something_went_wrong", progress: -1 };
-    case JobStatus.COMPLETED:
-      return numericProgress === 1
-        ? { status: normalizedStatus, progress: numericProgress }
-        : { status: "something_went_wrong", progress: -1 };
-    case JobStatus.FAILED:
-      return numericProgress === -1
-        ? { status: normalizedStatus, progress: numericProgress }
-        : { status: "something_went_wrong", progress: -1 };
-    default:
-      return { status: "something_went_wrong", progress: -1 };
-  }
 }
 
 // ============================================================
 // Core Enqueue Logic
 // ============================================================
 
-export async function enqueueJob(name, data) {
+export async function enqueueJob(name, input) {
   const dbClient = getRedis();
   await ensureEventLogging();
 
@@ -215,37 +117,37 @@ export async function enqueueJob(name, data) {
   if (!streamName) throw new Error(`Unknown job: ${name}`);
 
   const jobId = randomUUID();
-  const timestamp = Date.now().toString();
-  const serializedPayload = JSON.stringify(data ?? {});
+  const created = Date.now().toString();
+  const inputPayload = JSON.stringify(input ?? {});
 
   await dbClient.xadd(
     streamName,
     "*",
-    "jid",
+    "jobId",
     jobId,
-    "type",
+    "name",
     name,
-    "timestamp",
-    timestamp,
-    "data",
-    serializedPayload
+    "created",
+    created,
+    "input",
+    inputPayload
   );
 
-  const jobKey = jobHashKey(jobId);
+  const jobKey = `job:${jobId}`;
   const pipeline = dbClient.pipeline();
-  pipeline.hset(jobKey, {
-    id: jobId,
-    type: name,
-    status: JobStatus.QUEUED,
-    progress: "0",
-    data: "",
-    enqueued_at: timestamp,
-  });
-  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobStatusKey(jobId), JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobProgressKey(jobId), JOB_KEY_TTL_SECONDS);
-  await pipeline.exec();
 
+  pipeline.hset(jobKey, {
+    name: name,
+    input: inputPayload,
+    created: created,
+  });
+  pipeline.set(jobMsgKey("status", jobId), JobStatus.QUEUED);
+  pipeline.set(jobMsgKey("progress", jobId), JobStatus.QUEUED);
+  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
+  pipeline.expire(jobMsgKey("status", jobId), JOB_KEY_TTL_SECONDS);
+  pipeline.expire(jobMsgKey("progress", jobId), JOB_KEY_TTL_SECONDS);
+
+  await pipeline.exec();
   return jobId;
 }
 
@@ -253,53 +155,28 @@ export async function enqueueJob(name, data) {
 // Public API
 // ============================================================
 
-export async function getJobStatus(jobId) {
+export async function getJobState(jobId) {
   if (!jobId) return { status: JobStatus.NOT_FOUND };
 
   const dbClient = getRedis(false);
   if (!dbClient) return { status: JobStatus.NOT_FOUND };
 
-  const jobKey = jobHashKey(jobId);
-  const jobData = await dbClient.hgetall(jobKey);
+  let currentStatus = await dbClient.get(jobMsgKey("status", jobId));
+  let currentProgress = await dbClient.get(jobMsgKey("progress", jobId));
 
-  const normalizeStatus = (raw) =>
-    typeof raw === "string" ? raw.toLowerCase() : "unknown";
-  const parseProgress = (raw) => {
-    const numericValue = Number(raw);
-    return Number.isFinite(numericValue) ? numericValue : NaN;
-  };
-
-  let currentStatus;
-  let currentProgress;
-
-  if (jobData && Object.keys(jobData).length > 0) {
-    currentStatus = normalizeStatus(jobData.status ?? "unknown");
-    currentProgress = parseProgress(jobData.progress);
-  } else {
-    const pipeline = dbClient.pipeline();
-    pipeline.get(jobStatusKey(jobId));
-    pipeline.get(jobProgressKey(jobId));
-    const [[, storedStatus], [, storedProgress]] = await pipeline.exec();
-
-    if (!storedStatus && !storedProgress)
-      return { status: JobStatus.NOT_FOUND };
-    currentStatus = normalizeStatus(storedStatus ?? "unknown");
-    currentProgress = parseProgress(storedProgress);
-  }
-
-  return { jobId: jobId, ...validateJobState(currentStatus, currentProgress) };
+  return { jobId: jobId, status: currentStatus, progress: currentProgress };
 }
 
 export async function getJobResult(jobId) {
-  let jobQuery;
+  let jobQueryInterval;
   const jobPromise = new Promise((resolve, reject) => {
-    jobQuery = setInterval(async () => {
-      const ljob = await getJobStatus(jobId);
+    jobQueryInterval = setInterval(async () => {
+      const ljob = await getJobState(jobId);
       if (ljob.status === JobStatus.NOT_FOUND) {
-        clearInterval(jobQuery);
+        clearInterval(jobQueryInterval);
         reject("Job not found");
       } else if (ljob.status == JobStatus.COMPLETED) {
-        clearInterval(jobQuery);
+        clearInterval(jobQueryInterval);
         resolve(ljob);
       }
     }, 250);
@@ -314,9 +191,7 @@ export async function getJobResult(jobId) {
   if (job.status != JobStatus.NOT_FOUND) {
     const dbClient = getRedis(false);
     if (!dbClient) return { status: "Critical error." };
-    const jobKey = jobHashKey(jobId);
-    const jobData = await dbClient.hgetall(jobKey);
-    result = jobData?.data;
+    result = await dbClient.get(jobMsgKey("data", jobId));
   }
   return JSON.parse(result);
 }
@@ -330,15 +205,15 @@ export async function closeQueues() {
           await redisSubscriber.punsubscribe("progress:*");
           await redisSubscriber.punsubscribe("data:*");
         }
-      } catch { }
+      } catch {}
       await redisSubscriber.quit();
     }
-  } catch { }
+  } catch {}
   try {
     if (redisDBClient) {
       await redisDBClient.quit();
     }
-  } catch { }
+  } catch {}
   redisSubscriber = null;
   redisDBClient = null;
   subscribed = false;
@@ -347,7 +222,7 @@ export async function closeQueues() {
 
 export default {
   enqueueJob,
-  getJobStatus,
+  getJobState,
   getJobResult,
   closeQueues,
 };

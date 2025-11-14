@@ -84,7 +84,7 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
     ):
         try:
             base = channels[payload.__class__.__name__]
-            channel = f"{base}:{payload.jid}"
+            channel = f"{base}:{payload.jobId}"
             await bridge.publish(channel, payload.model_dump_json())
         except Exception as exc:
             print(f"[Worker] ⚠️ Failed to publish: {exc}")
@@ -114,13 +114,13 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
 async def process_entry(entry: JobMessage, publish_hook: PublishHook):
     """Process an entry pulled from Redis Stream."""
     try:
-        task = get_task_for_job(entry.type)
+        task = get_task_for_job(entry.name)
         worker_active_tasks.inc()
-        worker_jobs_total.labels(type=entry.type).inc()
-        with worker_job_duration_seconds.labels(type=entry.type).time():
-            await task(entry.jid, publish_hook)
+        worker_jobs_total.labels(type=entry.name).inc()
+        with worker_job_duration_seconds.labels(type=entry.name).time():
+            await task(entry.jobId, publish_hook)
     except Exception as exc:
-        print(f"[Worker] ❌ Error while processing {entry.jid}: {exc}")
+        print(f"[Worker] ❌ Error while processing {entry.jobId}: {exc}")
     finally:
         worker_active_tasks.dec()
 

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact.schema.json",
+  "title": "Artifact Schemas",
+  "type": "object",
+
+  "$defs": {
+    "ArtifactMeta": {
+      "type": "object",
+      "title": "ArtifactMeta",
+      "description": "Metadata for artifacts uploaded to MinIO (e.g. LoRA, voice, video).",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "description": "MinIO bucket where the artifact is stored."
+        },
+        "key": {
+          "type": "string",
+          "description": "Object key inside the MinIO bucket."
+        },
+        "size_bytes": {
+          "type": "integer",
+          "description": "Size of the artifact in bytes."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the artifact was created."
+        },
+        "content_type": {
+          "type": ["string", "null"],
+          "description": "Optional MIME type of the artifact (e.g. 'image/png')."
+        }
+      },
+      "required": ["bucket", "key", "size_bytes", "created_at"],
+      "additionalProperties": false
+    },
+
+    "ArtifactUploadResult": {
+      "type": "object",
+      "title": "ArtifactUploadResult",
+      "description": "Result of a successful artifact upload.",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": "Indicates whether the upload was successful."
+        },
+        "meta": {
+          "$ref": "#/$defs/ArtifactMeta"
+        }
+      },
+      "required": ["ok", "meta"],
+      "additionalProperties": false
+    }
+  }
+}

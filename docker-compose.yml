@@ -277,6 +277,15 @@ services:
       - models-cache:/opt/models
     gpus: all
 
+  codegen:
+    build:
+      context: ./codegen
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/work
+    entrypoint: ["codegen/gen-all.sh"]
+    profiles: ["generate-data-models"]
+
 networks:
   internal-network:
     driver: bridge

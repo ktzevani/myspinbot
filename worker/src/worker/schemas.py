@@ -9,11 +9,14 @@ from enum import StrEnum
 class JobMessage(BaseModel):
     """Raw message pulled directly from Redis Streams (before normalization)."""
 
-    jid: str = Field(..., description="Unique job ID")
-    type: str = Field(..., description="Job type identifier (train/generate/etc.)")
-    timestamp: Optional[str] = Field(None, description="Timestamp in ms (stringified)")
-    stream: str = Field(..., description="Stream name")
     xid: str = Field(..., description="Redis Stream entry ID")
+    stream: str = Field(..., description="Stream name")
+    jobId: str = Field(..., description="Unique job ID")
+    name: str = Field(..., description="Job type identifier (train/generate/etc.)")
+    created: Optional[str] = Field(None, description="Timestamp in ms (stringified)")
+    input: Optional[str] = Field(
+        None, description="Generic data input serialized to string"
+    )
 
 
 class JobStatus(StrEnum):
@@ -29,7 +32,7 @@ class JobStatus(StrEnum):
 class DataUpdate(BaseModel):
     """Pub/Sub payload containing generic job updates."""
 
-    jid: str
+    jobId: str
     data: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -37,7 +40,7 @@ class DataUpdate(BaseModel):
 class ProgressUpdate(BaseModel):
     """Payload for job progress updates."""
 
-    jid: str
+    jobId: str
     progress: float
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -45,7 +48,7 @@ class ProgressUpdate(BaseModel):
 class StatusUpdate(BaseModel):
     """Payload for job status updates."""
 
-    jid: str
+    jobId: str
     status: JobStatus
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
