@@ -5,8 +5,13 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .bridge import RedisBridge, PubSubChannels
-from .schemas import JobMessage, ProgressUpdate, StatusUpdate
+from .bridge import RedisBridge, PubSubChannels, PublishHook
+from .schemas import (
+    DataUpdate,
+    JobMessage,
+    ProgressUpdate,
+    StatusUpdate,
+)
 from .tasks import get_task_for_job
 
 from .utils import get_config, get_metrics, setup_graceful_shutdown
@@ -71,9 +76,12 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
     channels = {
         "ProgressUpdate": PubSubChannels.PROGRESS,
         "StatusUpdate": PubSubChannels.STATUS,
+        "DataUpdate": PubSubChannels.DATA,
     }
 
-    async def publish_message(payload: ProgressUpdate | StatusUpdate):
+    async def publish_message(
+        payload: ProgressUpdate | StatusUpdate | DataUpdate,
+    ):
         try:
             base = channels[payload.__class__.__name__]
             channel = f"{base}:{payload.jid}"

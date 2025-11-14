@@ -14,6 +14,9 @@ services:
       - ./backend/package-lock.json:/app/package-lock.json
       - ./backend/package.json:/app/package.json
       - ./backend/vitest.config.ts:/app/vitest.config.ts
+      - ./backend/config:/app/config
+      - ./common/config/schemas:/app/config/schemas
+      - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
 
   ui:
     image: myspinbot-frontend:dev
@@ -52,3 +55,6 @@ services:
       - ./worker/.vscode:/app/.vscode
       - ./worker/src:/app/src
       - ./worker/pyproject.toml:/app/pyproject.toml
+      - ./worker/config:/app/config
+      - ./common/config/schemas:/app/config/schemas
+      - ./common/config/redis.bridge.json:/app/config/redis.bridge.json

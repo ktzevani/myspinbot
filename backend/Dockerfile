@@ -5,12 +5,14 @@ ENV NODE_ENV=$NODE_ENV
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY ./backend/package*.json ./
 RUN npm ci $( [ "$NODE_ENV" = "production" ] && echo "--omit=dev" );
 
-COPY . .
+COPY ./backend .
 RUN mv /app/docker-entrypoint.sh /usr/local/bin
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+COPY ./common/config ./config
 
 EXPOSE 3000
 

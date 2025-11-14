@@ -1,0 +1,93 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "capability.schema.json",
+    "title": "Capability",
+    "description": "A single capability describing a task the system can perform, its runtime behavior, IO schemas, and operational contracts.",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique string identifier (machine readable)."
+        },
+        "label": {
+            "type": "string",
+            "description": "Human-readable label used in UIs and agent planners."
+        },
+        "description": {
+            "type": "string",
+            "description": "Summary of what the capability does."
+        },
+        "version": {
+            "type": "string",
+            "description": "Semantic version of the manifest defining this capability."
+        },
+        "plane": {
+            "type": "string",
+            "enum": [
+                "node",
+                "python"
+            ],
+            "description": "Execution plane hint (e.g. node, python)."
+        },
+        "runtime": {
+            "$ref": "defs.schema.json#/$defs/runtime"
+        },
+        "handler": {
+            "$ref": "defs.schema.json#/$defs/handler"
+        },
+        "io": {
+            "type": "object",
+            "title": "Input/Output Schema Definitions",
+            "description": "JSON Schemas describing accepted input payloads and expected output responses.",
+            "properties": {
+                "input": {
+                    "$ref": "defs.schema.json#/$defs/jsonSchemaFragment",
+                    "description": "JSON Schema describing accepted payloads."
+                },
+                "output": {
+                    "$ref": "defs.schema.json#/$defs/jsonSchemaFragment",
+                    "description": "JSON Schema describing the response."
+                }
+            },
+            "required": [
+                "input",
+                "output"
+            ],
+            "additionalProperties": false
+        },
+        "parameters": {
+            "type": "array",
+            "description": "Optional structured parameter list (name/type/description/required).",
+            "items": {
+                "$ref": "defs.schema.json#/$defs/parameter"
+            }
+        },
+        "examples": {
+            "type": "array",
+            "description": "Example payloads and responses used for planner grounding."
+        },
+        "telemetry": {
+            "$ref": "defs.schema.json#/$defs/telemetry",
+            "description": "Flags describing progress events or custom metrics."
+        },
+        "security": {
+            "$ref": "defs.schema.json#/$defs/security",
+            "description": "Whether secrets or scoped credentials are required."
+        },
+        "contracts": {
+            "$ref": "defs.schema.json#/$defs/contracts",
+            "description": "Operational guarantees such as idempotency or expected side effects."
+        }
+    },
+    "required": [
+        "id",
+        "label",
+        "description",
+        "version",
+        "plane",
+        "runtime",
+        "handler",
+        "io"
+    ],
+    "additionalProperties": false
+}

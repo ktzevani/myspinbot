@@ -4,13 +4,12 @@
 // Handles a video or voice generation request.
 // ------------------------------------------------------------
 
-import { enqueueGenerateJob } from "../controllers/queue.js";
-import { JobStatus } from "../lib/enums.js";
+import { enqueueJob } from "../controllers/queue.js";
+import { JobStatus } from "../lib/schemas.js";
 
 export default async function generateRoutes(fastify) {
-  fastify.post("/generate", async (req, reply) => {
-    const payload = req.body || {};
-    const jobId = await enqueueGenerateJob(payload);
+  fastify.post("/generate", async (_, reply) => {
+    const jobId = await enqueueJob("render_video");
     fastify.log.info({ jobId }, "Generation job queued");
     return reply.send({
       jobId,

@@ -31,13 +31,13 @@
 
 import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
-import { JobStatus } from "../lib/enums.js";
+import { JobStatus } from "../lib/schemas.js";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
 
-const STREAMS = {
-  train: "jobs:train",
-  generate: "jobs:generate",
+const JOBS = {
+  get_capabilities: "jobs:info",
+  train_lora: "jobs:process",
 };
 
 const JOB_KEY_TTL_SECONDS = parseInt(
@@ -88,6 +88,11 @@ function getSubscriber(create = true) {
           );
           return;
         }
+        if (channel.startsWith("data:")) {
+          const jobId = channel.slice("data:".length);
+          await persistData(jobId, JSON.parse(message.toString())?.data);
+          return;
+        }
       } catch (error) {
         console.error(
           "[Streams] Event persistence error:",
@@ -105,8 +110,9 @@ async function ensureEventLogging() {
   if (!subscriber) return;
   await subscriber.psubscribe("status:*");
   await subscriber.psubscribe("progress:*");
+  await subscriber.psubscribe("data:*");
   subscribed = true;
-  console.log("[Streams] Subscribed to status:* and progress:*");
+  console.log("[Streams] Subscribed to pub/sub channels");
 }
 
 // ============================================================
@@ -134,6 +140,16 @@ async function persistProgress(jobId, rawProgress) {
   pipeline.set(jobProgressKey(jobId), progressValue);
   pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
   pipeline.expire(jobProgressKey(jobId), JOB_KEY_TTL_SECONDS);
+  await pipeline.exec();
+}
+
+async function persistData(jobId, rawData) {
+  const dbClient = getRedis();
+  const data = String(rawData || "").toLowerCase();
+  const jobKey = jobHashKey(jobId);
+  const pipeline = dbClient.pipeline();
+  pipeline.hset(jobKey, { id: jobId, data });
+  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
   await pipeline.exec();
 }
 
@@ -191,12 +207,12 @@ function validateJobState(status, progress) {
 // Core Enqueue Logic
 // ============================================================
 
-async function enqueueJob(kind, data) {
+export async function enqueueJob(name, data) {
   const dbClient = getRedis();
   await ensureEventLogging();
 
-  const streamName = STREAMS[kind];
-  if (!streamName) throw new Error(`Unknown job kind: ${kind}`);
+  const streamName = JOBS[name];
+  if (!streamName) throw new Error(`Unknown job: ${name}`);
 
   const jobId = randomUUID();
   const timestamp = Date.now().toString();
@@ -208,8 +224,7 @@ async function enqueueJob(kind, data) {
     "jid",
     jobId,
     "type",
-    // TODO: Just for aiding manual integration testing (will change)
-    kind + "_lora",
+    name,
     "timestamp",
     timestamp,
     "data",
@@ -220,9 +235,10 @@ async function enqueueJob(kind, data) {
   const pipeline = dbClient.pipeline();
   pipeline.hset(jobKey, {
     id: jobId,
-    type: kind,
+    type: name,
     status: JobStatus.QUEUED,
     progress: "0",
+    data: "",
     enqueued_at: timestamp,
   });
   pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
@@ -236,14 +252,6 @@ async function enqueueJob(kind, data) {
 // ============================================================
 // Public API
 // ============================================================
-
-export async function enqueueTrainJob(data) {
-  return enqueueJob("train", data);
-}
-
-export async function enqueueGenerateJob(data) {
-  return enqueueJob("generate", data);
-}
 
 export async function getJobStatus(jobId) {
   if (!jobId) return { status: JobStatus.NOT_FOUND };
@@ -282,22 +290,55 @@ export async function getJobStatus(jobId) {
   return { jobId: jobId, ...validateJobState(currentStatus, currentProgress) };
 }
 
+export async function getJobResult(jobId) {
+  let jobQuery;
+  const jobPromise = new Promise((resolve, reject) => {
+    jobQuery = setInterval(async () => {
+      const ljob = await getJobStatus(jobId);
+      if (ljob.status === JobStatus.NOT_FOUND) {
+        clearInterval(jobQuery);
+        reject("Job not found");
+      } else if (ljob.status == JobStatus.COMPLETED) {
+        clearInterval(jobQuery);
+        resolve(ljob);
+      }
+    }, 250);
+  });
+  let result;
+  let job;
+  try {
+    job = await jobPromise;
+  } catch (rejected) {
+    result = rejected;
+  }
+  if (job.status != JobStatus.NOT_FOUND) {
+    const dbClient = getRedis(false);
+    if (!dbClient) return { status: "Critical error." };
+    const jobKey = jobHashKey(jobId);
+    const jobData = await dbClient.hgetall(jobKey);
+    result = jobData?.data;
+  }
+  return JSON.parse(result);
+}
+
 export async function closeQueues() {
   try {
     if (redisSubscriber) {
       try {
         if (subscribed) {
           await redisSubscriber.punsubscribe("status:*");
+          await redisSubscriber.punsubscribe("progress:*");
+          await redisSubscriber.punsubscribe("data:*");
         }
-      } catch {}
+      } catch { }
       await redisSubscriber.quit();
     }
-  } catch {}
+  } catch { }
   try {
     if (redisDBClient) {
       await redisDBClient.quit();
     }
-  } catch {}
+  } catch { }
   redisSubscriber = null;
   redisDBClient = null;
   subscribed = false;
@@ -305,8 +346,8 @@ export async function closeQueues() {
 }
 
 export default {
-  enqueueTrainJob,
-  enqueueGenerateJob,
+  enqueueJob,
   getJobStatus,
+  getJobResult,
   closeQueues,
 };

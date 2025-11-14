@@ -8,14 +8,17 @@ from redis.exceptions import ResponseError
 from enum import StrEnum
 
 from .utils import json_dumps_safe
-from .schemas import ProgressUpdate, StatusUpdate
+from .schemas import DataUpdate, ProgressUpdate, StatusUpdate
 
-PublishHook: TypeAlias = Callable[[ProgressUpdate | StatusUpdate], Awaitable[None]]
+PublishHook: TypeAlias = Callable[
+    [ProgressUpdate | StatusUpdate | DataUpdate], Awaitable[None]
+]
 
 
 class PubSubChannels(StrEnum):
     PROGRESS = "progress"
     STATUS = "status"
+    DATA = "data"
 
 
 class RedisBridge:

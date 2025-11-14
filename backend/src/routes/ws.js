@@ -21,7 +21,7 @@ import { getJobStatus } from "../controllers/queue.js";
 import client from "prom-client";
 import websocketPlugin from "@fastify/websocket";
 import { register } from "./metrics.js";
-import { WsAction, WsResponse } from "../lib/enums.js";
+import { WsAction, WsResponse } from "../lib/schemas.js";
 
 function getOrCreateMetrics(name, type, opts) {
   return (

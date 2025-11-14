@@ -1,6 +1,0 @@
-.devcontainer
-.vscode
-tests
-.dockerignore
-Dockerfile
-vitest.config.ts

@@ -187,7 +187,8 @@ services:
   api:
     image: myspinbot-backend:prod
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       args:
         NODE_ENV: production
     container_name: myspinbot-backend
@@ -239,7 +240,8 @@ services:
 
   worker:
     build:
-      context: ./worker
+      context: .
+      dockerfile: worker/Dockerfile
       args:
         WORKER_ENVIRONMENT: production
     image: myspinbot/worker:prod

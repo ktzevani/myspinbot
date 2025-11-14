@@ -1,0 +1,153 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "defs.schema.json",
+    "title": "SharedDefinitions",
+    "$defs": {
+        "jsonSchemaFragment": {
+            "type": "object",
+            "description": "JSON Schema fragment describing a payload shape. Used for capability input/output validation.",
+            "additionalProperties": true
+        },
+        "parameter": {
+            "type": "object",
+            "description": "Optional structured parameter definition for a capability, including name, type, description and whether it is required.",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Parameter name."
+                },
+                "type": {
+                    "type": "string",
+                    "description": "Expected parameter data type (string, number, boolean, etc.)."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable explanation of the parameter."
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether the parameter must be provided by the caller."
+                },
+                "default": {
+                    "description": "Optional default value used if the parameter is omitted."
+                }
+            },
+            "required": [
+                "name",
+                "type"
+            ],
+            "additionalProperties": true
+        },
+        "handler": {
+            "type": "object",
+            "title": "Handler Binding",
+            "description": "Information about the concrete module and method implementing this capability.",
+            "properties": {
+                "module": {
+                    "type": "string",
+                    "description": "Path to the module exporting the resolver."
+                },
+                "method": {
+                    "type": "string",
+                    "description": "Exported method or function name to invoke."
+                }
+            },
+            "required": [
+                "module",
+                "method"
+            ],
+            "additionalProperties": false
+        },
+        "runtime": {
+            "type": "object",
+            "title": "Runtime Configuration",
+            "description": "Execution environment metadata governing where and how the capability is run.",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "description": "Execution plane: cpu or gpu. Node-plane capabilities always use cpu.",
+                    "enum": [
+                        "cpu",
+                        "gpu"
+                    ]
+                },
+                "timeoutSeconds": {
+                    "type": "number",
+                    "description": "Execution timeout guard in seconds."
+                },
+                "timeoutseconds": {
+                    "type": "number",
+                    "description": "Alternate casing for timeoutSeconds (accepted for compatibility)."
+                },
+                "concurrency": {
+                    "type": "number",
+                    "description": "Maximum allowed concurrent invocations."
+                }
+            },
+            "required": [
+                "kind",
+                "concurrency"
+            ],
+            "additionalProperties": true
+        },
+        "telemetry": {
+            "type": "object",
+            "title": "Telemetry Description",
+            "description": "Optional telemetry behavior: progress events, emitted metrics, and other runtime instrumentation.",
+            "properties": {
+                "emitsProgressEvents": {
+                    "type": "boolean",
+                    "description": "Whether this capability emits progress events."
+                },
+                "emitsprogressevents": {
+                    "type": "boolean",
+                    "description": "Alternate casing for emitsProgressEvents."
+                },
+                "metrics": {
+                    "type": "array",
+                    "description": "List of metric identifiers emitted during execution.",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "additionalProperties": true
+        },
+        "security": {
+            "type": "object",
+            "title": "Security Requirements",
+            "description": "Security markings describing whether secrets or scoped credentials are required.",
+            "properties": {
+                "requiresSecrets": {
+                    "type": "boolean",
+                    "description": "Whether this capability requires access to secrets or secure credentials."
+                },
+                "requiressecrets": {
+                    "type": "boolean",
+                    "description": "Alternate casing for requiresSecrets."
+                }
+            },
+            "additionalProperties": true
+        },
+        "contracts": {
+            "type": "object",
+            "title": "Operational Contracts",
+            "description": "Operational guarantees: idempotency, side effects, determinism, etc.",
+            "properties": {
+                "idempotent": {
+                    "type": "boolean",
+                    "description": "Whether invoking the capability multiple times produces the same result."
+                },
+                "sideEffects": {
+                    "type": "string",
+                    "description": "Description of any operational side effects (e.g., persistent-storage-write)."
+                },
+                "sideeffects": {
+                    "type": "string",
+                    "description": "Alternate casing for sideEffects."
+                }
+            },
+            "additionalProperties": true
+        }
+    }
+}

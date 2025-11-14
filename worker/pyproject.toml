@@ -17,15 +17,11 @@ dependencies = [
     "fastapi>=0.121.0",
     "uvicorn>=0.38.0",
     # Configuration / env
-    "python-dotenv>=1.2.1"
+    "python-dotenv>=1.2.1",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "debugpy>=1.8.17",
-    "pytest>=9.0.1",
-    "pytest-cov>=7.0.0"
-]
+dev = ["debugpy>=1.8.17", "pytest>=9.0.1", "pytest-cov>=7.0.0"]
 
 [build-system]
 requires = ["setuptools", "wheel"]

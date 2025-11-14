@@ -25,7 +25,7 @@ def get_config() -> Dict[str, Any]:
         "WORKER_HTTP_HOST": os.getenv("WORKER_HTTP_HOST", "0.0.0.0"),
         "WORKER_HTTP_PORT": int(os.getenv("WORKER_HTTP_PORT", "8000")),
         "WORKER_BATCH_SIZE": int(os.getenv("WORKER_BATCH_SIZE", "10")),
-        "WORKER_STREAMS": os.getenv("WORKER_STREAMS", "jobs:train,jobs:generate").split(
+        "WORKER_STREAMS": os.getenv("WORKER_STREAMS", "jobs:process,jobs:info").split(
             ","
         ),
     }

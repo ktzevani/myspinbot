@@ -14,13 +14,13 @@ await app.register(cors, {
 });
 
 // --- Register routes ---
-// await for the on-demand imports to get resolved before registering
 await app.register(import("./routes/health.js"));
 await app.register(import("./routes/metrics.js"));
-await app.register(import("./routes/train.js"), { prefix: "/api" });
+await app.register(import("./routes/ws.js"));
+await app.register(import("./routes/capabilities.js", { prefix: "/api" }));
 await app.register(import("./routes/generate.js"), { prefix: "/api" });
 await app.register(import("./routes/status.js"), { prefix: "/api" });
-await app.register(import("./routes/ws.js"));
+await app.register(import("./routes/train.js"), { prefix: "/api" });
 
 const port = 3000;
 app

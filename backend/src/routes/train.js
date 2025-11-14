@@ -5,13 +5,12 @@
 // responsds with the generated job ID.
 // ------------------------------------------------------------
 
-import { enqueueTrainJob } from "../controllers/queue.js";
-import { JobStatus } from "../lib/enums.js";
+import { enqueueJob } from "../controllers/queue.js";
+import { JobStatus } from "../lib/schemas.js";
 
 export default async function trainRoutes(fastify) {
-  fastify.post("/train", async (req, reply) => {
-    const payload = req.body || {};
-    const jobId = await enqueueTrainJob(payload);
+  fastify.post("/train", async (_, reply) => {
+    const jobId = await enqueueJob("train_lora");
     fastify.log.info({ jobId }, "Training job queued");
     return reply.send({
       jobId,

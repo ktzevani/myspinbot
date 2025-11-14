@@ -12,12 +12,14 @@ from minio.error import S3Error
 from .schemas import (
     ArtifactMeta,
     ArtifactUploadResult,
+    DataUpdate,
     ProgressUpdate,
     StatusUpdate,
     JobStatus,
 )
 from .bridge import PublishHook
-from .utils import get_config
+from .registry import capability_registry
+from .utils import get_config, json_dumps_safe
 
 
 WorkerTask: TypeAlias = Callable[[str, PublishHook], Awaitable[None]]
@@ -142,6 +144,19 @@ async def render_video(jid: str, publish: PublishHook):
     # Simulated progress
     await simulate_progress(publish, jid, total_steps=8, delay=0.6)
     print(f"[Worker] ✅ Video rendering completed: {result.meta.key}")
+
+
+@task("get_capabilities")
+async def get_capabilities(jid: str, publish: PublishHook):
+    """Return the registered capabilities manifest to callers."""
+
+    print(f"[Worker] 📋 Emitting capability registry for {jid}")
+    await publish(StatusUpdate(jid=jid, status=JobStatus.RUNNING))
+    manifest_data = capability_registry.manifest_payload()
+    manifest_json = json_dumps_safe(manifest_data)
+    await publish(DataUpdate(jid=jid, data=manifest_json))
+    await publish(ProgressUpdate(jid=jid, progress=1.0))
+    await publish(StatusUpdate(jid=jid, status=JobStatus.COMPLETED))
 
 
 # Task provider
