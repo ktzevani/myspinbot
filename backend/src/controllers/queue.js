@@ -1,119 +1,186 @@
-// ------------------------------------------------------------
-// Redis Streams controller
-// ------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Redis Job Queue Controller
+// -----------------------------------------------------------------------------
 //
-// Exposed functions:
-//   - enqueueTrainJob(data)      -> returns jobId
-//   - enqueueGenerateJob(data)   -> returns jobId
-//   - getJobStatus(jobId)        -> { id, status, progress } | { status: "not_found" }
-//   - closeQueues()              -> gracefully close Redis clients
+// This module provides a unified interface for:
+//   ✔ Enqueuing jobs into Redis Streams
+//   ✔ Tracking job status & progress via Redis keys
+//   ✔ Subscribing to worker-emitted Pub/Sub updates
+//   ✔ Persisting real-time status/progress updates into Redis
+//   ✔ Querying job state and waiting for job completion
+//   ✔ Gracefully shutting down Redis connections
 //
-// Runtime conventions (mirrors your Phase 2 plan):
-//   • Enqueue -> XADD to jobs:<name> with fields: jid, type, timestamp, data(JSON)
-//   • Status  -> HSET job:<jid> { status, progress, type, enqueued_at, ... }
-//   • Events  -> PUBLISH status:<jid> "queued|running|completed|failed"
-//                PUBLISH progress:<jid> "<0..1|−1>"
-//   • Workers are expected to update both Pub/Sub and job hash keys.
+// -----------------------------------------------------------------------------
+// 🔧 Redis Architecture & Data Model
+// -----------------------------------------------------------------------------
 //
-// Accepted status values:
-//   🟢 "queued"     — job pending; progress = 0
-//   🟡 "running"    — job executing; progress ∈ (0,1)
-//   🟣 "completed"  — job finished; progress = 1
-//   🔴 "failed"     — job failed irrecoverably; progress = −1
+// Workers consume tasks from Redis Streams using XREADGROUP.
 //
-// Any deviation from these conventions will cause validation to yield
-// `{ status: "something_went_wrong", progress: -1 }`.
+// 1. **Job Enqueue (Backend → Workers)**
+//    XADD <streamName> *
+//         jobId      <uuid>
+//         name       <jobName>
+//         created    <timestamp>
+//         input      <serializedInput>
 //
-// Notes:
-//   • Job ids (jid) are generated via crypto.randomUUID().
-//   • Backend persists events and relays to UI via WebSockets.
-// ------------------------------------------------------------
+//    Stream name is resolved via Job2Stream mapping.
+//
+// 2. **Job State Persistence**
+//    The backend maintains the current job state in lightweight Redis keys:
+//
+//    job:<jobId>                  → HSET { name, input, created }
+//    job:<jobId>:status           → "advertised" | "queued" | "running" | "completed" | "failed"
+//    job:<jobId>:progress         → number (0–1) or -1
+//    job:<jobId>:data             → optional worker-produced result payload
+//
+//    All keys receive an expiration (TTL) as configured.
+//
+// 3. **Worker → Backend Pub/Sub Updates**
+//    Workers publish events using:
+//      PUBLISH channel:status:<jobId>   "{ status: <enum> }"
+//      PUBLISH channel:progress:<jobId> "{ progress: <number> }"
+//      PUBLISH channel:data:<jobId>     "{ data: <json> }"
+//
+//    The backend subscribes to:
+//      channel:status:*
+//      channel:progress:*
+//      channel:data:*
+//
+//    On each event, the backend persists the update into the job:* keys.
+//
+// -----------------------------------------------------------------------------
+// 🔍 Exposed API
+// -----------------------------------------------------------------------------
+//
+//   • enqueueJob(name, input)
+//         Adds job to correct Redis stream, initializes job state, returns jobId.
+//
+//   • getJobState(jobId)
+//         Retrieves current status + progress from Redis.
+//
+//   • getJobResult(jobId)
+//         Polls until the job reaches COMPLETED, then resolves with the job result.
+//
+//   • closeQueues()
+//         Gracefully shuts down Redis DB and subscriber clients.
+//
+// -----------------------------------------------------------------------------
+// 🚦 Supported Status Values (JobStatus enum)
+//
+//     advertised   – job has been added to the stream
+//     queued       – worker acknowledged job
+//     running      – job is executing
+//     completed    – job finished successfully
+//     failed       – job ended with error
+//
+// Workers are responsible for transitioning job state from advertised → queued → …
+//
+// -----------------------------------------------------------------------------
+// ⚠ Notes
+//
+//   • A dedicated subscriber connection handles Pub/Sub.
+//   • A separate redis client handles Streams + storage.
+//   • Both connections persist data using pipelines.
+//   • Errors such as connection loss do not crash the process;
+//     they simply cause job persistence to skip until reconnect.
+//
+// -----------------------------------------------------------------------------
 
 import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
-import { JobStatus } from "../lib/schemas.js";
+import { JobStatus } from "../model/enums.js";
+import { getConfiguration } from "../config.js";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
+const AppConfiguration = getConfiguration();
 
-const JOBS = {
-  get_capabilities: "jobs:info",
-  train_lora: "jobs:process",
+export const QueueError = Object.freeze({
+  JOB_NOT_FOUND: (jobId) => {
+    return { error: `Job (${jobId}) not found.` };
+  },
+  REDIS_CONNECTION_UNAVAILABLE: {
+    error: `No connection to (${AppConfiguration.bridge.url})`,
+  },
+});
+
+const Job2Stream = {
+  [AppConfiguration.bridge.jobs.available.GET_CAPABILITIES]:
+    AppConfiguration.bridge.streams.info,
+  [AppConfiguration.bridge.jobs.available.PROCESS_GRAPH]:
+    AppConfiguration.bridge.streams.process,
 };
 
-const JOB_KEY_TTL_SECONDS = parseInt(
-  process.env.JOB_KEY_TTL_SECONDS || "604800",
-  10
-);
+const JobProperty = Object.freeze({
+  STATUS: "status",
+  PROGRESS: "progress",
+  DATA: "data",
+});
+
+const redisURL = AppConfiguration.bridge.url;
+const jobKeyTTL = AppConfiguration.bridge.jobs.ttl;
+const jobDbKey = (jobId, subKey) =>
+  subKey ? `job:${jobId}:${subKey}` : `job:${jobId}`;
 
 let redisDBClient = null;
 let redisSubscriber = null;
-let subscribed = false;
-
-// ============================================================
-// Redis Helpers
-// ============================================================
-
-const jobMsgKey = (channel, jobId) => `job:${jobId}:${channel}`;
 
 function getRedis(create = true) {
   if (!redisDBClient && create) {
-    redisDBClient = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
-    console.log(`[Streams] Connected to ${REDIS_URL}`);
+    redisDBClient = new IORedis(redisURL, {
+      maxRetriesPerRequest: null,
+    });
   }
   return redisDBClient;
 }
 
-function getSubscriber(create = true) {
-  if (!redisSubscriber && create) {
-    redisSubscriber = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
-    redisSubscriber.on("pmessage", async (_pattern, message, payload) => {
-      try {
-        let [channel, jobId] = message.split(":");
-        await persistChannelData(channel, jobId, JSON.parse(payload)[channel]);
-      } catch (error) {
-        console.error(
-          "[Streams] Event persistence error:",
-          error?.message || error
-        );
-      }
-    });
+async function ensurePubSubLine() {
+  if (!redisSubscriber) {
+    try {
+      redisSubscriber = new IORedis(redisURL, {
+        maxRetriesPerRequest: null,
+      });
+      redisSubscriber.on("pmessage", async (_pattern, message, payload) => {
+        try {
+          let [_, property, jobId] = message.split(":");
+          await persistMessage(jobId, property, JSON.parse(payload)[property]);
+        } catch (error) {
+          console.error(
+            "[Streams] Event persistence error:",
+            error?.message || error
+          );
+        }
+      });
+      await Promise.all(
+        Object.values(AppConfiguration.bridge.channels).map((pattern) =>
+          redisSubscriber.psubscribe(pattern)
+        )
+      );
+    } catch (e) {
+      await Promise.all(
+        Object.values(AppConfiguration.bridge.channels).map((pattern) =>
+          redisSubscriber.punsubscribe(pattern)
+        )
+      );
+      await redisSubscriber.quit();
+      redisSubscriber = null;
+    }
   }
-  return redisSubscriber;
 }
 
-async function ensureEventLogging() {
-  if (subscribed) return;
-  const subscriber = getSubscriber();
-  if (!subscriber) return;
-  await subscriber.psubscribe("status:*");
-  await subscriber.psubscribe("progress:*");
-  await subscriber.psubscribe("data:*");
-  subscribed = true;
-  console.log("[Streams] Subscribed to pub/sub channels");
-}
-
-// ============================================================
-// Persistence
-// ============================================================
-
-async function persistChannelData(channel, jobId, data) {
+async function persistMessage(jobId, property, value) {
   const dbClient = getRedis();
-  if (!dbClient) return;
-  const pipeline = dbClient.pipeline();
-  pipeline.set(jobMsgKey(channel, jobId), data);
-  pipeline.expire(jobMsgKey(channel, jobId), JOB_KEY_TTL_SECONDS);
-  await pipeline.exec();
+  if (dbClient) {
+    const pipeline = dbClient.pipeline();
+    pipeline.set(jobDbKey(jobId, property), value);
+    pipeline.expire(jobDbKey(jobId, property), jobKeyTTL);
+    await pipeline.exec();
+  }
 }
-
-// ============================================================
-// Core Enqueue Logic
-// ============================================================
 
 export async function enqueueJob(name, input) {
   const dbClient = getRedis();
-  await ensureEventLogging();
-
-  const streamName = JOBS[name];
+  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
+  await ensurePubSubLine();
+  const streamName = Job2Stream[name];
   if (!streamName) throw new Error(`Unknown job: ${name}`);
 
   const jobId = randomUUID();
@@ -133,91 +200,69 @@ export async function enqueueJob(name, input) {
     inputPayload
   );
 
-  const jobKey = `job:${jobId}`;
   const pipeline = dbClient.pipeline();
 
-  pipeline.hset(jobKey, {
+  pipeline.hset(jobDbKey(jobId), {
     name: name,
     input: inputPayload,
     created: created,
   });
-  pipeline.set(jobMsgKey("status", jobId), JobStatus.QUEUED);
-  pipeline.set(jobMsgKey("progress", jobId), JobStatus.QUEUED);
-  pipeline.expire(jobKey, JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobMsgKey("status", jobId), JOB_KEY_TTL_SECONDS);
-  pipeline.expire(jobMsgKey("progress", jobId), JOB_KEY_TTL_SECONDS);
-
+  pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
+  pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
+  pipeline.expire(jobDbKey(jobId), jobKeyTTL);
+  pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), jobKeyTTL);
+  pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), jobKeyTTL);
   await pipeline.exec();
+
   return jobId;
 }
 
-// ============================================================
-// Public API
-// ============================================================
-
 export async function getJobState(jobId) {
-  if (!jobId) return { status: JobStatus.NOT_FOUND };
-
+  if (!jobId) throw QueueError.JOB_NOT_FOUND(jobId);
   const dbClient = getRedis(false);
-  if (!dbClient) return { status: JobStatus.NOT_FOUND };
+  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
 
-  let currentStatus = await dbClient.get(jobMsgKey("status", jobId));
-  let currentProgress = await dbClient.get(jobMsgKey("progress", jobId));
+  let currentStatus = await dbClient.get(jobDbKey(jobId, JobProperty.STATUS));
+  let currentProgress = await dbClient.get(
+    jobDbKey(jobId, JobProperty.PROGRESS)
+  );
 
   return { jobId: jobId, status: currentStatus, progress: currentProgress };
 }
 
 export async function getJobResult(jobId) {
   let jobQueryInterval;
-  const jobPromise = new Promise((resolve, reject) => {
+  await new Promise((resolve, reject) => {
     jobQueryInterval = setInterval(async () => {
-      const ljob = await getJobState(jobId);
-      if (ljob.status === JobStatus.NOT_FOUND) {
+      const state = await getJobState(jobId);
+      if (state == QueueError.JOB_NOT_FOUND(jobId)) {
         clearInterval(jobQueryInterval);
-        reject("Job not found");
-      } else if (ljob.status == JobStatus.COMPLETED) {
+        reject(state);
+      } else if (state?.status == JobStatus.COMPLETED) {
         clearInterval(jobQueryInterval);
-        resolve(ljob);
+        resolve(state);
       }
     }, 250);
   });
-  let result;
-  let job;
-  try {
-    job = await jobPromise;
-  } catch (rejected) {
-    result = rejected;
-  }
-  if (job.status != JobStatus.NOT_FOUND) {
-    const dbClient = getRedis(false);
-    if (!dbClient) return { status: "Critical error." };
-    result = await dbClient.get(jobMsgKey("data", jobId));
-  }
-  return JSON.parse(result);
+  const dbClient = getRedis(false);
+  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
+  return dbClient.get(jobDbKey(jobId, JobProperty.DATA));
 }
 
 export async function closeQueues() {
-  try {
-    if (redisSubscriber) {
-      try {
-        if (subscribed) {
-          await redisSubscriber.punsubscribe("status:*");
-          await redisSubscriber.punsubscribe("progress:*");
-          await redisSubscriber.punsubscribe("data:*");
-        }
-      } catch {}
-      await redisSubscriber.quit();
-    }
-  } catch {}
-  try {
-    if (redisDBClient) {
-      await redisDBClient.quit();
-    }
-  } catch {}
-  redisSubscriber = null;
-  redisDBClient = null;
-  subscribed = false;
-  console.log("[Streams] Connections closed");
+  if (redisSubscriber) {
+    await Promise.all(
+      Object.values(AppConfiguration.bridge.channels).map((pattern) =>
+        redisSubscriber.punsubscribe(pattern)
+      )
+    );
+    await redisSubscriber.quit();
+    redisSubscriber = null;
+  }
+  if (redisDBClient) {
+    await redisDBClient.quit();
+    redisDBClient = null;
+  }
 }
 
 export default {

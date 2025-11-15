@@ -1,10 +1,19 @@
-import { getCapabilitiesManifest } from "../lib/capabilities.js";
 import { enqueueJob, getJobResult } from "../controllers/queue.js";
+import validatorModule from "../validators/capabilities/plane-manifest.schemaValidator.cjs";
+import { getConfiguration, getCapabilities } from "../config.js";
+
+const AppConfiguration = getConfiguration();
+const validatePlaneManifest = validatorModule.default;
+const plannerCapabilities = getCapabilities();
 
 async function getCombinedManifest() {
-  const jobId = await enqueueJob("get_capabilities");
-  const workerCapabilities = await getJobResult(jobId);
-  const plannerCapabilities = getCapabilitiesManifest();
+  const jobId = await enqueueJob(
+    AppConfiguration.bridge.jobs.available.GET_CAPABILITIES
+  );
+  const workerCapabilities = JSON.parse(await getJobResult(jobId));
+  if (!validatePlaneManifest(workerCapabilities)) {
+    return validatePlaneManifest.errors;
+  }
 
   return {
     generatedAt: new Date().toISOString(),

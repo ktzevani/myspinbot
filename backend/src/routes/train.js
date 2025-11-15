@@ -6,12 +6,16 @@
 // ------------------------------------------------------------
 
 import { enqueueJob } from "../controllers/queue.js";
-import { JobStatus } from "../lib/schemas.js";
+import { JobStatus } from "../model/enums.js";
+import { getConfiguration } from "../config.js";
+
+const AppConfiguration = getConfiguration();
 
 export default async function trainRoutes(fastify) {
   fastify.post("/train", async (_, reply) => {
-    const jobId = await enqueueJob("train_lora");
-    fastify.log.info({ jobId }, "Training job queued");
+    const jobId = await enqueueJob(
+      AppConfiguration.bridge.jobs.available.PROCESS_GRAPH
+    );
     return reply.send({
       jobId,
       status: JobStatus.QUEUED,
