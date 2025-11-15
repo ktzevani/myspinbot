@@ -41,10 +41,6 @@ find "$SCHEMAS_DIR" -type f -name "*.json" | while IFS= read -r schema; do
     $ref_args \
     -o "$out_file" 
 
-  echo "-s $schema"
-  echo "$ref_args"
-  echo "-o $out_file"
-
 done
 
 echo "✅ JS validators generated (directory structure preserved)."

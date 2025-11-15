@@ -4,19 +4,25 @@
   "title": "Redis Configuration",
   "type": "object",
   "description": "Configuration for Redis connection, stream names, pub/sub channels, and job management.",
-  "required": ["url", "streams", "channels", "jobs"],
-
+  "required": [
+    "url",
+    "streams",
+    "channels",
+    "jobs"
+  ],
   "properties": {
     "url": {
       "type": "string",
       "description": "Redis connection string (e.g. 'redis://redis:6379').",
       "pattern": "^redis://.+"
     },
-
     "streams": {
       "type": "object",
       "description": "List of Redis streams used by the bridge.",
-      "required": ["info", "process"],
+      "required": [
+        "info",
+        "process"
+      ],
       "properties": {
         "info": {
           "type": "string",
@@ -29,11 +35,14 @@
       },
       "additionalProperties": false
     },
-
     "channels": {
       "type": "object",
       "description": "List of pub/sub channels used by the bridge.",
-      "required": ["progress", "status", "data"],
+      "required": [
+        "progress",
+        "status",
+        "data"
+      ],
       "properties": {
         "progress": {
           "type": "string",
@@ -50,12 +59,31 @@
       },
       "additionalProperties": false
     },
-
     "jobs": {
       "type": "object",
       "description": "Configuration for jobs.",
-      "required": ["ttl"],
+      "required": [
+        "ttl"
+      ],
       "properties": {
+        "available": {
+          "type": "object",
+          "description": "List of mappings of available jobs supported by the Redis bridge, to worker tasks.",
+          "required": [
+            "GET_CAPABILITIES",
+            "PROCESS_GRAPH"
+          ],
+          "properties": {
+            "GET_CAPABILITIES": {
+              "type": "string",
+              "description": "Worker task mapped to this job."
+            },
+            "PROCESS_GRAPH": {
+              "type": "string",
+              "description": "Worker task mapped to this job."
+            }
+          }
+        },
         "ttl": {
           "type": "integer",
           "minimum": 1,
@@ -65,6 +93,5 @@
       "additionalProperties": false
     }
   },
-
   "additionalProperties": false
 }

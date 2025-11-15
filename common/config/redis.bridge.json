@@ -5,11 +5,15 @@
     "process": "stream:process"
   },
   "channels": {
-    "progress": "channel:progress",
-    "status": "channel:status",
-    "data": "channel:data"
+    "progress": "channel:progress:*",
+    "status": "channel:status:*",
+    "data": "channel:data:*"
   },
   "jobs": {
+    "available": {
+      "GET_CAPABILITIES": "get_capabilities",
+      "PROCESS_GRAPH": "train_lora"
+    },
     "ttl": 43200
   }
 }
