@@ -3,32 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import signal
 from typing import Any, Dict, Tuple
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
-
-
-# Configuration
-def get_config() -> Dict[str, Any]:
-    """Load worker runtime settings from environment variables."""
-    return {
-        "REDIS_URL": os.getenv("REDIS_URL", "redis://redis:6379"),
-        "MINIO_ENDPOINT": os.getenv("MINIO_ENDPOINT", "http://minio:9000"),
-        "MINIO_ACCESS_KEY": os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-        "MINIO_SECRET_KEY": os.getenv("MINIO_SECRET_KEY", "minioadmin"),
-        "WORKER_GROUP": os.getenv("WORKER_GROUP", "pyworkers"),
-        "WORKER_CONSUMER": os.getenv("WORKER_CONSUMER", os.getenv("HOSTNAME", "pyw-1")),
-        "WORKER_READ_COUNT": int(os.getenv("WORKER_READ_COUNT", "10")),
-        "WORKER_READ_BLOCK_MS": int(os.getenv("WORKER_READ_BLOCK_MS", "2000")),
-        "WORKER_HTTP_HOST": os.getenv("WORKER_HTTP_HOST", "0.0.0.0"),
-        "WORKER_HTTP_PORT": int(os.getenv("WORKER_HTTP_PORT", "8000")),
-        "WORKER_BATCH_SIZE": int(os.getenv("WORKER_BATCH_SIZE", "10")),
-        "WORKER_STREAMS": os.getenv("WORKER_STREAMS", "jobs:process,jobs:info").split(
-            ","
-        ),
-    }
 
 
 # Prometheus metrics

@@ -6,15 +6,16 @@ from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .bridge import RedisBridge, PubSubChannels, PublishHook
-from .schemas import (
-    DataUpdate,
+from .models.jobs.job_messaging_schema import (
     JobMessage,
+    DataUpdate,
     ProgressUpdate,
     StatusUpdate,
 )
 from .tasks import get_task_for_job
 
-from .utils import get_config, get_metrics, setup_graceful_shutdown
+from .utils import get_metrics, setup_graceful_shutdown
+from .config import get_config
 
 # -- Configuration & Metrics
 

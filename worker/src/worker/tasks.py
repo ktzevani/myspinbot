@@ -9,18 +9,17 @@ from typing import Awaitable, Callable, TypeAlias
 from minio import Minio
 from minio.error import S3Error
 
-from .schemas import (
-    ArtifactMeta,
-    ArtifactUploadResult,
+from worker.utils import json_dumps_safe
+
+from .models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
+from .models.jobs.job_messaging_schema import (
     DataUpdate,
     ProgressUpdate,
     StatusUpdate,
     JobStatus,
 )
 from .bridge import PublishHook
-from .registry import capability_registry
-from .utils import get_config, json_dumps_safe
-
+from .config import get_config, get_capabilities as get_worker_capabilities
 
 WorkerTask: TypeAlias = Callable[[str, PublishHook], Awaitable[None]]
 
@@ -62,7 +61,11 @@ async def simulate_progress(
     """Simulate progressive updates for demonstration purposes."""
     for i in range(total_steps):
         progress = round((i + 1) / total_steps, 3)
-        await publish(ProgressUpdate(jobId=jobId, progress=progress))
+        await publish(
+            ProgressUpdate(
+                jobId=jobId, progress=progress, created=datetime.now(timezone.utc)
+            )
+        )
         await asyncio.sleep(delay)
 
 
@@ -103,7 +106,11 @@ async def upload_dummy_artifact(
 async def train_lora(jobId: str, publish: PublishHook):
     """LoRA training task."""
     print(f"[Worker] 🎨 Starting LoRA training for {jobId}")
-    await publish(StatusUpdate(jobId=jobId, status=JobStatus.RUNNING))
+    await publish(
+        StatusUpdate(
+            jobId=jobId, status=JobStatus.running, created=datetime.now(timezone.utc)
+        )
+    )
     # Simulated artifact
     result = await upload_dummy_artifact(
         "loras",
@@ -112,7 +119,11 @@ async def train_lora(jobId: str, publish: PublishHook):
     )
     # Simulated progress
     await simulate_progress(publish, jobId, total_steps=6, delay=0.8)
-    await publish(StatusUpdate(jobId=jobId, status=JobStatus.COMPLETED))
+    await publish(
+        StatusUpdate(
+            jobId=jobId, status=JobStatus.completed, created=datetime.now(timezone.utc)
+        )
+    )
     print(f"[Worker] ✅ LoRA training completed: {result.meta.key}")
 
 
@@ -151,12 +162,26 @@ async def get_capabilities(jobId: str, publish: PublishHook):
     """Return the registered capabilities manifest to callers."""
 
     print(f"[Worker] 📋 Emitting capability registry for {jobId}")
-    await publish(StatusUpdate(jobId=jobId, status=JobStatus.RUNNING))
-    manifest_data = capability_registry.manifest_payload()
-    manifest_json = json_dumps_safe(manifest_data)
-    await publish(DataUpdate(jobId=jobId, data=manifest_json))
-    await publish(ProgressUpdate(jobId=jobId, progress=1.0))
-    await publish(StatusUpdate(jobId=jobId, status=JobStatus.COMPLETED))
+    await publish(
+        StatusUpdate(
+            jobId=jobId, status=JobStatus.running, created=datetime.now(timezone.utc)
+        )
+    )
+    await publish(
+        DataUpdate(
+            jobId=jobId,
+            data=get_worker_capabilities().model_dump_json(),
+            created=datetime.now(timezone.utc),
+        )
+    )
+    await publish(
+        ProgressUpdate(jobId=jobId, progress=1.0, created=datetime.now(timezone.utc))
+    )
+    await publish(
+        StatusUpdate(
+            jobId=jobId, status=JobStatus.completed, created=datetime.now(timezone.utc)
+        )
+    )
 
 
 # Task provider
