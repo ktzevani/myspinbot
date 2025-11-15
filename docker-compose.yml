@@ -281,8 +281,10 @@ services:
     build:
       context: ./codegen
       dockerfile: Dockerfile
+    image: myspinbot/codegen:prod
+    container_name: myspinbot-codegen
     volumes:
-      - ./:/work
+      - .:/work
     entrypoint: ["codegen/gen-all.sh"]
     profiles: ["generate-data-models"]
 

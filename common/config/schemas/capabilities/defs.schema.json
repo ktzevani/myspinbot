@@ -75,10 +75,6 @@
                     "type": "number",
                     "description": "Execution timeout guard in seconds."
                 },
-                "timeoutseconds": {
-                    "type": "number",
-                    "description": "Alternate casing for timeoutSeconds (accepted for compatibility)."
-                },
                 "concurrency": {
                     "type": "number",
                     "description": "Maximum allowed concurrent invocations."
@@ -99,10 +95,6 @@
                     "type": "boolean",
                     "description": "Whether this capability emits progress events."
                 },
-                "emitsprogressevents": {
-                    "type": "boolean",
-                    "description": "Alternate casing for emitsProgressEvents."
-                },
                 "metrics": {
                     "type": "array",
                     "description": "List of metric identifiers emitted during execution.",
@@ -121,10 +113,6 @@
                 "requiresSecrets": {
                     "type": "boolean",
                     "description": "Whether this capability requires access to secrets or secure credentials."
-                },
-                "requiressecrets": {
-                    "type": "boolean",
-                    "description": "Alternate casing for requiresSecrets."
                 }
             },
             "additionalProperties": true
@@ -141,10 +129,6 @@
                 "sideEffects": {
                     "type": "string",
                     "description": "Description of any operational side effects (e.g., persistent-storage-write)."
-                },
-                "sideeffects": {
-                    "type": "string",
-                    "description": "Alternate casing for sideEffects."
                 }
             },
             "additionalProperties": true

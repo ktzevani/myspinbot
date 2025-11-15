@@ -1,10 +1,18 @@
-FROM python:3.12-slim AS python-tools
-RUN pip install datamodel-code-generator
+FROM node:22-slim
 
-FROM node:20-alpine AS node-tools
-RUN npm install -g ajv-cli
+# Install Python, pip, and bash
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip bash \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && rm -rf /var/lib/apt/lists/*
 
-FROM node:20-alpine
-COPY --from=python-tools /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=node-tools /usr/local/lib/node_modules /usr/local/lib/node_modules
-ENV PATH="/usr/local/lib/node_modules/.bin:$PATH"
+# Python tooling
+RUN pip3 install --break-system-packages --no-cache-dir datamodel-code-generator
+
+# Node tooling
+RUN npm install -g ajv ajv-cli ajv-formats
+
+# Make sure both Python and Node tools are easily found
+ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/.bin:$PATH"
+
+WORKDIR /work

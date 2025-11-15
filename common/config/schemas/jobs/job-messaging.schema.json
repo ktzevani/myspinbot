@@ -53,12 +53,12 @@
       "properties": {
         "jobId": { "type": "string" },
         "data": { "type": "string" },
-        "timestamp": {
+        "created": {
           "type": "string",
           "format": "date-time"
         }
       },
-      "required": ["jobId", "data", "timestamp"],
+      "required": ["jobId", "data", "created"],
       "additionalProperties": false
     },
 
@@ -74,12 +74,12 @@
           "maximum": 1,
           "description": "Normalized progress value between 0 and 1 inclusive"
         },
-        "timestamp": {
+        "created": {
           "type": "string",
           "format": "date-time"
         }
       },
-      "required": ["jobId", "progress", "timestamp"],
+      "required": ["jobId", "progress", "created"],
       "additionalProperties": false
     },
 
@@ -90,12 +90,12 @@
       "properties": {
         "jobId": { "type": "string" },
         "status": { "$ref": "#/$defs/JobStatus" },
-        "timestamp": {
+        "created": {
           "type": "string",
           "format": "date-time"
         }
       },
-      "required": ["jobId", "status", "timestamp"],
+      "required": ["jobId", "status", "created"],
       "additionalProperties": false
     }
   }
