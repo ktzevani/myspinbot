@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python tooling
-RUN pip3 install --break-system-packages --no-cache-dir datamodel-code-generator
+RUN pip3 install --break-system-packages --no-cache-dir "datamodel-code-generator>=0.25.0"
 
 # Node tooling
 RUN npm install -g ajv ajv-cli ajv-formats

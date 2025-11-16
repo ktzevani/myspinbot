@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .bridge import RedisBridge, PubSubChannels, PublishHook
+from .bridge import RedisBridge, PublishHook
 from .models.jobs.job_messaging_schema import (
     JobMessage,
     DataUpdate,
@@ -13,15 +13,14 @@ from .models.jobs.job_messaging_schema import (
     StatusUpdate,
 )
 from .tasks import get_task_for_job
-
 from .utils import get_metrics, setup_graceful_shutdown
 from .config import get_config
 
 # -- Configuration & Metrics
 
 worker_config = get_config()
-prometheus_registry, prometheus_metrics = get_metrics()
 
+prometheus_registry, prometheus_metrics = get_metrics()
 worker_active_tasks = prometheus_metrics["worker_active_tasks"]
 worker_jobs_total = prometheus_metrics["worker_jobs_total"]
 worker_job_duration_seconds = prometheus_metrics["worker_job_duration_seconds"]
@@ -37,9 +36,9 @@ async def lifespan(_: FastAPI):
     """Application lifespan: manages Redis bridge and dispatch loop lifecycle."""
 
     app.state.bridge = RedisBridge(
-        worker_config["REDIS_URL"],
-        worker_config["WORKER_STREAMS"],
-        worker_config["WORKER_GROUP"],
+        worker_config.bridge.url,
+        [worker_config.bridge.streams.info, worker_config.bridge.streams.process],
+        worker_config.streams.group,
     )
     bridge = app.state.bridge
 
@@ -75,9 +74,9 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
     print("[Worker] 🚀 Starting dispatch loop...")
 
     channels = {
-        "ProgressUpdate": PubSubChannels.PROGRESS,
-        "StatusUpdate": PubSubChannels.STATUS,
-        "DataUpdate": PubSubChannels.DATA,
+        "ProgressUpdate": worker_config.bridge.channels.progress,
+        "StatusUpdate": worker_config.bridge.channels.status,
+        "DataUpdate": worker_config.bridge.channels.data,
     }
 
     async def publish_message(
@@ -93,7 +92,7 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
     while not stop_event.is_set():
         worker_loop_iterations_total.inc()
         try:
-            raw_messages = await bridge.poll(worker_config["WORKER_BATCH_SIZE"], 1000)
+            raw_messages = await bridge.poll(worker_config.streams.batch_size, 1000)
             messages = [
                 JobMessage.model_validate(
                     {**msg["fields"], "xid": msg["xid"], "stream": msg["stream"]}
@@ -152,8 +151,8 @@ def run():
 
     uvicorn.run(
         "worker.main:app",
-        host=worker_config["WORKER_HTTP_HOST"],
-        port=worker_config["WORKER_HTTP_PORT"],
+        host=worker_config.server.host,
+        port=worker_config.server.port,
         reload=False,
     )
 

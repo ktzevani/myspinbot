@@ -5,8 +5,8 @@ import redis.asyncio as redis
 
 from typing import Any, Dict, List, Optional, TypeAlias, Callable, Awaitable
 from redis.exceptions import ResponseError
-from enum import StrEnum
 
+from .config import get_config
 from .utils import json_dumps_safe
 from .models.jobs.job_messaging_schema import DataUpdate, ProgressUpdate, StatusUpdate
 
@@ -14,11 +14,7 @@ PublishHook: TypeAlias = Callable[
     [ProgressUpdate | StatusUpdate | DataUpdate], Awaitable[None]
 ]
 
-
-class PubSubChannels(StrEnum):
-    PROGRESS = "channel:progress"
-    STATUS = "channel:status"
-    DATA = "channel:data"
+_worker_config = get_config()
 
 
 class RedisBridge:
@@ -28,7 +24,12 @@ class RedisBridge:
     advertise operation to subscribers of pub/sub channels.
     """
 
-    def __init__(self, redis_url: str, streams: List[str], group: str = "worker-group"):
+    def __init__(
+        self,
+        redis_url: str,
+        streams: List[str],
+        group: str = _worker_config.streams.group,
+    ):
         self.redis_url = redis_url
         self.streams = streams
         self.group = group

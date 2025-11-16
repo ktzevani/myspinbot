@@ -9,8 +9,6 @@ from typing import Awaitable, Callable, TypeAlias
 from minio import Minio
 from minio.error import S3Error
 
-from worker.utils import json_dumps_safe
-
 from .models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
 from .models.jobs.job_messaging_schema import (
     DataUpdate,
@@ -23,8 +21,7 @@ from .config import get_config, get_capabilities as get_worker_capabilities
 
 WorkerTask: TypeAlias = Callable[[str, PublishHook], Awaitable[None]]
 
-worker_config = get_config()
-
+_worker_config = get_config()
 _TASK_MAP: dict[str, WorkerTask] = {}
 
 
@@ -42,10 +39,10 @@ def task(name: str):
 def connect_minio() -> Minio:
     """Return a configured MinIO client using env variables."""
     return Minio(
-        worker_config["MINIO_ENDPOINT"].replace("http://", "").replace("https://", ""),
-        worker_config["MINIO_ACCESS_KEY"],
-        worker_config["MINIO_SECRET_KEY"],
-        secure=worker_config["MINIO_ENDPOINT"].startswith("https://"),
+        _worker_config.storage.url.replace("http://", "").replace("https://", ""),
+        _worker_config.storage.username,
+        _worker_config.storage.password,
+        secure=_worker_config.storage.url.startswith("https://"),
     )
 
 
