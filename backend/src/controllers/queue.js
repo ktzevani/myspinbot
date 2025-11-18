@@ -151,13 +151,13 @@ async function ensurePubSubLine() {
       });
       await Promise.all(
         Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.psubscribe(pattern)
+          redisSubscriber.psubscribe(pattern + ':*')
         )
       );
     } catch (e) {
       await Promise.all(
         Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.punsubscribe(pattern)
+          redisSubscriber.punsubscribe(pattern + ':*')
         )
       );
       await redisSubscriber.quit();

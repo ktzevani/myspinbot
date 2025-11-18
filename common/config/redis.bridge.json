@@ -5,9 +5,9 @@
     "process": "stream:process"
   },
   "channels": {
-    "progress": "channel:progress:*",
-    "status": "channel:status:*",
-    "data": "channel:data:*"
+    "progress": "channel:progress",
+    "status": "channel:status",
+    "data": "channel:data"
   },
   "jobs": {
     "available": {
