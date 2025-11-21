@@ -10,8 +10,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
-import wsRoute from "../src/routes/ws.js";
-import { WsAction, WsResponse } from "../src/lib/enums.js";
+import registerRoutes from "../src/api/ws/routes.js";
+import { WsAction, WsResponse } from "../src/model/defs.js";
 import { WebSocket } from "ws";
 
 let fastify;
@@ -19,7 +19,7 @@ let port;
 
 beforeAll(async () => {
   fastify = Fastify({ logger: false });
-  await fastify.register(wsRoute);
+  await registerRoutes(fastify);
   const address = await fastify.listen({ port: 0 }); // random free port
   port = new URL(address).port;
 });
@@ -37,7 +37,9 @@ describe("WebSocket /ws route", () => {
     const testPromise = new Promise((resolve, reject) => {
       ws.on("open", () => {
         // Send a subscribe request
-        ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId: "test123" }));
+        ws.send(
+          JSON.stringify({ action: WsAction.SUBSCRIBE, jobId: "test123" })
+        );
       });
 
       ws.on("message", (data) => {
@@ -45,7 +47,9 @@ describe("WebSocket /ws route", () => {
         received.push(msg);
 
         // resolve once we've seen both message types
-        const hasSubscribed = received.some((m) => m.message === WsResponse.SUBSCRIBED);
+        const hasSubscribed = received.some(
+          (m) => m.message === WsResponse.SUBSCRIBED
+        );
         const hasUpdate = received.some((m) => m.type === "update");
         if (hasSubscribed && hasUpdate) {
           ws.close();
@@ -59,7 +63,9 @@ describe("WebSocket /ws route", () => {
     const messages = await testPromise;
 
     // Basic shape checks
-    const subscribed = messages.find((m) => m.message === WsResponse.SUBSCRIBED);
+    const subscribed = messages.find(
+      (m) => m.message === WsResponse.SUBSCRIBED
+    );
     const update = messages.find((m) => m.type === "update");
 
     expect(subscribed).toBeDefined();

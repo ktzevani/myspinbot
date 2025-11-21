@@ -1,4 +1,4 @@
-import { closeQueues } from "../src/controllers/queue";
+import { closeQueues } from "../src/core/queue";
 import { afterAll } from "vitest";
 
 afterAll(async () => {

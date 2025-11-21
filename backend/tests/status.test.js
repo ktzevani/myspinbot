@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
-import statusRoutes from "../src/routes/status.js";
-import { enqueueTrainJob } from "../src/controllers/queue.js";
+import registerRoutes from "../src/api/http/routes.js";
+import { enqueueTrainJob } from "../src/core/queue.js";
 
 describe("GET /api/status/:id", () => {
   let fastify;
@@ -9,7 +9,7 @@ describe("GET /api/status/:id", () => {
 
   beforeAll(async () => {
     fastify = Fastify();
-    await fastify.register(statusRoutes, { prefix: "/api" });
+    await registerRoutes(fastify);
     await fastify.ready();
     jobId = await enqueueTrainJob({ dataset: "demo" });
   });

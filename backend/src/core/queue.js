@@ -88,8 +88,8 @@
 
 import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
-import { JobStatus } from "../model/enums.js";
-import { getConfiguration } from "../config.js";
+import { JobStatus } from "../model/defs.js";
+import { getConfiguration } from "./config.js";
 
 const AppConfiguration = getConfiguration();
 

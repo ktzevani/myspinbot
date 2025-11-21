@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { registerRoutes as registerHttpRoutes } from "./api/http/routes.js";
+import { registerRoutes as registerWsRoutes } from "./api/ws/routes.js";
 
 const app = Fastify({ logger: true });
 
@@ -13,13 +15,11 @@ await app.register(cors, {
   credentials: true,
 });
 
-// --- Register routes ---
-await app.register(import("./routes/health.js"));
-await app.register(import("./routes/metrics.js"));
-await app.register(import("./routes/ws.js"));
-await app.register(import("./routes/capabilities.js"), { prefix: "/api" });
-await app.register(import("./routes/status.js"), { prefix: "/api" });
-await app.register(import("./routes/train.js"), { prefix: "/api" });
+// -- Enable WebSocket Server
+await registerWsRoutes(app);
+
+// --- Register HTTP routes ---
+await registerHttpRoutes(app);
 
 const port = 3000;
 app

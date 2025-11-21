@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
-import trainRoutes from "../src/routes/train.js";
+import registerRoutes from "../src/api/http/routes.js";
 
 describe("POST /api/train", () => {
   let fastify;
 
   beforeAll(async () => {
     fastify = Fastify();
-    await fastify.register(trainRoutes, { prefix: "/api" });
+    await registerRoutes(fastify);
     await fastify.ready();
   });
 

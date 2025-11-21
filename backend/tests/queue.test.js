@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
 import IORedis from "ioredis";
-import { enqueueTrainJob, getJobState } from "../src/controllers/queue.js";
-import { JobStatus, WsAction } from "../src/lib/enums.js";
+import { enqueueTrainJob, getJobState } from "../src/core/queue.js";
+import { JobStatus, WsAction } from "../src/model/defs.js";
 import { WebSocket } from "ws";
-import wsRoute from "../src/routes/ws.js";
-import trainRoutes from "../src/routes/train.js";
+import { registerRoutes as registerHttpRoutes } from "../src/api/http/routes.js";
+import { registerRoutes as registerWsRoutes } from "../src/api/ws/routes.js";
 
 let fastify;
 let port;
@@ -13,7 +13,8 @@ let redisPub;
 
 beforeAll(async () => {
   fastify = Fastify({ logger: false });
-  await fastify.register(wsRoute);
+  await registerHttpRoutes(fastify);
+  await registerWsRoutes(fastify);
   await fastify.register(trainRoutes, { prefix: "/api" });
   const address = await fastify.listen({ port: 0 });
   port = new URL(address).port;
