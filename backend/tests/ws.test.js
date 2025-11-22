@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
-import registerRoutes from "../src/api/ws/routes.js";
+import { registerRoutes } from "../src/api/ws/routes.js";
 import { WsAction, WsResponse } from "../src/model/defs.js";
 import { WebSocket } from "ws";
 

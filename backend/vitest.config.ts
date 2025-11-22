@@ -7,5 +7,11 @@ export default defineConfig({
     setupFiles: ["./tests/setupQueue.js"],
     sequence: { concurrent: false },
     pool: "threads",
+    server: {
+      deps: {
+        inline: [/^(?!.*validators)/],
+        external: [/validators/],
+      },
+    },
   },
 });

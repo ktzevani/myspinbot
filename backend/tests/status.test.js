@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
-import registerRoutes from "../src/api/http/routes.js";
-import { enqueueTrainJob } from "../src/core/queue.js";
+import { registerRoutes } from "../src/api/http/routes.js";
+import { submitTrainJob } from "../src/api/http/jobController.js";
 
 describe("GET /api/status/:id", () => {
   let fastify;
@@ -11,7 +11,7 @@ describe("GET /api/status/:id", () => {
     fastify = Fastify();
     await registerRoutes(fastify);
     await fastify.ready();
-    jobId = await enqueueTrainJob({ dataset: "demo" });
+    jobId = (await submitTrainJob()).jobId;
   });
 
   afterAll(async () => {
