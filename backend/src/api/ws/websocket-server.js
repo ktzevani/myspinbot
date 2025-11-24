@@ -1,4 +1,4 @@
-import { getJobState } from "../../core/job-queue.js";
+import jobQueue from "../../core/job-queue.js";
 import client from "prom-client";
 import { register } from "../http/metrics-controller.js";
 import { WsAction, WsResponse } from "../../model/defs.js";
@@ -84,7 +84,7 @@ export default async function wsServer(connection, req) {
   // Periodically push job status to client
   const interval = setInterval(async () => {
     for (const jobId of subscriptions) {
-      const status = await getJobState(jobId);
+      const status = await jobQueue.getJobState(jobId);
       sent.inc();
       connection.socket.send(JSON.stringify({ type: "update", ...status }));
     }

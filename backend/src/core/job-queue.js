@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Redis Job Queue Controller
+// Backend Job Queue
 // -----------------------------------------------------------------------------
 //
 // This module provides a unified interface for:
@@ -52,17 +52,13 @@
 // 🔍 Exposed API
 // -----------------------------------------------------------------------------
 //
-//   • enqueueJob(name, input)
-//         Adds job to correct Redis stream, initializes job state, returns jobId.
-//
-//   • getJobState(jobId)
-//         Retrieves current status + progress from Redis.
-//
-//   • getJobResult(jobId)
-//         Polls until the job reaches COMPLETED, then resolves with the job result.
-//
-//   • closeQueues()
-//         Gracefully shuts down Redis DB and subscriber clients.
+//   • JobQueue
+//         Class encapsulating Redis connections + operations.
+//         Methods:
+//           - enqueueJob(name, input)
+//           - getJobState(jobId)
+//           - getJobResult(jobId)
+//           - freeResources()
 //
 // -----------------------------------------------------------------------------
 // 🚦 Supported Status Values (JobStatus enum)
@@ -91,187 +87,194 @@ import { randomUUID } from "node:crypto";
 import { JobStatus } from "../model/defs.js";
 import { getConfiguration } from "./config.js";
 
-const AppConfiguration = getConfiguration();
-
-export const QueueError = Object.freeze({
-  JOB_NOT_FOUND: (jobId) => {
-    return { error: `Job (${jobId}) not found.` };
-  },
-  REDIS_CONNECTION_UNAVAILABLE: {
-    error: `No connection to (${AppConfiguration.bridge.url})`,
-  },
-});
-
-const Job2Stream = {
-  [AppConfiguration.bridge.jobs.available.GET_CAPABILITIES]:
-    `${AppConfiguration.bridge.streams.info}:data`,
-  [AppConfiguration.bridge.jobs.available.PROCESS_GRAPH]:
-    `${AppConfiguration.bridge.streams.process}:data`,
-};
-
 const JobProperty = Object.freeze({
   STATUS: "status",
   PROGRESS: "progress",
   DATA: "data",
 });
 
-const redisURL = AppConfiguration.bridge.url;
-const jobKeyTTL = AppConfiguration.bridge.jobs.ttl;
 const jobDbKey = (jobId, subKey) =>
   subKey ? `job:${jobId}:${subKey}` : `job:${jobId}`;
 
-let redisDBClient = null;
-let redisSubscriber = null;
+const createQueueError = (configuration) =>
+  Object.freeze({
+    JOB_NOT_FOUND: (jobId) => {
+      return { error: `Job (${jobId}) not found.` };
+    },
+    REDIS_CONNECTION_UNAVAILABLE: {
+      error: `No connection to (${configuration.bridge.url})`,
+    },
+  });
 
-function getRedis(create = true) {
-  if (!redisDBClient && create) {
-    redisDBClient = new IORedis(redisURL, {
-      maxRetriesPerRequest: null,
-    });
+export class JobQueue {
+  constructor(configuration = getConfiguration()) {
+    this.configuration = configuration;
+    this.redisURL = configuration.bridge.url;
+    this.jobKeyTTL = configuration.bridge.jobs.ttl;
+    this.job2Stream = {
+      [configuration.bridge.jobs.available.GET_CAPABILITIES]:
+        `${configuration.bridge.streams.info}:data`,
+      [configuration.bridge.jobs.available.PROCESS_GRAPH]:
+        `${configuration.bridge.streams.process}:data`,
+    };
+    this.queueError = createQueueError(configuration);
+    this.redisDBClient = null;
+    this.redisSubscriber = null;
   }
-  return redisDBClient;
-}
 
-async function ensurePubSubLine() {
-  if (!redisSubscriber) {
-    try {
-      redisSubscriber = new IORedis(redisURL, {
+  getRedis(create = true) {
+    if (!this.redisDBClient && create) {
+      this.redisDBClient = new IORedis(this.redisURL, {
         maxRetriesPerRequest: null,
       });
-      redisSubscriber.on("pmessage", async (_pattern, message, payload) => {
-        try {
-          let [_, property, jobId] = message.split(":");
-          await persistMessage(jobId, property, JSON.parse(payload)[property]);
-        } catch (error) {
-          console.error(
-            "[Streams] Event persistence error:",
-            error?.message || error
-          );
+    }
+    return this.redisDBClient;
+  }
+
+  async ensurePubSubLine() {
+    if (!this.redisSubscriber) {
+      try {
+        this.redisSubscriber = new IORedis(this.redisURL, {
+          maxRetriesPerRequest: null,
+        });
+        this.redisSubscriber.on(
+          "pmessage",
+          async (_pattern, message, payload) => {
+            try {
+              let [_, property, jobId] = message.split(":");
+              await this.persistMessage(
+                jobId,
+                property,
+                JSON.parse(payload)[property]
+              );
+            } catch (error) {
+              console.error(
+                "[Streams] Event persistence error:",
+                error?.message || error
+              );
+            }
+          }
+        );
+        await Promise.all(
+          Object.values(this.configuration.bridge.channels).map((pattern) =>
+            this.redisSubscriber.psubscribe(pattern + ":*")
+          )
+        );
+      } catch (e) {
+        await Promise.all(
+          Object.values(this.configuration.bridge.channels).map((pattern) =>
+            this.redisSubscriber.punsubscribe(pattern + ":*")
+          )
+        );
+        await this.redisSubscriber.quit();
+        this.redisSubscriber = null;
+      }
+    }
+  }
+
+  async persistMessage(jobId, property, value) {
+    const dbClient = this.getRedis();
+    if (dbClient) {
+      const pipeline = dbClient.pipeline();
+      pipeline.set(jobDbKey(jobId, property), value);
+      pipeline.expire(jobDbKey(jobId, property), this.jobKeyTTL);
+      await pipeline.exec();
+    }
+  }
+
+  async enqueueJob(name, input) {
+    const dbClient = this.getRedis();
+    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
+    await this.ensurePubSubLine();
+    const streamName = this.job2Stream[name];
+    if (!streamName) throw new Error(`Unknown job: ${name}`);
+
+    const jobId = randomUUID();
+    const created = Date.now().toString();
+    const inputPayload = JSON.stringify(input ?? {});
+
+    await dbClient.xadd(
+      streamName,
+      "*",
+      "jobId",
+      jobId,
+      "name",
+      name,
+      "created",
+      created,
+      "input",
+      inputPayload
+    );
+
+    const pipeline = dbClient.pipeline();
+
+    pipeline.hset(jobDbKey(jobId), {
+      name: name,
+      input: inputPayload,
+      created: created,
+    });
+    pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
+    pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
+    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
+    await pipeline.exec();
+
+    return jobId;
+  }
+
+  async getJobState(jobId) {
+    if (!jobId) throw this.queueError.JOB_NOT_FOUND(jobId);
+    const dbClient = this.getRedis(false);
+    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
+
+    let currentStatus = await dbClient.get(jobDbKey(jobId, JobProperty.STATUS));
+    let currentProgress = await dbClient.get(
+      jobDbKey(jobId, JobProperty.PROGRESS)
+    );
+
+    return {
+      jobId: jobId,
+      status: currentStatus,
+      progress: Number(currentProgress),
+    };
+  }
+
+  async getJobResult(jobId) {
+    let jobQueryInterval;
+    await new Promise((resolve, reject) => {
+      jobQueryInterval = setInterval(async () => {
+        const state = await this.getJobState(jobId);
+        if (state == this.queueError.JOB_NOT_FOUND(jobId)) {
+          clearInterval(jobQueryInterval);
+          reject(state);
+        } else if (state?.status == JobStatus.COMPLETED) {
+          clearInterval(jobQueryInterval);
+          resolve(state);
         }
-      });
+      }, 250);
+    });
+    const dbClient = this.getRedis(false);
+    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
+    return dbClient.get(jobDbKey(jobId, JobProperty.DATA));
+  }
+
+  async freeResources() {
+    if (this.redisSubscriber) {
       await Promise.all(
-        Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.psubscribe(pattern + ":*")
+        Object.values(this.configuration.bridge.channels).map((pattern) =>
+          this.redisSubscriber.punsubscribe(pattern)
         )
       );
-    } catch (e) {
-      await Promise.all(
-        Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.punsubscribe(pattern + ":*")
-        )
-      );
-      await redisSubscriber.quit();
-      redisSubscriber = null;
+      await this.redisSubscriber.quit();
+      this.redisSubscriber = null;
+    }
+    if (this.redisDBClient) {
+      await this.redisDBClient.quit();
+      this.redisDBClient = null;
     }
   }
 }
 
-async function persistMessage(jobId, property, value) {
-  const dbClient = getRedis();
-  if (dbClient) {
-    const pipeline = dbClient.pipeline();
-    pipeline.set(jobDbKey(jobId, property), value);
-    pipeline.expire(jobDbKey(jobId, property), jobKeyTTL);
-    await pipeline.exec();
-  }
-}
-
-export async function enqueueJob(name, input) {
-  const dbClient = getRedis();
-  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
-  await ensurePubSubLine();
-  const streamName = Job2Stream[name];
-  if (!streamName) throw new Error(`Unknown job: ${name}`);
-
-  const jobId = randomUUID();
-  const created = Date.now().toString();
-  const inputPayload = JSON.stringify(input ?? {});
-
-  await dbClient.xadd(
-    streamName,
-    "*",
-    "jobId",
-    jobId,
-    "name",
-    name,
-    "created",
-    created,
-    "input",
-    inputPayload
-  );
-
-  const pipeline = dbClient.pipeline();
-
-  pipeline.hset(jobDbKey(jobId), {
-    name: name,
-    input: inputPayload,
-    created: created,
-  });
-  pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
-  pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
-  pipeline.expire(jobDbKey(jobId), jobKeyTTL);
-  pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), jobKeyTTL);
-  pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), jobKeyTTL);
-  await pipeline.exec();
-
-  return jobId;
-}
-
-export async function getJobState(jobId) {
-  if (!jobId) throw QueueError.JOB_NOT_FOUND(jobId);
-  const dbClient = getRedis(false);
-  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
-
-  let currentStatus = await dbClient.get(jobDbKey(jobId, JobProperty.STATUS));
-  let currentProgress = await dbClient.get(
-    jobDbKey(jobId, JobProperty.PROGRESS)
-  );
-
-  return {
-    jobId: jobId,
-    status: currentStatus,
-    progress: Number(currentProgress),
-  };
-}
-
-export async function getJobResult(jobId) {
-  let jobQueryInterval;
-  await new Promise((resolve, reject) => {
-    jobQueryInterval = setInterval(async () => {
-      const state = await getJobState(jobId);
-      if (state == QueueError.JOB_NOT_FOUND(jobId)) {
-        clearInterval(jobQueryInterval);
-        reject(state);
-      } else if (state?.status == JobStatus.COMPLETED) {
-        clearInterval(jobQueryInterval);
-        resolve(state);
-      }
-    }, 250);
-  });
-  const dbClient = getRedis(false);
-  if (!dbClient) throw QueueError.REDIS_CONNECTION_UNAVAILABLE;
-  return dbClient.get(jobDbKey(jobId, JobProperty.DATA));
-}
-
-export async function closeQueues() {
-  if (redisSubscriber) {
-    await Promise.all(
-      Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-        redisSubscriber.punsubscribe(pattern)
-      )
-    );
-    await redisSubscriber.quit();
-    redisSubscriber = null;
-  }
-  if (redisDBClient) {
-    await redisDBClient.quit();
-    redisDBClient = null;
-  }
-}
-
-export default {
-  enqueueJob,
-  getJobState,
-  getJobResult,
-  closeQueues,
-};
+export const jobQueue = new JobQueue();
+export default jobQueue;

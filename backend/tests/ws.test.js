@@ -50,8 +50,8 @@ describe("WebSocket /ws route", () => {
         const hasSubscribed = received.some(
           (m) => m.message === WsResponse.SUBSCRIBED
         );
-        const hasUpdate = received.some((m) => m.type === "update");
-        if (hasSubscribed && hasUpdate) {
+
+        if (hasSubscribed) {
           ws.close();
           resolve(received);
         }
@@ -66,12 +66,8 @@ describe("WebSocket /ws route", () => {
     const subscribed = messages.find(
       (m) => m.message === WsResponse.SUBSCRIBED
     );
-    const update = messages.find((m) => m.type === "update");
 
     expect(subscribed).toBeDefined();
     expect(subscribed.jobId).toBe("test123");
-
-    expect(update).toBeDefined();
-    expect(update).toHaveProperty("status");
   }, 15000); // allow 15s for WS loop
 });

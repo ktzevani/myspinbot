@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
 import IORedis from "ioredis";
-import { enqueueJob, getJobState } from "../src/core/queue.js";
+import jobQueue from "../src/core/job-queue.js";
 import { JobStatus, WsAction } from "../src/model/defs.js";
 import { WebSocket } from "ws";
 import { registerRoutes as registerHttpRoutes } from "../src/api/http/routes.js";
@@ -30,11 +30,11 @@ afterAll(async () => {
 
 describe("Queue integration", () => {
   it("Job Status: adds a job and retrieves status", async () => {
-    const jobId = await enqueueJob(
+    const jobId = await jobQueue.enqueueJob(
       AppConfiguration.bridge.jobs.available.PROCESS_GRAPH,
       { dataset: "unit-test" }
     );
-    const jobState = await getJobState(jobId);
+    const jobState = await jobQueue.getJobState(jobId);
     expect(jobState).toHaveProperty("status");
     expect(jobState).toHaveProperty("progress");
     expect(jobState.status).toBeOneOf([
@@ -44,46 +44,50 @@ describe("Queue integration", () => {
     expect(jobState.progress).toBe(0);
   });
 
-  it("Job Progress: creates a job and informs its status to subscribed clients", async () => {
-    const response = await fastify.inject({
-      method: "POST",
-      url: "/api/train",
-      payload: { dataset: "queue-integration" },
-    });
-    expect(response.statusCode).toBe(200);
-
-    const body = JSON.parse(response.body);
-    expect(body).toHaveProperty("jobId");
-    expect(body.status).toBe(JobStatus.QUEUED);
-
-    const jobId = body.jobId;
-    const url = `ws://localhost:${port}/ws`;
-    const ws = new WebSocket(url);
-
-    const subscriptionPromise = new Promise((resolve, reject) => {
-      ws.on("open", () => {
-        ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId }));
+  it(
+    "Job Progress: creates a job and informs its status to subscribed clients",
+    async () => {
+      const response = await fastify.inject({
+        method: "POST",
+        url: "/api/train",
+        payload: { dataset: "queue-integration" },
       });
-      ws.on("message", (data) => {
-        const message = JSON.parse(data.toString());
-        if (message.type === "update") {
-          ws.close();
-          resolve(message);
-        }
-      });
-      ws.on("error", (err) => reject(err));
-    });
+      expect(response.statusCode).toBe(200);
 
-    const updateMessage = await subscriptionPromise;
-    expect(updateMessage.jobId).toBe(jobId);
-    expect(updateMessage.status).toBe(
-      JobStatus.ADVERTISED || JobStatus.RUNNING
-    );
-    expect(updateMessage.progress).toBe(0);
-  }, 15000);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty("jobId");
+      expect(body.status).toBe(JobStatus.QUEUED);
+
+      const jobId = body.jobId;
+      const url = `ws://localhost:${port}/ws`;
+      const ws = new WebSocket(url);
+
+      const subscriptionPromise = new Promise((resolve, reject) => {
+        ws.on("open", () => {
+          ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId }));
+        });
+        ws.on("message", (data) => {
+          const message = JSON.parse(data.toString());
+          if (message.type === "update") {
+            ws.close();
+            resolve(message);
+          }
+        });
+        ws.on("error", (err) => reject(err));
+      });
+
+      const updateMessage = await subscriptionPromise;
+      expect(updateMessage.jobId).toBe(jobId);
+      expect(updateMessage.status).toBe(
+        JobStatus.ADVERTISED || JobStatus.RUNNING
+      );
+      expect(updateMessage.progress).toBe(0);
+    },
+    15000
+  );
 
   it("Job Lifecycle: status flow end-to-end", async () => {
-    const jobId = await enqueueJob(
+    const jobId = await jobQueue.enqueueJob(
       AppConfiguration.bridge.jobs.available.PROCESS_GRAPH,
       { dataset: "lifecycle" }
     );
@@ -97,7 +101,7 @@ describe("Queue integration", () => {
     );
     await new Promise((r) => setTimeout(r, 150));
 
-    let jobState = await getJobState(jobId);
+    let jobState = await jobQueue.getJobState(jobId);
     expect(jobState.status).toBe(JobStatus.RUNNING);
     expect(jobState.progress).toBeCloseTo(0.5, 2);
 
@@ -111,7 +115,7 @@ describe("Queue integration", () => {
     );
     await new Promise((r) => setTimeout(r, 150));
 
-    jobState = await getJobState(jobId);
+    jobState = await jobQueue.getJobState(jobId);
     expect(jobState.status).toBe(JobStatus.COMPLETED);
     expect(jobState.progress).toBe(1);
   });

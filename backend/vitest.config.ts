@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    setupFiles: ["./tests/setupQueue.js"],
+    setupFiles: ["./tests/setup.js"],
     sequence: { concurrent: false },
     pool: "threads",
     server: {
