@@ -1,7 +1,9 @@
-import jobQueue from "../../core/job-queue.js";
+import { jobQueue, JobQueueError } from "../../core/job-queue.js";
 import { JobStatus } from "../../model/defs.js";
 import { getConfiguration } from "../../core/config.js";
+import jobSchemaValidator from "../../validators/jobs/job-messaging.schema-validator.cjs";
 
+const validateJobResponse = jobSchemaValidator.default;
 const AppConfiguration = getConfiguration();
 
 export async function submitTrainJob() {
@@ -12,6 +14,17 @@ export async function submitTrainJob() {
 }
 
 export async function getJobStatus(id) {
-  const result = await jobQueue.getJobState(id);
-  return { jobId: id, status: result.status, progress: result.progress };
+  try {
+    const state = await jobQueue.getJobState(id);
+    if (validateJobResponse(state)) {
+      return state;
+    } else {
+      return { error: "Unknown job state format." };
+    }
+  } catch (err) {
+    if (err instanceof JobQueueError) {
+      return err;
+    }
+    throw err;
+  }
 }

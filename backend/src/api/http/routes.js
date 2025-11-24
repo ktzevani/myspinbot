@@ -21,8 +21,8 @@ async function metricsRoute(fastify) {
 }
 
 async function statusRoute(fastify) {
-  fastify.get("/status/:id", async (req, reply) => {
-    return reply.send(await getJobStatus(req.params));
+  fastify.get("/status/:jobId", async (req, reply) => {
+    return reply.send(await getJobStatus(req.params?.jobId));
   });
 }
 

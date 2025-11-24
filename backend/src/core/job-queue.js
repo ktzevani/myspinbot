@@ -98,14 +98,15 @@ const jobDbKey = (jobId, subKey) =>
 
 const queueError = Object.freeze({
   JOB_NOT_FOUND: (jobId) => {
-    return { error: `Job (${jobId}) not found.` };
+    return `Job (${jobId}) not found.`;
   },
   JOB_TYPE_UNKNOWN: (jobName) => {
-    return { error: `Unknown job (${jobName}).` };
+    return `Unknown job (${jobName}).`;
   },
-  JOB_QUEUE_UNINITIALIZED: {
-    error: "Job queue needs initialization, run init() first.",
+  JOB_QUEUE_INVALID_ARGS: (argName) => {
+    return `Invalid or missing argument ${argName}.`;
   },
+  JOB_QUEUE_UNINITIALIZED: "Job queue needs initialization, run init() first.",
 });
 
 export class JobQueueError extends Error {
@@ -235,7 +236,8 @@ export class JobQueue {
   async getJobState(jobId) {
     if (!this.ready)
       throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
-    if (!jobId) throw new JobQueueError(queueError.JOB_NOT_FOUND(jobId));
+    if (!jobId)
+      throw new JobQueueError(queueError.JOB_QUEUE_INVALID_ARGS("jobId"));
 
     let currentStatus = await this.redisDBClient.get(
       jobDbKey(jobId, JobProperty.STATUS)
@@ -243,6 +245,10 @@ export class JobQueue {
     let currentProgress = await this.redisDBClient.get(
       jobDbKey(jobId, JobProperty.PROGRESS)
     );
+
+    if (currentStatus == null || currentProgress == null) {
+      throw new JobQueueError(queueError.JOB_NOT_FOUND(jobId));
+    }
 
     return {
       jobId: jobId,
