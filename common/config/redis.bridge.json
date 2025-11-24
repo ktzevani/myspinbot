@@ -2,7 +2,8 @@
   "url": "redis://redis:6379",
   "streams": {
     "info": "stream:info",
-    "process": "stream:process"
+    "process": "stream:process",
+    "plan": "stream:plan"
   },
   "channels": {
     "progress": "channel:progress",

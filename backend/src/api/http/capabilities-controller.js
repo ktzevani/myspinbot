@@ -1,6 +1,6 @@
 import validatorModule from "../../validators/capabilities/plane-manifest.schema-validator.cjs";
 import { getConfiguration, getCapabilities } from "../../core/config.js";
-import { enqueueJob, getJobResult } from "../../core/queue.js";
+import { enqueueJob, getJobResult } from "../../core/job-queue.js";
 
 const AppConfiguration = getConfiguration();
 const validatePlaneManifest = validatorModule.default;

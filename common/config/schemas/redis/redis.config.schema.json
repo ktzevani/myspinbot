@@ -26,11 +26,15 @@
       "properties": {
         "info": {
           "type": "string",
-          "description": "Name of stream for exchanging high level information (e.g. 'stream:info')."
+          "description": "Root name of stream for exchanging high level information (e.g. 'stream:info:data')."
         },
         "process": {
           "type": "string",
-          "description": "Name of stream for exchanging job messages (e.g. 'stream:process')."
+          "description": "Root name of stream for exchanging job messages (e.g. 'stream:process:data')."
+        },
+        "plan": {
+          "type": "string",
+          "description": "Root name of stream for exchanging planner messages (e.g. 'stream:plan:control')."
         }
       },
       "additionalProperties": false

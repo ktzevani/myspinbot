@@ -1,4 +1,4 @@
-import { getJobState } from "../../core/queue.js";
+import { getJobState } from "../../core/job-queue.js";
 import client from "prom-client";
 import { register } from "../http/metrics-controller.js";
 import { WsAction, WsResponse } from "../../model/defs.js";
