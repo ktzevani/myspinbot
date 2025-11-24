@@ -96,20 +96,31 @@ const JobProperty = Object.freeze({
 const jobDbKey = (jobId, subKey) =>
   subKey ? `job:${jobId}:${subKey}` : `job:${jobId}`;
 
-const createQueueError = (configuration) =>
-  Object.freeze({
-    JOB_NOT_FOUND: (jobId) => {
-      return { error: `Job (${jobId}) not found.` };
-    },
-    REDIS_CONNECTION_UNAVAILABLE: {
-      error: `No connection to (${configuration.bridge.url})`,
-    },
-  });
+const queueError = Object.freeze({
+  JOB_NOT_FOUND: (jobId) => {
+    return { error: `Job (${jobId}) not found.` };
+  },
+  JOB_TYPE_UNKNOWN: (jobName) => {
+    return { error: `Unknown job (${jobName}).` };
+  },
+  JOB_QUEUE_UNINITIALIZED: {
+    error: "Job queue needs initialization, run init() first.",
+  },
+});
+
+export class JobQueueError extends Error {
+  constructor(msg) {
+    super(msg);
+    this.name = this.constructor.name;
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+}
 
 export class JobQueue {
   constructor(configuration = getConfiguration()) {
     this.configuration = configuration;
-    this.redisURL = configuration.bridge.url;
     this.jobKeyTTL = configuration.bridge.jobs.ttl;
     this.job2Stream = {
       [configuration.bridge.jobs.available.GET_CAPABILITIES]:
@@ -117,83 +128,81 @@ export class JobQueue {
       [configuration.bridge.jobs.available.PROCESS_GRAPH]:
         `${configuration.bridge.streams.process}:data`,
     };
-    this.queueError = createQueueError(configuration);
-    this.redisDBClient = null;
-    this.redisSubscriber = null;
+    this.ready = false;
   }
 
-  getRedis(create = true) {
-    if (!this.redisDBClient && create) {
-      this.redisDBClient = new IORedis(this.redisURL, {
-        maxRetriesPerRequest: null,
-      });
-    }
-    return this.redisDBClient;
-  }
-
-  async ensurePubSubLine() {
-    if (!this.redisSubscriber) {
-      try {
-        this.redisSubscriber = new IORedis(this.redisURL, {
-          maxRetriesPerRequest: null,
-        });
-        this.redisSubscriber.on(
-          "pmessage",
-          async (_pattern, message, payload) => {
-            try {
-              let [_, property, jobId] = message.split(":");
-              await this.persistMessage(
-                jobId,
-                property,
-                JSON.parse(payload)[property]
-              );
-            } catch (error) {
-              console.error(
-                "[Streams] Event persistence error:",
-                error?.message || error
-              );
-            }
-          }
-        );
-        await Promise.all(
-          Object.values(this.configuration.bridge.channels).map((pattern) =>
-            this.redisSubscriber.psubscribe(pattern + ":*")
-          )
-        );
-      } catch (e) {
-        await Promise.all(
-          Object.values(this.configuration.bridge.channels).map((pattern) =>
-            this.redisSubscriber.punsubscribe(pattern + ":*")
-          )
-        );
-        await this.redisSubscriber.quit();
-        this.redisSubscriber = null;
-      }
-    }
-  }
-
-  async persistMessage(jobId, property, value) {
-    const dbClient = this.getRedis();
-    if (dbClient) {
-      const pipeline = dbClient.pipeline();
+  async #persistMessage(jobId, property, value) {
+    if (this.ready) {
+      const pipeline = this.redisDBClient.pipeline();
       pipeline.set(jobDbKey(jobId, property), value);
       pipeline.expire(jobDbKey(jobId, property), this.jobKeyTTL);
       await pipeline.exec();
     }
   }
 
+  async init() {
+    if (!this.ready) {
+      this.redisDBClient = new IORedis(this.configuration.bridge.url, {
+        maxRetriesPerRequest: null,
+      });
+      this.redisSubscriber = new IORedis(this.configuration.bridge.url, {
+        maxRetriesPerRequest: null,
+      });
+      this.redisSubscriber.on(
+        "pmessage",
+        async (_pattern, message, payload) => {
+          try {
+            let [_, property, jobId] = message.split(":");
+            await this.#persistMessage(
+              jobId,
+              property,
+              JSON.parse(payload)[property]
+            );
+          } catch (error) {
+            console.error(
+              "[Streams] Event persistence error:",
+              error?.message || error
+            );
+          }
+        }
+      );
+      await Promise.all(
+        Object.values(this.configuration.bridge.channels).map((pattern) =>
+          this.redisSubscriber.psubscribe(pattern + ":*")
+        )
+      );
+      this.ready = true;
+    }
+  }
+
+  async stop() {
+    if (this.ready) {
+      await Promise.all(
+        Object.values(this.configuration.bridge.channels).map((pattern) =>
+          this.redisSubscriber.punsubscribe(pattern)
+        )
+      );
+      await this.redisSubscriber.quit();
+      await this.redisDBClient.quit();
+      this.redisSubscriber = null;
+      this.redisDBClient = null;
+      this.ready = false;
+    }
+  }
+
   async enqueueJob(name, input) {
-    const dbClient = this.getRedis();
-    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
-    await this.ensurePubSubLine();
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
+
     const streamName = this.job2Stream[name];
-    if (!streamName) throw new Error(`Unknown job: ${name}`);
+    if (!streamName)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED(name));
 
     const jobId = randomUUID();
     const created = Date.now().toString();
     const inputPayload = JSON.stringify(input ?? {});
 
-    await dbClient.xadd(
+    await this.redisDBClient.xadd(
       streamName,
       "*",
       "jobId",
@@ -206,7 +215,7 @@ export class JobQueue {
       inputPayload
     );
 
-    const pipeline = dbClient.pipeline();
+    const pipeline = this.redisDBClient.pipeline();
 
     pipeline.hset(jobDbKey(jobId), {
       name: name,
@@ -224,12 +233,14 @@ export class JobQueue {
   }
 
   async getJobState(jobId) {
-    if (!jobId) throw this.queueError.JOB_NOT_FOUND(jobId);
-    const dbClient = this.getRedis(false);
-    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
+    if (!jobId) throw new JobQueueError(queueError.JOB_NOT_FOUND(jobId));
 
-    let currentStatus = await dbClient.get(jobDbKey(jobId, JobProperty.STATUS));
-    let currentProgress = await dbClient.get(
+    let currentStatus = await this.redisDBClient.get(
+      jobDbKey(jobId, JobProperty.STATUS)
+    );
+    let currentProgress = await this.redisDBClient.get(
       jobDbKey(jobId, JobProperty.PROGRESS)
     );
 
@@ -241,40 +252,28 @@ export class JobQueue {
   }
 
   async getJobResult(jobId) {
-    let jobQueryInterval;
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
     await new Promise((resolve, reject) => {
-      jobQueryInterval = setInterval(async () => {
-        const state = await this.getJobState(jobId);
-        if (state == this.queueError.JOB_NOT_FOUND(jobId)) {
-          clearInterval(jobQueryInterval);
-          reject(state);
-        } else if (state?.status == JobStatus.COMPLETED) {
-          clearInterval(jobQueryInterval);
-          resolve(state);
-        }
+      const stop = () => clearInterval(jobQueryInterval);
+      const jobQueryInterval = setInterval(() => {
+        this.getJobState(jobId)
+          .then((state) => {
+            if (state?.status == JobStatus.COMPLETED) {
+              stop();
+              resolve(state);
+            }
+          })
+          .catch((err) => {
+            stop();
+            reject(err);
+          });
       }, 250);
     });
-    const dbClient = this.getRedis(false);
-    if (!dbClient) throw this.queueError.REDIS_CONNECTION_UNAVAILABLE;
-    return dbClient.get(jobDbKey(jobId, JobProperty.DATA));
-  }
-
-  async freeResources() {
-    if (this.redisSubscriber) {
-      await Promise.all(
-        Object.values(this.configuration.bridge.channels).map((pattern) =>
-          this.redisSubscriber.punsubscribe(pattern)
-        )
-      );
-      await this.redisSubscriber.quit();
-      this.redisSubscriber = null;
-    }
-    if (this.redisDBClient) {
-      await this.redisDBClient.quit();
-      this.redisDBClient = null;
-    }
+    return this.redisDBClient.get(jobDbKey(jobId, JobProperty.DATA));
   }
 }
 
 export const jobQueue = new JobQueue();
+await jobQueue.init();
 export default jobQueue;
