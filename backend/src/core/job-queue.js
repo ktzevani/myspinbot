@@ -58,7 +58,8 @@
 //           - enqueueJob(name, input)
 //           - getJobState(jobId)
 //           - getJobResult(jobId)
-//           - freeResources()
+//           - init()
+//           - stop()
 //
 // -----------------------------------------------------------------------------
 // 🚦 Supported Status Values (JobStatus enum)
@@ -130,6 +131,8 @@ export class JobQueue {
         `${configuration.bridge.streams.process}:data`,
     };
     this.ready = false;
+    process.on("SIGTERM", () => this.stop());
+    process.on("SIGINT", () => this.stop());
   }
 
   async #persistMessage(jobId, property, value) {
