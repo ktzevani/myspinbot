@@ -151,13 +151,13 @@ async function ensurePubSubLine() {
       });
       await Promise.all(
         Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.psubscribe(pattern + ':*')
+          redisSubscriber.psubscribe(pattern + ":*")
         )
       );
     } catch (e) {
       await Promise.all(
         Object.values(AppConfiguration.bridge.channels).map((pattern) =>
-          redisSubscriber.punsubscribe(pattern + ':*')
+          redisSubscriber.punsubscribe(pattern + ":*")
         )
       );
       await redisSubscriber.quit();
@@ -227,7 +227,11 @@ export async function getJobState(jobId) {
     jobDbKey(jobId, JobProperty.PROGRESS)
   );
 
-  return { jobId: jobId, status: currentStatus, progress: currentProgress };
+  return {
+    jobId: jobId,
+    status: currentStatus,
+    progress: Number(currentProgress),
+  };
 }
 
 export async function getJobResult(jobId) {
