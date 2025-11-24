@@ -1,5 +1,5 @@
 import websocketPlugin from "@fastify/websocket";
-import wsServer from "./websocketServer.js";
+import wsServer from "./websocket-server.js";
 
 async function wsRoute(fastify) {
   await fastify.register(websocketPlugin);

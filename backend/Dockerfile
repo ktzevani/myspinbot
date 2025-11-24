@@ -3,6 +3,8 @@ FROM node:20-alpine
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
 
+RUN [ "$NODE_ENV" = "development" ] && apk add --no-cache git || true
+
 WORKDIR /app
 
 COPY ./backend/package*.json ./

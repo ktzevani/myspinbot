@@ -1,6 +1,6 @@
 import { getJobState } from "../../core/queue.js";
 import client from "prom-client";
-import { register } from "../http/metricsController.js";
+import { register } from "../http/metrics-controller.js";
 import { WsAction, WsResponse } from "../../model/defs.js";
 
 function getOrCreateMetrics(name, type, opts) {
@@ -84,13 +84,9 @@ export default async function wsServer(connection, req) {
   // Periodically push job status to client
   const interval = setInterval(async () => {
     for (const jobId of subscriptions) {
-      try {
-        const status = await getJobState(jobId);
-        sent.inc();
-        connection.socket.send(JSON.stringify({ type: "update", ...status }));
-      } catch (err) {
-        let m = err;
-      }
+      const status = await getJobState(jobId);
+      sent.inc();
+      connection.socket.send(JSON.stringify({ type: "update", ...status }));
     }
   }, 750);
 

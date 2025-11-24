@@ -1,6 +1,6 @@
-import { getMetrics } from "./metricsController.js";
-import { getCapabilitiesManifest } from "./capabilitiesController.js";
-import { submitTrainJob, getJobStatus } from "./jobController.js";
+import { getMetrics } from "./metrics-controller.js";
+import { getCapabilitiesManifest } from "./capabilities-controller.js";
+import { submitTrainJob, getJobStatus } from "./job-controller.js";
 
 async function capabilitiesRoute(fastify) {
   fastify.get("/capabilities", async (_req, reply) => {

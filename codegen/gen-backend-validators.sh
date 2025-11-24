@@ -17,7 +17,7 @@ find "$SCHEMAS_DIR" -type f -name "*.json" | while IFS= read -r schema; do
   out_dir="$OUT_ROOT/$schema_dir"
   mkdir -p "$out_dir"
 
-  out_file="$out_dir/${base}Validator.cjs"
+  out_file="$out_dir/${base}-validator.cjs"
 
   echo " → $schema"
   echo "   → $out_file"
