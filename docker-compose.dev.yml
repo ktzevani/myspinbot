@@ -53,6 +53,9 @@ services:
         WORKER_ENVIRONMENT: development
     ports:
       - "5678:5678"
+    entrypoint: ["/bin/bash", "-l"]
+    stdin_open: true
+    tty: true
     volumes:
       - ./docs:/app/docs
       - ./worker/.vscode:/app/.vscode

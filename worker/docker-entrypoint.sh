@@ -4,5 +4,5 @@ if [ "$WORKER_ENVIRONMENT" = "development" ]; then
   python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 -m worker.main
 elif [ "$WORKER_ENVIRONMENT" = "production" ]; then
   echo "Running in production mode"
-  python -m worker.main
+  myspinbot-worker
 fi
