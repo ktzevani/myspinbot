@@ -6,6 +6,9 @@ services:
         NODE_ENV: development
     ports:
       - "9229:9229"
+    entrypoint: ["/bin/sh", "-l"]
+    stdin_open: true
+    tty: true
     volumes:
       - ./docs:/app/docs
       - ./backend/.vscode:/app/.vscode
