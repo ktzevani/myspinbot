@@ -37,7 +37,10 @@ async def lifespan(_: FastAPI):
 
     app.state.bridge = RedisBridge(
         worker_config.bridge.url,
-        [worker_config.bridge.streams.info, worker_config.bridge.streams.process],
+        [
+            f"{worker_config.bridge.streams.info}:data",
+            f"{worker_config.bridge.streams.process}:data",
+        ],
         worker_config.streams.group,
     )
     bridge = app.state.bridge

@@ -104,9 +104,9 @@ export const QueueError = Object.freeze({
 
 const Job2Stream = {
   [AppConfiguration.bridge.jobs.available.GET_CAPABILITIES]:
-    AppConfiguration.bridge.streams.info,
+    `${AppConfiguration.bridge.streams.info}:data`,
   [AppConfiguration.bridge.jobs.available.PROCESS_GRAPH]:
-    AppConfiguration.bridge.streams.process,
+    `${AppConfiguration.bridge.streams.process}:data`,
 };
 
 const JobProperty = Object.freeze({
