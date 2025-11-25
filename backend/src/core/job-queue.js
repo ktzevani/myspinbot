@@ -84,10 +84,8 @@
 // -----------------------------------------------------------------------------
 
 import IORedis from "ioredis";
-import { randomUUID } from "node:crypto";
 import { JobStatus } from "../model/defs.js";
 import { getConfiguration } from "../config.js";
-import { Planner } from "./planner.js";
 
 const JobProperty = Object.freeze({
   STATUS: "status",
@@ -195,46 +193,124 @@ class JobQueue {
     }
   }
 
-  async enqueueJob(name, input) {
+  async ensureGroup(streamName, groupName) {
+    try {
+      await this.redisDBClient.xgroup(
+        "CREATE",
+        streamName,
+        groupName,
+        "$",
+        "MKSTREAM"
+      );
+    } catch (err) {
+      if (!String(err?.message || "").includes("BUSYGROUP")) {
+        throw new JobQueueError(err?.message);
+      }
+    }
+  }
+
+  async ensureControlGroup(name) {
+    return this.ensureGroup(
+      `${this.configuration.bridge.streams.process}:control`,
+      name
+    );
+  }
+
+  async ensureDataGroup(name) {
+    return this.ensureGroup(
+      `${this.configuration.bridge.streams.process}:data`,
+      name
+    );
+  }
+
+  async pollControlJob(consumerId, groupName) {
+    const result = await this.redisDBClient.xreadgroup(
+      "GROUP",
+      groupName,
+      consumerId,
+      "BLOCK",
+      200,
+      "COUNT",
+      1,
+      "STREAMS",
+      `${this.configuration.bridge.streams.process}:control`,
+      ">"
+    );
+
+    const entry = result?.[0]?.[1]?.[0];
+    if (!entry) return null;
+
+    const [id, fields] = entry;
+    return { id, fields };
+  }
+
+  async acknowledgeControlJob(jobId, groupName) {
+    return await this.redisDBClient.xack(
+      `${this.configuration.bridge.streams.process}:control`,
+      groupName,
+      jobId
+    );
+  }
+
+  async enqueueControlJob(jobId, graph) {
     if (!this.ready)
       throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
 
-    const streamName = this.job2Stream[name];
-    if (!streamName) throw new JobQueueError(queueError.JOB_TYPE_UNKNOWN(name));
-
-    const jobId = randomUUID();
     const created = Date.now().toString();
-    const planner = new Planner(input);
-    const inputPayload = planner.getJobGraph({ workflowId: jobId });
 
     await this.redisDBClient.xadd(
-      streamName,
+      `${this.configuration.bridge.streams.process}:control`,
       "*",
       "jobId",
       jobId,
-      "name",
-      name,
       "created",
       created,
-      "input",
-      inputPayload
+      "graph",
+      graph
     );
 
     const pipeline = this.redisDBClient.pipeline();
 
     pipeline.hset(jobDbKey(jobId), {
-      name: name,
-      input: inputPayload,
-      created: created,
+      graph,
+      created,
     });
     pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
     pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
     pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
     pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
     pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
+
     await pipeline.exec();
 
-    return jobId;
+    return { jobId, status: JobStatus.ADVERTISED, progress: 0, created };
+  }
+
+  async enqueueDataJob(jobId, graph) {
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
+
+    const job = await this.getJobState(jobId);
+    const created = Date.now().toString();
+
+    await this.redisDBClient.xadd(
+      `${this.configuration.bridge.streams.process}:data`,
+      "*",
+      "jobId",
+      jobId,
+      "created",
+      created,
+      "graph",
+      graph
+    );
+
+    const pipeline = this.redisDBClient.pipeline();
+    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
+    await pipeline.exec();
+
+    return { jobId, status: job.status, progress: job.progress, created };
   }
 
   async getJobState(jobId) {
@@ -281,6 +357,46 @@ class JobQueue {
       }, 250);
     });
     return this.redisDBClient.get(jobDbKey(jobId, JobProperty.DATA));
+  }
+
+  async setJobPayload(jobId, payload) {
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
+    const created = Date.now().toString();
+    const pipeline = this.redisDBClient.pipeline();
+    pipeline.hset(jobDbKey(jobId), {
+      input: JSON.stringify(payload),
+      created: created,
+    });
+    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
+    await pipeline.exec();
+  }
+
+  async #publish(channel, payload) {
+    if (!this.ready)
+      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
+    return this.redisDBClient.publish(channel, JSON.stringify(payload));
+  }
+
+  async publishProgress(jobId, progress) {
+    return this.#publish(
+      `${this.configuration.bridge.channels.progress}:${jobId}`,
+      { progress }
+    );
+  }
+
+  async publishStatus(jobId, status) {
+    return this.#publish(
+      `${this.configuration.bridge.channels.status}:${jobId}`,
+      { status }
+    );
+  }
+
+  async publishData(jobId, data) {
+    return this.#publish(
+      `${this.configuration.bridge.channels.data}:${jobId}`,
+      { data }
+    );
   }
 }
 

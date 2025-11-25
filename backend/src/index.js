@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerRoutes as registerHttpRoutes } from "./api/http/routes.js";
 import { registerRoutes as registerWsRoutes } from "./api/ws/routes.js";
+import _ from "./core/executor.js";
 
 const app = Fastify({ logger: true });
 

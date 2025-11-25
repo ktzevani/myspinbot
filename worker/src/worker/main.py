@@ -117,10 +117,11 @@ async def dispatch_loop(bridge: RedisBridge, stop_event: asyncio.Event):
 async def process_entry(entry: JobMessage, publish_hook: PublishHook):
     """Process an entry pulled from Redis Stream."""
     try:
-        task = get_task_for_job(entry.name)
+        dummy_name = "train_lora"
+        task = get_task_for_job(dummy_name)
         worker_active_tasks.inc()
-        worker_jobs_total.labels(type=entry.name).inc()
-        with worker_job_duration_seconds.labels(type=entry.name).time():
+        worker_jobs_total.labels(type=dummy_name).inc()
+        with worker_job_duration_seconds.labels(type=dummy_name).time():
             await task(entry.jobId, publish_hook)
     except Exception as exc:
         print(f"[Worker] ❌ Error while processing {entry.jobId}: {exc}")

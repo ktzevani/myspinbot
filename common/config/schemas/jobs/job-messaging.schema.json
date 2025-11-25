@@ -21,10 +21,6 @@
           "type": "string",
           "description": "Unique job ID"
         },
-        "name": {
-          "type": "string",
-          "description": "Job type identifier (train/generate/etc.)"
-        },
         "created": {
           "type": [
             "string",
@@ -32,19 +28,20 @@
           ],
           "description": "Timestamp in ms (stringified)"
         },
-        "input": {
+        "graph": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Generic data input serialized to string"
+          "description": "Serialized execution graph (langgraph v1)"
         }
       },
       "required": [
         "xid",
         "stream",
         "jobId",
-        "name"
+        "created",
+        "graph"
       ],
       "additionalProperties": false
     },

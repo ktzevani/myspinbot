@@ -1,16 +1,15 @@
 import { jobQueue, JobQueueError } from "../../core/job-queue.js";
-import { JobStatus } from "../../model/defs.js";
-import { getConfiguration } from "../../config.js";
 import jobSchemaValidator from "../../validators/jobs/job-messaging.schema-validator.cjs";
+import { randomUUID } from "node:crypto";
+import { Planner } from "../../core/planner.js";
 
 const validateJobResponse = jobSchemaValidator.default;
-const AppConfiguration = getConfiguration();
 
 export async function submitTrainJob() {
-  const jobId = await jobQueue.enqueueJob(
-    AppConfiguration.bridge.jobs.available.PROCESS_GRAPH
-  );
-  return { jobId, status: JobStatus.QUEUED, progress: 0 };
+  const jobId = randomUUID();
+  const planner = new Planner();
+  const graph = planner.getJobGraph({ workflowId: jobId });
+  return await jobQueue.enqueueControlJob(jobId, graph);
 }
 
 export async function getJobStatus(id) {

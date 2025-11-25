@@ -119,7 +119,7 @@ class WsServer {
       }
     };
 
-    pollTimer = setTimeout(poll, 750);
+    pollTimer = setTimeout(poll, this.updatesIntervalMs);
 
     req.socket.on("close", () => {
       stopped = true;

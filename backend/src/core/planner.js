@@ -11,7 +11,7 @@ const defaultGraphTemplate = {
     {
       id: "scripting",
       name: "Generate bot script",
-      task: "generateScript",
+      task: "script.generateScript",
       plane: "node",
       status: "pending",
     },
@@ -27,12 +27,21 @@ const defaultGraphTemplate = {
 };
 
 export class Planner {
-  constructor(_input, configuration = getConfiguration()) {
+  constructor(
+    configuration = getConfiguration(),
+    template = defaultGraphTemplate,
+    input = { prompt: "Default prompt" }
+  ) {
     this.configuration = configuration;
+    this.graphTemplate = template;
+    this.graphInput = input;
   }
 
-  buildGraphTemplate() {
-    return JSON.parse(JSON.stringify(defaultGraphTemplate));
+  #buildGraph() {
+    return {
+      ...JSON.parse(JSON.stringify(this.graphTemplate)),
+      params: this.graphInput,
+    };
   }
 
   #validateWithLangGraph(nodes, edges) {
@@ -54,7 +63,7 @@ export class Planner {
   }
 
   getJobGraph({ workflowId, context = {}, metadata = {} }) {
-    const graphTemplate = this.buildGraphTemplate();
+    const graphTemplate = this.#buildGraph();
     this.#validateWithLangGraph(graphTemplate.nodes, graphTemplate.edges);
 
     const jobGraph = {
