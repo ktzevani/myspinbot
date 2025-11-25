@@ -6,7 +6,7 @@ import { JobStatus, WsAction } from "../src/model/defs.js";
 import { WebSocket } from "ws";
 import { registerRoutes as registerHttpRoutes } from "../src/api/http/routes.js";
 import { registerRoutes as registerWsRoutes } from "../src/api/ws/routes.js";
-import { getConfiguration } from "../src/core/config.js";
+import { getConfiguration } from "../src/config.js";
 
 let fastify;
 let port;
@@ -44,47 +44,43 @@ describe("Queue integration", () => {
     expect(jobState.progress).toBe(0);
   });
 
-  it(
-    "Job Progress: creates a job and informs its status to subscribed clients",
-    async () => {
-      const response = await fastify.inject({
-        method: "POST",
-        url: "/api/train",
-        payload: { dataset: "queue-integration" },
+  it("Job Progress: creates a job and informs its status to subscribed clients", async () => {
+    const response = await fastify.inject({
+      method: "POST",
+      url: "/api/train",
+      payload: { dataset: "queue-integration" },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const body = JSON.parse(response.body);
+    expect(body).toHaveProperty("jobId");
+    expect(body.status).toBe(JobStatus.QUEUED);
+
+    const jobId = body.jobId;
+    const url = `ws://localhost:${port}/ws`;
+    const ws = new WebSocket(url);
+
+    const subscriptionPromise = new Promise((resolve, reject) => {
+      ws.on("open", () => {
+        ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId }));
       });
-      expect(response.statusCode).toBe(200);
-
-      const body = JSON.parse(response.body);
-      expect(body).toHaveProperty("jobId");
-      expect(body.status).toBe(JobStatus.QUEUED);
-
-      const jobId = body.jobId;
-      const url = `ws://localhost:${port}/ws`;
-      const ws = new WebSocket(url);
-
-      const subscriptionPromise = new Promise((resolve, reject) => {
-        ws.on("open", () => {
-          ws.send(JSON.stringify({ action: WsAction.SUBSCRIBE, jobId }));
-        });
-        ws.on("message", (data) => {
-          const message = JSON.parse(data.toString());
-          if (message.type === "update") {
-            ws.close();
-            resolve(message);
-          }
-        });
-        ws.on("error", (err) => reject(err));
+      ws.on("message", (data) => {
+        const message = JSON.parse(data.toString());
+        if (message.type === "update") {
+          ws.close();
+          resolve(message);
+        }
       });
+      ws.on("error", (err) => reject(err));
+    });
 
-      const updateMessage = await subscriptionPromise;
-      expect(updateMessage.jobId).toBe(jobId);
-      expect(updateMessage.status).toBe(
-        JobStatus.ADVERTISED || JobStatus.RUNNING
-      );
-      expect(updateMessage.progress).toBe(0);
-    },
-    15000
-  );
+    const updateMessage = await subscriptionPromise;
+    expect(updateMessage.jobId).toBe(jobId);
+    expect(updateMessage.status).toBe(
+      JobStatus.ADVERTISED || JobStatus.RUNNING
+    );
+    expect(updateMessage.progress).toBe(0);
+  }, 15000);
 
   it("Job Lifecycle: status flow end-to-end", async () => {
     const jobId = await jobQueue.enqueueJob(
