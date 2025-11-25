@@ -39,8 +39,7 @@ class WsServer {
       }
     );
     this.handlers = [];
-    // To be read from configuration
-    this.updatesIntervalMs = 750;
+    this.updatesIntervalMs = configuration.websocket.updateInterval;
   }
   async registerJobMessageHandler(handler) {
     this.handlers.push(handler);
