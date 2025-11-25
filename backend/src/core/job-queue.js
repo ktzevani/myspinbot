@@ -87,6 +87,7 @@ import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
 import { JobStatus } from "../model/defs.js";
 import { getConfiguration } from "../config.js";
+import { Planner } from "./planner.js";
 
 const JobProperty = Object.freeze({
   STATUS: "status",
@@ -203,7 +204,8 @@ class JobQueue {
 
     const jobId = randomUUID();
     const created = Date.now().toString();
-    const inputPayload = JSON.stringify(input ?? {});
+    const planner = new Planner(input);
+    const inputPayload = planner.getJobGraph({ workflowId: jobId });
 
     await this.redisDBClient.xadd(
       streamName,
