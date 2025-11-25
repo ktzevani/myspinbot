@@ -32,3 +32,7 @@ export const WsResponse = Object.freeze({
   UNSUBSCRIBED: "unsubscribed",
   FAILED: "failed",
 });
+
+export const WsMessageType = Object.freeze({
+  UPDATE: "update",
+});

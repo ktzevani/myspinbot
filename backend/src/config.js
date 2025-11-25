@@ -1,7 +1,7 @@
-import capabilities from "../../config/capabilities.json" assert { type: "json" };
-import planeSchemaValidator from "../validators/capabilities/plane-manifest.schema-validator.cjs";
-import redisConfigValidator from "../validators/redis/redis.config.schema-validator.cjs";
-import bridgeConfig from "../../config/redis.bridge.json" assert { type: "json" };
+import capabilities from "../config/capabilities.json" assert { type: "json" };
+import planeSchemaValidator from "./validators/capabilities/plane-manifest.schema-validator.cjs";
+import redisConfigValidator from "./validators/redis/redis.config.schema-validator.cjs";
+import bridgeConfig from "../config/redis.bridge.json" assert { type: "json" };
 
 const validatePlaneManifest = planeSchemaValidator.default;
 const validateRedisConfig = redisConfigValidator.default;

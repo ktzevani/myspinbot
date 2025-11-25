@@ -86,7 +86,7 @@
 import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
 import { JobStatus } from "../model/defs.js";
-import { getConfiguration } from "./config.js";
+import { getConfiguration } from "../config.js";
 
 const JobProperty = Object.freeze({
   STATUS: "status",
@@ -120,7 +120,7 @@ export class JobQueueError extends Error {
   }
 }
 
-export class JobQueue {
+class JobQueue {
   constructor(configuration = getConfiguration()) {
     this.configuration = configuration;
     this.jobKeyTTL = configuration.bridge.jobs.ttl;
@@ -199,8 +199,7 @@ export class JobQueue {
       throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
 
     const streamName = this.job2Stream[name];
-    if (!streamName)
-      throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED(name));
+    if (!streamName) throw new JobQueueError(queueError.JOB_TYPE_UNKNOWN(name));
 
     const jobId = randomUUID();
     const created = Date.now().toString();
@@ -283,6 +282,11 @@ export class JobQueue {
   }
 }
 
-export const jobQueue = new JobQueue();
-await jobQueue.init();
+async function factory() {
+  const queue = new JobQueue();
+  await queue.init();
+  return queue;
+}
+
+export const jobQueue = await factory();
 export default jobQueue;

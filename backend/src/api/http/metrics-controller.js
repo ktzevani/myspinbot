@@ -1,8 +1,5 @@
-import client from "prom-client";
-
-export const register = new client.Registry();
-client.collectDefaultMetrics({ register });
+import registry from "../../infra/metrics.js";
 
 export async function getMetrics() {
-  return { type: register.contentType, metrics: register.metrics() };
+  return { type: registry.contentType, metrics: registry.metrics() };
 }

@@ -1,6 +1,6 @@
 import { jobQueue, JobQueueError } from "../../core/job-queue.js";
 import { JobStatus } from "../../model/defs.js";
-import { getConfiguration } from "../../core/config.js";
+import { getConfiguration } from "../../config.js";
 import jobSchemaValidator from "../../validators/jobs/job-messaging.schema-validator.cjs";
 
 const validateJobResponse = jobSchemaValidator.default;
