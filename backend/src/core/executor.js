@@ -10,7 +10,7 @@ const validateGraph = validateGraphSchema.default;
 const DEFAULT_GROUP = "control-executor";
 const POLL_INTERVAL_MS = 500;
 
-export class Executor {
+class Executor {
   constructor(configuration, taskRegistry) {
     this.configuration = configuration;
     this.taskRegistry = taskRegistry;
@@ -77,8 +77,8 @@ export class Executor {
 
   async #processJob(entryId, fields) {
     const normalized = this.#fieldsToObject(fields);
-    const jobId = normalized.jobId || normalized.job_id;
-    const payload = normalized.payload || normalized.graph || normalized.input;
+    const jobId = normalized.jobId;
+    const payload = normalized.graph;
 
     let graph = null;
 

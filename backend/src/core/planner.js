@@ -4,7 +4,7 @@ import validateGraphSchema from "../validators/langgraph/graph.schema-validator.
 
 const LANGGRAPH_SCHEMA_VERSION = "langgraph.v1";
 
-const validator = validateGraphSchema.default ?? validateGraphSchema;
+const validator = validateGraphSchema.default;
 
 const defaultGraphTemplate = {
   nodes: [
@@ -14,6 +14,10 @@ const defaultGraphTemplate = {
       task: "script.generateScript",
       plane: "node",
       status: "pending",
+      progressWeight: 0.5,
+      params: {
+        prompt: "Testing prompt template",
+      },
     },
     {
       id: "training",
@@ -21,6 +25,7 @@ const defaultGraphTemplate = {
       task: "train_lora",
       plane: "python",
       status: "pending",
+      progressWeight: 0.5,
     },
   ],
   edges: [{ from: "scripting", to: "training", kind: "normal" }],
@@ -29,19 +34,15 @@ const defaultGraphTemplate = {
 export class Planner {
   constructor(
     configuration = getConfiguration(),
-    template = defaultGraphTemplate,
-    input = { prompt: "Default prompt" }
+    template = defaultGraphTemplate
   ) {
     this.configuration = configuration;
     this.graphTemplate = template;
-    this.graphInput = input;
   }
 
   #buildGraph() {
-    return {
-      ...JSON.parse(JSON.stringify(this.graphTemplate)),
-      params: this.graphInput,
-    };
+    // TODO: To be implemented
+    return JSON.parse(JSON.stringify(this.graphTemplate));
   }
 
   #validateWithLangGraph(nodes, edges) {

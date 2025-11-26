@@ -257,6 +257,17 @@ class JobQueue {
       throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
 
     const created = Date.now().toString();
+    const pipeline = this.redisDBClient.pipeline();
+    pipeline.hset(jobDbKey(jobId), {
+      graph,
+      created,
+    });
+    pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
+    pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
+    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
+    await pipeline.exec();
 
     await this.redisDBClient.xadd(
       `${this.configuration.bridge.streams.process}:control`,
@@ -269,20 +280,6 @@ class JobQueue {
       graph
     );
 
-    const pipeline = this.redisDBClient.pipeline();
-
-    pipeline.hset(jobDbKey(jobId), {
-      graph,
-      created,
-    });
-    pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
-    pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
-    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
-    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
-    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
-
-    await pipeline.exec();
-
     return { jobId, status: JobStatus.ADVERTISED, progress: 0, created };
   }
 
@@ -290,8 +287,25 @@ class JobQueue {
     if (!this.ready)
       throw new JobQueueError(queueError.JOB_QUEUE_UNINITIALIZED);
 
-    const job = await this.getJobState(jobId);
+    let job = null;
+    try {
+      job = await this.getJobState(jobId);
+    } catch (err) {}
+
     const created = Date.now().toString();
+    const pipeline = this.redisDBClient.pipeline();
+    if (!job) {
+      pipeline.hset(jobDbKey(jobId), {
+        graph,
+        created,
+      });
+      pipeline.set(jobDbKey(jobId, JobProperty.STATUS), JobStatus.ADVERTISED);
+      pipeline.set(jobDbKey(jobId, JobProperty.PROGRESS), 0);
+    }
+    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
+    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
+    await pipeline.exec();
 
     await this.redisDBClient.xadd(
       `${this.configuration.bridge.streams.process}:data`,
@@ -304,13 +318,12 @@ class JobQueue {
       graph
     );
 
-    const pipeline = this.redisDBClient.pipeline();
-    pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
-    pipeline.expire(jobDbKey(jobId, JobProperty.STATUS), this.jobKeyTTL);
-    pipeline.expire(jobDbKey(jobId, JobProperty.PROGRESS), this.jobKeyTTL);
-    await pipeline.exec();
-
-    return { jobId, status: job.status, progress: job.progress, created };
+    return {
+      jobId,
+      status: job ? job.status : JobStatus.ADVERTISED,
+      progress: job ? job.progress : 0,
+      created,
+    };
   }
 
   async getJobState(jobId) {
@@ -365,7 +378,7 @@ class JobQueue {
     const created = Date.now().toString();
     const pipeline = this.redisDBClient.pipeline();
     pipeline.hset(jobDbKey(jobId), {
-      input: JSON.stringify(payload),
+      graph: JSON.stringify(payload),
       created: created,
     });
     pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);

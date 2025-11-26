@@ -71,7 +71,10 @@
       ]
     },
     "errorInfo": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Error information when node.status == 'failed'.",
       "additionalProperties": true,
       "properties": {
@@ -125,7 +128,10 @@
           "$ref": "#/$defs/nodeStatus"
         },
         "params": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "description": "Planner-defined parameters for this node (mapped onto capability input/parameters).",
           "additionalProperties": true
         },
@@ -155,7 +161,10 @@
           "$ref": "#/$defs/errorInfo"
         },
         "retries": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "description": "Retry bookkeeping, if implemented (attempt count etc).",
           "additionalProperties": false,
           "properties": {
@@ -172,14 +181,20 @@
           }
         },
         "tags": {
-          "type": "array",
+          "type": [
+            "array",
+            "null"
+          ],
           "description": "Optional tags for debugging, grouping, or analytics.",
           "items": {
             "type": "string"
           }
         },
         "telemetry": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "description": "Optional telemetry hints (metrics keys, spans, etc.).",
           "additionalProperties": true
         },
@@ -217,7 +232,10 @@
           "default": "normal"
         },
         "metadata": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "description": "Optional edge-level metadata (e.g. condition expressions, weights).",
           "additionalProperties": true
         }

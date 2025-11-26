@@ -9,15 +9,15 @@ from typing import Awaitable, Callable, TypeAlias
 from minio import Minio
 from minio.error import S3Error
 
-from .models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
-from .models.jobs.job_messaging_schema import (
+from ..models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
+from ..models.jobs.job_messaging_schema import (
     DataUpdate,
     ProgressUpdate,
     StatusUpdate,
     JobStatus,
 )
-from .bridge import PublishHook
-from .config import get_config, get_capabilities as get_worker_capabilities
+from ..core.bridge import PublishHook
+from ..config import get_config, get_capabilities as get_worker_capabilities
 
 WorkerTask: TypeAlias = Callable[[str, PublishHook], Awaitable[None]]
 
@@ -164,13 +164,13 @@ async def get_capabilities(jobId: str, publish: PublishHook):
             jobId=jobId, status=JobStatus.running, created=datetime.now(timezone.utc)
         )
     )
-    await publish(
-        DataUpdate(
-            jobId=jobId,
-            data=get_worker_capabilities().model_dump_json(),
-            created=datetime.now(timezone.utc),
-        )
-    )
+    # await publish(
+    #     DataUpdate(
+    #         jobId=jobId,
+    #         data=get_worker_capabilities().model_dump_json(),
+    #         created=datetime.now(timezone.utc),
+    #     )
+    # )
     await publish(
         ProgressUpdate(jobId=jobId, progress=1.0, created=datetime.now(timezone.utc))
     )
@@ -179,6 +179,7 @@ async def get_capabilities(jobId: str, publish: PublishHook):
             jobId=jobId, status=JobStatus.completed, created=datetime.now(timezone.utc)
         )
     )
+    return get_worker_capabilities().model_dump_json()
 
 
 # Task provider
@@ -188,3 +189,8 @@ def get_task_for_job(job_type: str) -> WorkerTask:
         return _TASK_MAP[job_type]
     except KeyError:
         raise ValueError(f"No registered task for job type '{job_type}'")
+
+
+def get_task_registry() -> dict[str, WorkerTask]:
+    """Expose the internal task registry (read-only reference)."""
+    return _TASK_MAP

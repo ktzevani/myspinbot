@@ -1,12 +1,12 @@
 "use strict";
 module.exports = validate30;
 module.exports.default = validate30;
-var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"graph.schema.json","title":"LangGraph Workflow","description":"Shared dual-plane LangGraph JSON used by Node.js (control plane) and Python worker (data plane).","type":"object","additionalProperties":false,"required":["schema","workflowId","nodes","edges"],"properties":{"schema":{"type":"string","enum":["langgraph.v1"],"description":"Logical schema version of the LangGraph document."},"workflowId":{"type":"string","description":"Stable identifier for this workflow instance (distinct from Job id, which wraps this graph)."},"context":{"type":"object","description":"Shared, plane-agnostic context object accessible to all nodes.","additionalProperties":true},"metadata":{"type":"object","description":"Optional planner/runtime metadata (non-critical for execution).","additionalProperties":true},"nodes":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/node"},"description":"All nodes in the workflow DAG."},"edges":{"type":"array","items":{"$ref":"#/$defs/edge"},"description":"Directed edges representing dependencies between nodes."}},"$defs":{"plane":{"type":"string","description":"Execution plane for this node.","enum":["node","python"]},"nodeStatus":{"type":"string","description":"Execution status of a node.","enum":["pending","ready","running","completed","failed","skipped"]},"errorInfo":{"type":"object","description":"Error information when node.status == 'failed'.","additionalProperties":true,"properties":{"message":{"type":"string","description":"Human-readable error message."},"code":{"type":"string","description":"Machine-readable error code."},"details":{"description":"Arbitrary structured details about the failure.","type":["object","array","string","number","boolean","null"]}}},"node":{"type":"object","additionalProperties":false,"required":["id","task","plane","status"],"properties":{"id":{"type":"string","description":"Unique node identifier within this workflow."},"name":{"type":"string","description":"Optional human-friendly label for the node."},"task":{"type":"string","description":"Symbolic task/capability identifier (e.g. a capabilities.json `id` like 'train.train_lora')."},"plane":{"$ref":"#/$defs/plane"},"status":{"$ref":"#/$defs/nodeStatus"},"params":{"type":"object","description":"Planner-defined parameters for this node (mapped onto capability input/parameters).","additionalProperties":true},"input":{"description":"Optional snapshot of node-specific input (resolved from context/previous outputs).","type":["object","array","string","number","boolean","null"]},"output":{"description":"Node output payload or artifact references; stored as part of the graph for later nodes.","type":["object","array","string","number","boolean","null"]},"error":{"$ref":"#/$defs/errorInfo"},"retries":{"type":"object","description":"Retry bookkeeping, if implemented (attempt count etc).","additionalProperties":false,"properties":{"attempt":{"type":"integer","minimum":0,"description":"Current attempt number for this node."},"maxAttempts":{"type":"integer","minimum":1,"description":"Maximum allowed attempts for this node."}}},"tags":{"type":"array","description":"Optional tags for debugging, grouping, or analytics.","items":{"type":"string"}},"telemetry":{"type":"object","description":"Optional telemetry hints (metrics keys, spans, etc.).","additionalProperties":true},"progressWeight":{"type":"number","minimum":0,"description":"Relative share of overall progress this node contributes; optional, defaults to 1."}}},"edge":{"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string","description":"Source node id."},"to":{"type":"string","description":"Target node id."},"kind":{"type":"string","description":"Optional edge kind to support conditional flows.","enum":["normal","on_success","on_failure"],"default":"normal"},"metadata":{"type":"object","description":"Optional edge-level metadata (e.g. condition expressions, weights).","additionalProperties":true}}}}};
-var schema47 = {"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string","description":"Source node id."},"to":{"type":"string","description":"Target node id."},"kind":{"type":"string","description":"Optional edge kind to support conditional flows.","enum":["normal","on_success","on_failure"],"default":"normal"},"metadata":{"type":"object","description":"Optional edge-level metadata (e.g. condition expressions, weights).","additionalProperties":true}}};
-var schema43 = {"type":"object","additionalProperties":false,"required":["id","task","plane","status"],"properties":{"id":{"type":"string","description":"Unique node identifier within this workflow."},"name":{"type":"string","description":"Optional human-friendly label for the node."},"task":{"type":"string","description":"Symbolic task/capability identifier (e.g. a capabilities.json `id` like 'train.train_lora')."},"plane":{"$ref":"#/$defs/plane"},"status":{"$ref":"#/$defs/nodeStatus"},"params":{"type":"object","description":"Planner-defined parameters for this node (mapped onto capability input/parameters).","additionalProperties":true},"input":{"description":"Optional snapshot of node-specific input (resolved from context/previous outputs).","type":["object","array","string","number","boolean","null"]},"output":{"description":"Node output payload or artifact references; stored as part of the graph for later nodes.","type":["object","array","string","number","boolean","null"]},"error":{"$ref":"#/$defs/errorInfo"},"retries":{"type":"object","description":"Retry bookkeeping, if implemented (attempt count etc).","additionalProperties":false,"properties":{"attempt":{"type":"integer","minimum":0,"description":"Current attempt number for this node."},"maxAttempts":{"type":"integer","minimum":1,"description":"Maximum allowed attempts for this node."}}},"tags":{"type":"array","description":"Optional tags for debugging, grouping, or analytics.","items":{"type":"string"}},"telemetry":{"type":"object","description":"Optional telemetry hints (metrics keys, spans, etc.).","additionalProperties":true},"progressWeight":{"type":"number","minimum":0,"description":"Relative share of overall progress this node contributes; optional, defaults to 1."}}};
+var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"graph.schema.json","title":"LangGraph Workflow","description":"Shared dual-plane LangGraph JSON used by Node.js (control plane) and Python worker (data plane).","type":"object","additionalProperties":false,"required":["schema","workflowId","nodes","edges"],"properties":{"schema":{"type":"string","enum":["langgraph.v1"],"description":"Logical schema version of the LangGraph document."},"workflowId":{"type":"string","description":"Stable identifier for this workflow instance (distinct from Job id, which wraps this graph)."},"context":{"type":"object","description":"Shared, plane-agnostic context object accessible to all nodes.","additionalProperties":true},"metadata":{"type":"object","description":"Optional planner/runtime metadata (non-critical for execution).","additionalProperties":true},"nodes":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/node"},"description":"All nodes in the workflow DAG."},"edges":{"type":"array","items":{"$ref":"#/$defs/edge"},"description":"Directed edges representing dependencies between nodes."}},"$defs":{"plane":{"type":"string","description":"Execution plane for this node.","enum":["node","python"]},"nodeStatus":{"type":"string","description":"Execution status of a node.","enum":["pending","ready","running","completed","failed","skipped"]},"errorInfo":{"type":["object","null"],"description":"Error information when node.status == 'failed'.","additionalProperties":true,"properties":{"message":{"type":"string","description":"Human-readable error message."},"code":{"type":"string","description":"Machine-readable error code."},"details":{"description":"Arbitrary structured details about the failure.","type":["object","array","string","number","boolean","null"]}}},"node":{"type":"object","additionalProperties":false,"required":["id","task","plane","status"],"properties":{"id":{"type":"string","description":"Unique node identifier within this workflow."},"name":{"type":"string","description":"Optional human-friendly label for the node."},"task":{"type":"string","description":"Symbolic task/capability identifier (e.g. a capabilities.json `id` like 'train.train_lora')."},"plane":{"$ref":"#/$defs/plane"},"status":{"$ref":"#/$defs/nodeStatus"},"params":{"type":["object","null"],"description":"Planner-defined parameters for this node (mapped onto capability input/parameters).","additionalProperties":true},"input":{"description":"Optional snapshot of node-specific input (resolved from context/previous outputs).","type":["object","array","string","number","boolean","null"]},"output":{"description":"Node output payload or artifact references; stored as part of the graph for later nodes.","type":["object","array","string","number","boolean","null"]},"error":{"$ref":"#/$defs/errorInfo"},"retries":{"type":["object","null"],"description":"Retry bookkeeping, if implemented (attempt count etc).","additionalProperties":false,"properties":{"attempt":{"type":"integer","minimum":0,"description":"Current attempt number for this node."},"maxAttempts":{"type":"integer","minimum":1,"description":"Maximum allowed attempts for this node."}}},"tags":{"type":["array","null"],"description":"Optional tags for debugging, grouping, or analytics.","items":{"type":"string"}},"telemetry":{"type":["object","null"],"description":"Optional telemetry hints (metrics keys, spans, etc.).","additionalProperties":true},"progressWeight":{"type":"number","minimum":0,"description":"Relative share of overall progress this node contributes; optional, defaults to 1."}}},"edge":{"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string","description":"Source node id."},"to":{"type":"string","description":"Target node id."},"kind":{"type":"string","description":"Optional edge kind to support conditional flows.","enum":["normal","on_success","on_failure"],"default":"normal"},"metadata":{"type":["object","null"],"description":"Optional edge-level metadata (e.g. condition expressions, weights).","additionalProperties":true}}}}};
+var schema47 = {"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string","description":"Source node id."},"to":{"type":"string","description":"Target node id."},"kind":{"type":"string","description":"Optional edge kind to support conditional flows.","enum":["normal","on_success","on_failure"],"default":"normal"},"metadata":{"type":["object","null"],"description":"Optional edge-level metadata (e.g. condition expressions, weights).","additionalProperties":true}}};
+var schema43 = {"type":"object","additionalProperties":false,"required":["id","task","plane","status"],"properties":{"id":{"type":"string","description":"Unique node identifier within this workflow."},"name":{"type":"string","description":"Optional human-friendly label for the node."},"task":{"type":"string","description":"Symbolic task/capability identifier (e.g. a capabilities.json `id` like 'train.train_lora')."},"plane":{"$ref":"#/$defs/plane"},"status":{"$ref":"#/$defs/nodeStatus"},"params":{"type":["object","null"],"description":"Planner-defined parameters for this node (mapped onto capability input/parameters).","additionalProperties":true},"input":{"description":"Optional snapshot of node-specific input (resolved from context/previous outputs).","type":["object","array","string","number","boolean","null"]},"output":{"description":"Node output payload or artifact references; stored as part of the graph for later nodes.","type":["object","array","string","number","boolean","null"]},"error":{"$ref":"#/$defs/errorInfo"},"retries":{"type":["object","null"],"description":"Retry bookkeeping, if implemented (attempt count etc).","additionalProperties":false,"properties":{"attempt":{"type":"integer","minimum":0,"description":"Current attempt number for this node."},"maxAttempts":{"type":"integer","minimum":1,"description":"Maximum allowed attempts for this node."}}},"tags":{"type":["array","null"],"description":"Optional tags for debugging, grouping, or analytics.","items":{"type":"string"}},"telemetry":{"type":["object","null"],"description":"Optional telemetry hints (metrics keys, spans, etc.).","additionalProperties":true},"progressWeight":{"type":"number","minimum":0,"description":"Relative share of overall progress this node contributes; optional, defaults to 1."}}};
 var schema44 = {"type":"string","description":"Execution plane for this node.","enum":["node","python"]};
 var schema45 = {"type":"string","description":"Execution status of a node.","enum":["pending","ready","running","completed","failed","skipped"]};
-var schema46 = {"type":"object","description":"Error information when node.status == 'failed'.","additionalProperties":true,"properties":{"message":{"type":"string","description":"Human-readable error message."},"code":{"type":"string","description":"Machine-readable error code."},"details":{"description":"Arbitrary structured details about the failure.","type":["object","array","string","number","boolean","null"]}}};
+var schema46 = {"type":["object","null"],"description":"Error information when node.status == 'failed'.","additionalProperties":true,"properties":{"message":{"type":"string","description":"Human-readable error message."},"code":{"type":"string","description":"Machine-readable error code."},"details":{"description":"Arbitrary structured details about the failure.","type":["object","array","string","number","boolean","null"]}}};
 var func3 = Object.prototype.hasOwnProperty;
 
 function validate31(data, valCxt){
@@ -124,13 +124,9 @@ if(valid0){
 if(data.params !== undefined){
 var data5 = data.params;
 var _errs14 = errors;
-if(errors === _errs14){
-if(data5 && typeof data5 == "object" && !Array.isArray(data5)){
-}
-else {
-validate31.errors = [{instancePath:instancePath+"/params",schemaPath:"#/properties/params/type",keyword:"type",params:{type: "object"},message:"must be object"}];
+if((!(data5 && typeof data5 == "object" && !Array.isArray(data5))) && (data5 !== null)){
+validate31.errors = [{instancePath:instancePath+"/params",schemaPath:"#/properties/params/type",keyword:"type",params:{type: schema43.properties.params.type},message:"must be object,null"}];
 return false;
-}
 }
 var valid0 = _errs14 === errors;
 }
@@ -168,6 +164,10 @@ if(data.error !== undefined){
 var data8 = data.error;
 var _errs21 = errors;
 var _errs22 = errors;
+if((!(data8 && typeof data8 == "object" && !Array.isArray(data8))) && (data8 !== null)){
+validate31.errors = [{instancePath:instancePath+"/error",schemaPath:"#/$defs/errorInfo/type",keyword:"type",params:{type: schema46.type},message:"must be object,null"}];
+return false;
+}
 if(errors === _errs22){
 if(data8 && typeof data8 == "object" && !Array.isArray(data8)){
 if(data8.message !== undefined){
@@ -209,10 +209,6 @@ var valid4 = true;
 }
 }
 }
-else {
-validate31.errors = [{instancePath:instancePath+"/error",schemaPath:"#/$defs/errorInfo/type",keyword:"type",params:{type: "object"},message:"must be object"}];
-return false;
-}
 }
 var valid0 = _errs21 === errors;
 }
@@ -223,6 +219,10 @@ if(valid0){
 if(data.retries !== undefined){
 var data12 = data.retries;
 var _errs31 = errors;
+if((!(data12 && typeof data12 == "object" && !Array.isArray(data12))) && (data12 !== null)){
+validate31.errors = [{instancePath:instancePath+"/retries",schemaPath:"#/properties/retries/type",keyword:"type",params:{type: schema43.properties.retries.type},message:"must be object,null"}];
+return false;
+}
 if(errors === _errs31){
 if(data12 && typeof data12 == "object" && !Array.isArray(data12)){
 var _errs33 = errors;
@@ -278,10 +278,6 @@ var valid5 = true;
 }
 }
 }
-else {
-validate31.errors = [{instancePath:instancePath+"/retries",schemaPath:"#/properties/retries/type",keyword:"type",params:{type: "object"},message:"must be object"}];
-return false;
-}
 }
 var valid0 = _errs31 === errors;
 }
@@ -292,6 +288,10 @@ if(valid0){
 if(data.tags !== undefined){
 var data15 = data.tags;
 var _errs38 = errors;
+if((!(Array.isArray(data15))) && (data15 !== null)){
+validate31.errors = [{instancePath:instancePath+"/tags",schemaPath:"#/properties/tags/type",keyword:"type",params:{type: schema43.properties.tags.type},message:"must be array,null"}];
+return false;
+}
 if(errors === _errs38){
 if(Array.isArray(data15)){
 var valid6 = true;
@@ -308,10 +308,6 @@ break;
 }
 }
 }
-else {
-validate31.errors = [{instancePath:instancePath+"/tags",schemaPath:"#/properties/tags/type",keyword:"type",params:{type: "array"},message:"must be array"}];
-return false;
-}
 }
 var valid0 = _errs38 === errors;
 }
@@ -322,13 +318,9 @@ if(valid0){
 if(data.telemetry !== undefined){
 var data17 = data.telemetry;
 var _errs42 = errors;
-if(errors === _errs42){
-if(data17 && typeof data17 == "object" && !Array.isArray(data17)){
-}
-else {
-validate31.errors = [{instancePath:instancePath+"/telemetry",schemaPath:"#/properties/telemetry/type",keyword:"type",params:{type: "object"},message:"must be object"}];
+if((!(data17 && typeof data17 == "object" && !Array.isArray(data17))) && (data17 !== null)){
+validate31.errors = [{instancePath:instancePath+"/telemetry",schemaPath:"#/properties/telemetry/type",keyword:"type",params:{type: schema43.properties.telemetry.type},message:"must be object,null"}];
 return false;
-}
 }
 var valid0 = _errs42 === errors;
 }
@@ -595,13 +587,9 @@ if(valid4){
 if(data7.metadata !== undefined){
 var data11 = data7.metadata;
 var _errs27 = errors;
-if(errors === _errs27){
-if(data11 && typeof data11 == "object" && !Array.isArray(data11)){
-}
-else {
-validate30.errors = [{instancePath:instancePath+"/edges/" + i1+"/metadata",schemaPath:"#/$defs/edge/properties/metadata/type",keyword:"type",params:{type: "object"},message:"must be object"}];
+if((!(data11 && typeof data11 == "object" && !Array.isArray(data11))) && (data11 !== null)){
+validate30.errors = [{instancePath:instancePath+"/edges/" + i1+"/metadata",schemaPath:"#/$defs/edge/properties/metadata/type",keyword:"type",params:{type: schema47.properties.metadata.type},message:"must be object,null"}];
 return false;
-}
 }
 var valid4 = _errs27 === errors;
 }

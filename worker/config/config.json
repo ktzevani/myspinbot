@@ -1,7 +1,7 @@
 {
     "streams": {
         "group": "workers",
-        "batch_size": 10
+        "batch_size": 1
     },
     "server": {
         "host": "0.0.0.0",
