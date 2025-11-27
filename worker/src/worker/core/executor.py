@@ -5,13 +5,12 @@ import json
 from enum import Enum
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
 from pydantic import ValidationError
 
 from .bridge import RedisBridge
-from ..models.jobs.job_messaging_schema import JobStatus, StatusUpdate
+from ..models.jobs.job_messaging_schema import JobStatus
 from ..models.langgraph.graph_schema import LanggraphWorkflow, NodeStatus, Plane
 from ..services.tasks import WorkerTask
 from ..infra.metrics import MetricType, get_or_create_metric
@@ -128,13 +127,7 @@ class Executor:
 
                 if status == "completed":
                     await self.bridge.ack_job(result.entry_id)
-                    await self.bridge.publish_update(
-                        StatusUpdate(
-                            jobId=result.job_id,
-                            status=JobStatus.completed,
-                            created=datetime.now(timezone.utc),
-                        )
-                    )
+                    await self.bridge.publish_status(result.job_id, JobStatus.completed)
                 elif status == "handoff":
                     await self.bridge.ack_job(result.entry_id)
                     await self.bridge.enqueue_control_job(
@@ -142,13 +135,7 @@ class Executor:
                     )
                 elif status == "failed":
                     await self.bridge.ack_job(result.entry_id)
-                    await self.bridge.publish_update(
-                        StatusUpdate(
-                            jobId=result.job_id,
-                            status=JobStatus.failed,
-                            created=datetime.now(timezone.utc),
-                        )
-                    )
+                    await self.bridge.publish_status(result.job_id, JobStatus.failed)
                 else:
                     print(
                         f"[Executor] ⚠️ Unknown execution status '{status}' "
@@ -157,13 +144,7 @@ class Executor:
             except ExecutorJobError as exc:
                 await self.bridge.ack_job(exc.entry_id)
                 if exc.job_id:
-                    await self.bridge.publish_update(
-                        StatusUpdate(
-                            jobId=exc.job_id,
-                            status=JobStatus.failed,
-                            created=datetime.now(timezone.utc),
-                        )
-                    )
+                    await self.bridge.publish_status(result.job_id, JobStatus.failed)
                 print(f"[Executor] ❌ Job error ({exc.job_id}): {exc}")
 
         print("[Executor] 💤 Executor loop stopped.")
@@ -205,25 +186,23 @@ class Executor:
                 job_id,
             )
 
-        await self.bridge.publish_update(
-            StatusUpdate(
-                jobId=job_id,
-                status=JobStatus.running,
-                created=datetime.now(timezone.utc),
-            )
-        )
-        status = await self.execute_graph(graph)
-        await self.bridge.set_job_payload(job_id, self._serialize_graph(graph))
+        await self.bridge.publish_status(job_id, JobStatus.running)
+
+        try:
+            status = await self.execute_graph(graph)
+            await self.bridge.set_job_payload(job_id, self._serialize_graph(graph))
+        except RuntimeError as err:
+            raise ExecutorJobError(f"Failed to process graph: {err}", entry_id, job_id)
 
         return ExecutorResult(job_id, entry_id, graph, status)
 
     async def execute_graph(self, graph: Dict[str, Any]) -> str:
-        ready_nodes = self._get_ready_python_nodes(graph)
+        ready_nodes = self._get_ready_nodes(graph)
 
         while ready_nodes:
             for node in ready_nodes:
                 await self._execute_node(graph, node)
-            ready_nodes = self._get_ready_python_nodes(graph)
+            ready_nodes = self._get_ready_nodes(graph)
 
         is_graph_completed = all(
             node.get("status") == NodeStatus.completed
@@ -252,11 +231,19 @@ class Executor:
         try:
             if not handler:
                 raise RuntimeError(f"No handler registered for task '{task_name}'")
-            result = await handler(
-                job_id, lambda payload: self.bridge.publish_update(payload)
+            node["output"] = await handler(
+                {
+                    **(node.get("params") or {}),
+                    "progress_weight": node.get("progressWeight") or 0,
+                    "publish_progress_cb": lambda step: self.bridge.publish_progress(
+                        job_id, step, True
+                    ),
+                    "publish_data_cb": lambda data: self.bridge.publish_data(
+                        job_id, data
+                    ),
+                },
+                {**(node.get("input") or {})},
             )
-            if result is not None:
-                node["output"] = result
             node["status"] = NodeStatus.completed
         except Exception as exc:
             node["status"] = NodeStatus.failed
@@ -272,7 +259,7 @@ class Executor:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _get_ready_python_nodes(self, graph: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _get_ready_nodes(self, graph: Dict[str, Any]) -> List[Dict[str, Any]]:
         nodes = graph.get("nodes", [])
         nodes_by_id = {node["id"]: node for node in nodes if "id" in node}
         incoming: Dict[str, List[str]] = {}
@@ -283,7 +270,7 @@ class Executor:
                 continue
             incoming.setdefault(dst, []).append(src)
 
-        ready_nodes: List[Dict[str, Any]] = []
+        ready_nodes = []
         for node in nodes:
             if node.get("plane") != Plane.python:
                 continue
@@ -300,6 +287,13 @@ class Executor:
                 for dep in deps
             ):
                 ready_nodes.append(node)
+
+        for node in ready_nodes:
+            for depId in incoming.get(node.get("id"), []):
+                node["input"] = {
+                    **(node.get("input") or {}),
+                    **(nodes_by_id[depId].get("output") or {}),
+                }
 
         return ready_nodes
 

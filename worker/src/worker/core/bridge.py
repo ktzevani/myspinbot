@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeAlias
-
 import redis.asyncio as redis
 from redis.exceptions import ResponseError
 
@@ -200,7 +199,7 @@ class RedisBridge:
     # Pub/Sub helpers
     # ------------------------------------------------------------------
 
-    async def publish(self, channel: str, payload: str) -> None:
+    async def _publish(self, channel: str, payload: str) -> None:
         """Publish a JSON payload to a channel."""
         if not self.redis:
             raise RuntimeError("Redis not connected")
@@ -210,15 +209,33 @@ class RedisBridge:
         except Exception as exc:
             print(f"[RedisBridge] ⚠️ Publish error on '{channel}': {exc}")
 
-    async def publish_update(
-        self, payload: ProgressUpdate | StatusUpdate | DataUpdate
+    async def publish_progress(
+        self, jobId: str, progress: float, stepping: bool = False
     ) -> None:
-        """Route strongly-typed updates onto the correct channel."""
-        mapping = {
-            ProgressUpdate: self.channels.progress,
-            StatusUpdate: self.channels.status,
-            DataUpdate: self.channels.data,
-        }
-        base = mapping[payload.__class__]
-        channel = f"{base}:{payload.jobId}"
-        await self.publish(channel, payload.model_dump_json())
+        if not self.redis:
+            raise RuntimeError("Redis not connected")
+        channel = f"{self.channels.progress}:{jobId}"
+        updVal = progress
+        if stepping:
+            curVal = float(await self.redis.get(f"job:{jobId}:progress"))
+            updVal += curVal
+        await self._publish(
+            channel,
+            ProgressUpdate(
+                jobId=jobId, progress=updVal, created=datetime.now(timezone.utc)
+            ).model_dump_json(),
+        )
+
+    async def publish_data(self, jobId: str, data: Any) -> None:
+        channel = f"{self.channels.data}:{jobId}"
+        pubPayload = DataUpdate(
+            jobId=jobId, data=data, created=datetime.now(timezone.utc)
+        )
+        await self._publish(channel, pubPayload.model_dump_json())
+
+    async def publish_status(self, jobId: str, status: Any) -> None:
+        channel = f"{self.channels.status}:{jobId}"
+        pubPayload = StatusUpdate(
+            jobId=jobId, status=status, created=datetime.now(timezone.utc)
+        )
+        await self._publish(channel, pubPayload.model_dump_json())

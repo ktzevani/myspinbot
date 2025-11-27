@@ -391,24 +391,30 @@ class JobQueue {
     return this.redisDBClient.publish(channel, JSON.stringify(payload));
   }
 
-  async publishProgress(jobId, progress) {
+  async publishProgress(jobId, progress, stepping = false) {
+    let updValue = progress;
+    if (stepping) {
+      updValue += parseFloat(
+        await this.redisDBClient.get(jobDbKey(jobId, JobProperty.PROGRESS))
+      );
+    }
     return this.#publish(
       `${this.configuration.bridge.channels.progress}:${jobId}`,
-      { progress }
+      { jobId, progress: updValue.toFixed(4), created: Date.now().toString() }
     );
   }
 
   async publishStatus(jobId, status) {
     return this.#publish(
       `${this.configuration.bridge.channels.status}:${jobId}`,
-      { status }
+      { jobId, status, created: Date.now().toString() }
     );
   }
 
   async publishData(jobId, data) {
     return this.#publish(
       `${this.configuration.bridge.channels.data}:${jobId}`,
-      { data }
+      { jobId, data, created: Date.now().toString() }
     );
   }
 }

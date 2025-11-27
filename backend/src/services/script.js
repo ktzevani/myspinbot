@@ -1,16 +1,31 @@
-export async function generateScript({
-  prompt,
-  tone = "casual",
-  length = 20,
-  persona = "default",
-  model = "llama3",
-  temperature = 0.4,
-} = {}) {
+async function simulateProgress(publish, weight, totalSteps = 5, delay = 0.5) {
+  const progressStep = Math.round((weight / totalSteps) * 1e4) / 1e4;
+  for (let i = 0; i < totalSteps; i += 1) {
+    await publish(progressStep);
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000));
+  }
+}
+
+export async function generateScript(params, input) {
+  const {
+    tone,
+    length,
+    persona,
+    model,
+    temperature,
+    progressWeight,
+    publishProgressCb,
+    publishDataCb,
+  } = params;
+  const { prompt } = input;
+
+  await simulateProgress(publishProgressCb, progressWeight, 3, 0.4);
+
   if (!prompt) {
-    throw new Error("generateScript requires prompt");
+    return {};
   }
 
-  return {};
+  return { test: "Dummy test value" };
 
   const targetHost =
     process.env.LLM_URL ||

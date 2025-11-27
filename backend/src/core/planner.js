@@ -14,10 +14,25 @@ const defaultGraphTemplate = {
       task: "script.generateScript",
       plane: "node",
       status: "pending",
-      progressWeight: 0.5,
+      progressWeight: 0.25,
       params: {
+        tone: "casual",
+        length: 20,
+        persona: "default",
+        model: "llama3",
+        temperature: 0.4,
+      },
+      input: {
         prompt: "Testing prompt template",
       },
+    },
+    {
+      id: "post-scripting",
+      name: "Generate bot script",
+      task: "script.generateScript",
+      plane: "node",
+      status: "pending",
+      progressWeight: 0.25,
     },
     {
       id: "training",
@@ -28,7 +43,10 @@ const defaultGraphTemplate = {
       progressWeight: 0.5,
     },
   ],
-  edges: [{ from: "scripting", to: "training", kind: "normal" }],
+  edges: [
+    { from: "scripting", to: "post-scripting", kind: "normal" },
+    { from: "post-scripting", to: "training", kind: "normal" },
+  ],
 };
 
 export class Planner {

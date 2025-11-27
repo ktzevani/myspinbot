@@ -4,13 +4,16 @@ import validatorModule from "../validators/capabilities/plane-manifest.schema-va
 const validatePlaneManifest = validatorModule.default;
 const controlCapabilities = getCapabilities();
 
-export async function getManifest(caps) {
-  const workerCapabilities = caps;
+export async function getManifest(params, input) {
+  const { publishDataCb = null } = params;
+  const { workerCaps = "{}" } = input;
+  const workerCapabilities = JSON.parse(workerCaps);
+
   if (!validatePlaneManifest(workerCapabilities)) {
     return validatePlaneManifest.errors;
   }
 
-  return {
+  const combinedManifest = {
     generatedAt: new Date().toISOString(),
     capabilities: [
       ...controlCapabilities.capabilities,
@@ -27,4 +30,10 @@ export async function getManifest(caps) {
       },
     },
   };
+
+  if (publishDataCb) {
+    publishDataCb(JSON.stringify(combinedManifest));
+  }
+
+  return combinedManifest;
 }

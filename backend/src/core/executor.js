@@ -110,6 +110,7 @@ class Executor {
       };
     }
 
+    await jobQueue.publishStatus(jobId, JobStatus.RUNNING);
     return this.#executeGraph(entryId, jobId, graph);
   }
 
@@ -132,47 +133,32 @@ class Executor {
   }
 
   async #executeGraph(entryId, jobId, graph) {
-    await jobQueue.publishStatus(jobId, JobStatus.RUNNING);
-    const readyNodes = this.#getReadyControlNodes(graph);
+    let readyNodes = this.#getReadyControlNodes(graph);
     const ret = { jobId, entryId, graph };
 
-    if (!readyNodes.length) {
-      const hasPendingControl = graph.nodes.some(
-        (n) => n.plane === "node" && n.status !== "completed"
-      );
-      const hasPendingPython = graph.nodes.some(
-        (n) => n.plane === "python" && n.status !== "completed"
-      );
-      const status =
-        !hasPendingControl && !hasPendingPython
-          ? "completed"
-          : !hasPendingControl && hasPendingPython
-            ? "handoff"
-            : "idle";
-      return { status, ...ret };
+    while (readyNodes.length > 0) {
+      try {
+        await Promise.all(
+          readyNodes.map((node) => this.#executeNode(jobId, graph, node))
+        );
+      } catch (err) {
+        throw { ...ret, message: err?.message || String(err), cause: err };
+      }
+      readyNodes = this.#getReadyControlNodes(graph);
     }
 
-    try {
-      await Promise.all(
-        readyNodes.map((node) => this.#executeNode(jobId, graph, node))
-      );
-    } catch (err) {
-      throw { ...ret, message: err?.message || String(err), cause: err };
-    }
-
-    const hasRemainingControl = this.#getReadyControlNodes(graph).length > 0;
-    const graphCompleted = graph.nodes.every((n) => n.status === "completed");
-    const status = graphCompleted
-      ? "completed"
-      : !hasRemainingControl
-        ? "handoff"
-        : "in_progress";
+    const isGraphCompleted = graph.nodes.every((n) => n.status == "completed");
+    const isGraphFailed = graph.nodes.some((n) => n.status == "failed");
+    const status = isGraphFailed
+      ? "failed"
+      : isGraphCompleted
+        ? "completed"
+        : "handoff";
 
     return { status, ...ret };
   }
 
   #getReadyControlNodes(graph) {
-    if (!graph?.nodes?.length) return [];
     const nodesById = Object.fromEntries(graph.nodes.map((n) => [n.id, n]));
     const incoming = {};
     for (const edge of graph.edges || []) {
@@ -180,13 +166,21 @@ class Executor {
       incoming[edge.to].push(edge.from);
     }
 
-    return graph.nodes.filter((node) => {
+    const readyNodes = graph.nodes.filter((node) => {
       if (node.plane !== "node") return false;
       if (["completed", "running", "failed", "skipped"].includes(node.status))
         return false;
       const deps = incoming[node.id] || [];
       return deps.every((depId) => nodesById[depId]?.status === "completed");
     });
+
+    for (const node of readyNodes || []) {
+      for (const depId of incoming[node.id] || []) {
+        node.input = { ...node.input, ...nodesById[depId]?.output };
+      }
+    }
+
+    return readyNodes;
   }
 
   async #executeNode(jobId, graph, node) {
@@ -196,7 +190,19 @@ class Executor {
         node.status = "failed";
         node.error = { message: `No handler for task ${node.task}` };
       } else {
-        node.output = await handler(node.params || {});
+        node.output = await handler(
+          {
+            ...(node.params || {}),
+            progressWeight: node?.progressWeight || 0,
+            publishProgressCb: (step) => {
+              jobQueue.publishProgress(jobId, step, true);
+            },
+            publishDataCb: (data) => {
+              jobQueue.publishData(jobId, data);
+            },
+          },
+          node.input || {}
+        );
         node.status = "completed";
       }
     } catch (err) {
