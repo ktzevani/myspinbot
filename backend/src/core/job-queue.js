@@ -361,6 +361,9 @@ class JobQueue {
             if (state?.status == JobStatus.COMPLETED) {
               stop();
               resolve(state);
+            } else if (state?.status == JobStatus.FAILED) {
+              stop();
+              reject(new Error("Job failed"));
             }
           })
           .catch((err) => {
@@ -369,7 +372,7 @@ class JobQueue {
           });
       }, 250);
     });
-    return this.redisDBClient.get(jobDbKey(jobId, JobProperty.DATA));
+    return await this.redisDBClient.hget(jobDbKey(jobId), "graph");
   }
 
   async setJobPayload(jobId, payload) {

@@ -31,6 +31,7 @@ export async function getCapabilitiesManifest() {
   const jobId = randomUUID();
   const planner = new Planner(AppConfiguration, capsGraphTemplate);
   const graph = planner.getJobGraph({ workflowId: jobId });
-  await jobQueue.enqueueDataJob(jobId, graph);
-  return JSON.parse(await jobQueue.getJobResult(jobId));
+  jobQueue.enqueueDataJob(jobId, graph);
+  const graphObj = JSON.parse(await jobQueue.getJobResult(jobId));
+  return graphObj?.nodes[1]?.output;
 }
