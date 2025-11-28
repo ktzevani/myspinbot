@@ -64,3 +64,15 @@ services:
       - ./worker/config:/app/config
       - ./common/config/schemas:/app/config/schemas
       - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
+
+  sandbox:
+    image: myspinbot/sandbox:dev
+    build:
+      context: .
+      dockerfile: sandbox/Dockerfile
+    container_name: myspinbot-sandbox
+    entrypoint: ["/bin/sh", "-l"]
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/workspace
