@@ -26,7 +26,7 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | 0     | [Infrastructure Bootstrap](phase0/phase0_overview.md)    | ✅ Complete | Traefik + Prometheus + Grafana stack with TLS, monitoring, and metrics. |
 | 1     | [Backend & Frontend Scaffold](phase1/phase1_overview.md) | ✅ Complete | Node.js Fastify API + Next.js frontend + Redis queue.                   |
 | 2     | [Worker Integration & Dual-plane Orchestration](phase2/phase2_overview.md)      | ✅ Complete | Python GPU-powered Worker + Dual-plane Langgraph Orchestration (Langgraph.js + Langgraph.py).    |
-| 3     | AI Pipeline Implementation                               | 🕓 Pending | Definition of AI video generation pipeline (LLM → ComfyUI → TTS).    |
+| 3     | [AI Pipeline Implementation](phase3/phase3_overview.md)                               | 🕓 Pending | Definition of AI video generation pipeline (LLM → ComfyUI → TTS).    |
 | 4     | Observability & Quality                                  | ⏳ Planned  | ESRGAN, retries, metrics dashboards, CI hooks.                          |
 | 5     | Polish & Docs                                            | ⏳ Planned  | Authentication, UX refinement, public documentation.                    |
 

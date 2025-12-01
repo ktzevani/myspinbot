@@ -1,4 +1,4 @@
-# 🧠 Phase 2 — GPU Worker Integration
+# 🧠 Phase 2 — Worker & Dual-plane Orchestration
 
 ## 📚 Docs Reference
 
@@ -13,164 +13,162 @@
 
 ## 🎯 Objective
 
-Phase 2 breathes computational life into the system: our first GPU-powered backend service, the **Python GPU Worker**, becomes operational. This service now operates under the new **Control-plane ↔ Data-plane** (i.e. *Node.js Langgraph Executor ↔ Python LangGraph executor*) architecture, connected through **Redis Streams** for job dispatch and **Pub/Sub** for real-time updates.
+Phase 2 makes the dual‑plane architecture real: the **Node.js backend** becomes the control plane for LangGraph jobs, and the **Python worker** becomes the data plane that executes GPU‑style tasks. The two planes exchange full LangGraph graphs over **Redis Streams**, while **Pub/Sub** carries progress and status events.
 
-This phase also includes a cleanup and transition step: we will **remove BullMQ** and all related dependencies from the Node.js backend, replacing it with native LangGraph-based orchestration and Redis-driven communication. This ensures a unified and extensible workflow graph spanning both the Node and Python layers.
+This phase also performs a deliberate cleanup: we **remove BullMQ** and its legacy queue logic from the backend and replace it with a **graph‑centric JobQueue** built on Redis Streams + Pub/Sub. That gives us a single, unified orchestration model spanning Node and Python.
 
-By the end of this phase, we will have a functioning Python GPU-powered backend that will act as services host with the following abilities:
+By the end of this phase, the system:
 
-- Maintain a Python worker (executor) that listens for incoming graph jobs over a facility named Redis bridge.
-- Execute the nodes of a incoming graph workflow as **Dramatiq-managed GPU tasks** (`train_lora`, `train_voice`, `render_video`) ***NOTE: Initially tasks are trivially implemented, Dramatiq introduction is reserved for the next phase*** where applicable.
-- Report progress via Redis Pub/Sub for live updates related running jobs to subscribed clients.
-- Expose performance metrics to Prometheus.
-
-The backend initially will host services for:
-
-- Providing to clients its capabilities manifest
-- Training LORAs (stub service)
-- Storing artifacts in MinIO under well-defined naming conventions (dummy artifacts).
-
-In order to facilitate the dual-plane orchestraton design a directory of common data models (common JSON schemas). This will be reachable to all dev-containers of project subdomains like control plane (Node.js backend) and data plane (Python backend) via a shared Docker volume.
+- Runs a Python worker that listens for incoming LangGraph jobs via a Redis bridge, executes `plane: "python"` nodes (`train_lora`, `train_voice`, `render_video`) as **simulated GPU tasks**, emits progress/status, and uploads dummy artifacts to MinIO.
+- Uses Redis‑backed JobQueue + WebSocket hub on the backend to persist job state and push live updates to clients.
+- Exposes metrics from both planes to Prometheus, so Grafana can visualize job throughput, worker activity, and GPU telemetry.
+- Shares a directory of **common JSON Schemas** (`common/`) across dev containers, with generated validators/models keeping control and data planes in sync.
 
 ## ⚙️ Core Goals
 
-### 1. Establish the GPU Worker Docker Service in Compose
+### 1. Implement the GPU Worker Service (`worker`)
 
-- Implement a standalone **Container service (`worker`)** running with CUDA.
-- Integrate **LangGraph.py** for task orchestration and GPU job execution (**Dramatiq** to also be utilized in the future phases).
-- Define modular task handlers:
-
-  - `train_lora`: stub for LoRA fine-tuning.
-  - `train_voice`: stub for voice cloning.
-  - `render_video`: stub for ComfyUI-based render job.
-
-- Allow **subprocess isolation** for GPU tasks (ensuring clean CUDA context management).
+- Implement a standalone **CUDA-capable `worker` container** managed by Docker Compose.
+- Run a **FastAPI** app exposing `/health` and `/metrics`.
+- Implement a **Redis bridge** that:
+  - Consumes graphs from the data stream.
+  - Publishes `status:*`, `progress:*`, and `data:*` events via Pub/Sub.
+  - Can hand updated graphs back to the control stream.
+- Integrate **LangGraph.py** as the data-plane executor:
+  - Validate graphs using generated Pydantic models.
+  - Execute `plane: "python"` nodes in dependency order.
+  - Provide task handlers for:
+    - `train_lora` (simulated LoRA training + dummy artifact upload).
+    - `train_voice` (simulated/placeholder voice training).
+    - `render_video` (simulated video render + dummy artifact upload).
 
 ### 2. Remove BullMQ & Legacy Queue Logic
 
-- Fully deprecate BullMQ from the backend.
-- Remove redundant Redis queue definitions, workers, and job tracking logic.
-- Replace with Redis Streams and Pub/Sub message flow.
-- Adjust tests, endpoints, and progress-handling middleware to align with new orchestration model.
+- Fully deprecate BullMQ and legacy queue structures from the backend.
+- Introduce a **JobQueue** abstraction that:
+  - Uses Redis Streams for control/data processing (`${streams.process}:control` / `:data`).
+  - Tracks job lifecycle in `job:<id>` keys (status, progress, last graph).
+  - Subscribes to worker Pub/Sub channels and mirrors events into job state.
+- Update planner, executor, WebSocket hub, and tests to operate on graph payloads and JobQueue semantics.
 
-### 3. Metrics and Observability
+### 3. Shared Schemas and Cross-Plane Validation
 
-- Expose **Prometheus metrics** via FastAPI endpoint `/metrics` using `prometheus_client`.
-- Track higher-level **job metrics** distinct from DCGM hardware metrics:
+- Establish `common/config/schemas/**` as the canonical source for:
+  - LangGraph graph schema.
+  - Job messaging and status.
+  - Redis bridge configuration.
+  - Capability manifests and storage artifacts.
+- Add `codegen/` scripts to generate:
+  - **AJV validators** for the backend into `backend/src/validators/**`.
+  - **Pydantic models** for the worker into `worker/src/worker/models/**`.
+- Require both planes to validate configuration and graphs at startup using these generated artifacts.
 
-  - `gpu_worker_jobs_total` — total processed jobs by type.
-  - `gpu_worker_job_duration_seconds` — histogram of job durations.
-  - `gpu_worker_job_errors_total` — failed or retried jobs.
-  - `gpu_worker_progress_percent` — aggregated job progress (optional gauge).
+### 4. Job State, WebSockets & Progress
 
-- Integrate these metrics into Grafana under a new **GPU Job Metrics dashboard**, correlated with DCGM data.
+- Persist job state centrally in Redis:
+  - `job:<id>` keys for status, progress, and last known graph.
+  - Streams entries for control/data-plane handoff.
+- Implement a WebSocket hub that:
+  - Tracks subscriptions per `jobId`.
+  - Polls JobQueue at a configurable interval.
+  - Pushes consolidated job updates to clients as `{ type: "update", ... }`.
+- Ensure worker progress/status events are mirrored via JobQueue so WebSocket clients always see up-to-date state.
 
-### 4. Real-Time Progress Reporting
+### 5. Establish the Dual-Plane Execution Model
 
-- Implement **progress updates** from Python LangGraph via Redis Pub/Sub.
-- Backend subscribes to progress channels and forwards updates via WebSocket to connected clients.
-- Each job emits structured progress events (JSON):
+- Treat the Node.js backend as the **control plane** and the Python worker as the **data plane**.
+- Represent jobs as **LangGraph graphs** that can contain both `plane: "node"` and `plane: "python"` nodes.
+- Use **Redis Streams** as the control↔data dispatch fabric and **Pub/Sub** for status / progress events.
 
-  ```json
-  {
-    "jobId": "abc123",
-    "status": "running",
-    "progress": 45.3,
-    "message": "Epoch 3/5 — loss=0.34",
-    "timestamp": "2025-11-03T12:00:00Z"
-  }
-  ```
+### 6. Metrics and Observability
 
-### 5. Artifact and Model Sharing
+- Expose **Prometheus metrics** from:
+  - Backend (API, queue, WebSocket metrics via `prom-client`).
+  - Worker (job-level metrics via `prometheus_client`).
+- Integrate these metrics with the existing observability stack:
+  - Prometheus scraping both planes.
+  - Grafana dashboards combining worker/job metrics with DCGM and cAdvisor data.
 
-- **Artifacts via MinIO:**
+### 7. Dev Workflow & Containers
 
-  - `/loras/<jobId>/...` → LoRA weights.
-  - `/voices/<jobId>/...` → trained TTS voices.
-  - `/videos/<jobId>/...` → rendered clips.
-  - Handled through `boto3` or `minio` SDK.
-
-- **Model Sharing via Volume Mount:**
-
-  - GPU-related containers (GPU Worker, ComfyUI, Ollama, etc.) share `/opt/models`.
-  - Host-mapped to `/mnt/tank/models` for persistence and reusability.
-
-### 6. Integration and Validation
-
-- Node.js LangGraph submits job definitions to Redis Streams.
-- Python LangGraph consumes them.
-- WebSocket clients receive updates through backend subscriptions.
-- Prometheus and Grafana visualize job throughput and GPU activity.
-- Old BullMQ-based code is fully removed and tests reflect the new pipeline.
+- Provide Dev Container configurations for `backend/`, `frontend/`, and `worker/`.
+- Use `docker-compose.dev.yml` to run dev images against the same Redis/MinIO/Traefik stack used in production.
+- Support a `codegen` container or scripts to regenerate validators and models directly from the shared schemas.
 
 ## 🧩 Updated Architecture Snapshot
 
 ```mermaid
 flowchart LR
-    subgraph Node[Node.js Backend]
-        API[Fastify + LangGraph.js]
+    subgraph ControlPlane["Control Plane — Node.js"]
+        API[Fastify API + WS]
+        PLNR["Planner (LangGraph.js)"]
+        EXEC[Control Executor]
+        JQ["JobQueue (Redis Streams + Pub/Sub)"]
     end
 
-    subgraph Bridge[Redis Bridge]
-        RS[Redis Streams – Job Dispatch]
-        PS[Redis Pub/Sub – Event Updates]
+    subgraph DataPlane["Data Plane — Python"]
+        WAPI[FastAPI /health + /metrics]
+        WBR["Redis Bridge (Streams + Pub/Sub)"]
+        WEXEC["Worker Executor (LangGraph.py)"]
+        TASKS["Tasks: train_lora, train_voice, render_video, get_capabilities"]
     end
 
-    subgraph Workers[Python GPU Layer]
-        LGpy[LangGraph.py Workflow]
-        DRQ[Dramatiq Task Queue]
-        GPU[CUDA Tasks: LoRA, Voice, Render]
-    end
-
-    subgraph Data[State & Storage]
-        PG[(Postgres)]
+    subgraph Data["State & Storage"]
+        R[(Redis)]
         S3[(MinIO)]
-        MD[(Shared /opt/models Volume)]
+        CONF[(Shared JSON Schemas + Config)]
     end
 
-    subgraph Observability[Monitoring]
+    subgraph Observability["Monitoring"]
         PR[Prometheus]
         GF[Grafana]
         NV[NVIDIA DCGM Exporter]
     end
 
-    API --> RS
-    RS --> LGpy
-    LGpy --> DRQ
-    DRQ --> GPU
-    GPU --> S3
-    GPU --> PR
-    LGpy --> PS
-    PS --> API
+    API --> PLNR
+    PLNR --> JQ
+    EXEC <--> JQ
+    API <--> JQ
+
+    JQ <--> R
+    R <--> WBR
+    WBR <--> WEXEC
+    WEXEC --> TASKS
+    WEXEC --> WAPI
+
+    TASKS --> S3
+
     PR --> GF
+    PR <--> API
+    PR <--> WAPI
     PR <--> NV
-    GPU --> MD
 ```
 
 ## 🧪 Deliverables
 
-- ✅ CUDA-enabled Python GPU Worker container with **LangGraph.py + Dramatiq**.
-- ✅ Artifact storage flow via **MinIO** for LoRA, voice, and video outputs.
-- ✅ Shared **/opt/models** Docker volume across all GPU containers.
-- ✅ Prometheus `/metrics` endpoint exposing **high-level job metrics**.
-- ✅ Progress updates routed through **Redis Pub/Sub** to backend and WebSockets.
-- ✅ Mock tasks (`train_lora`, `train_voice`, `render_video`) complete end-to-end.
-- ✅ Grafana dashboard visualizing GPU worker activity.
-- ✅ **BullMQ removed** and replaced with Redis Streams orchestration.
+- ✅ CUDA-enabled Python GPU Worker container with **LangGraph.py** and a Redis Bridge.
+- ✅ Backend JobQueue built on **Redis Streams + Pub/Sub**, with BullMQ fully removed.
+- ✅ Stubbed GPU-style tasks (`train_lora`, `train_voice`, `render_video`) wired into the data-plane executor.
+- ✅ Artifact storage flow via **MinIO** for LoRA, voice, and video dummy outputs.
+- ✅ Shared JSON Schemas under `common/` plus codegen scripts and generated validators/models.
+- ✅ Prometheus `/metrics` endpoints on backend and worker with initial job and service metrics.
+- ✅ WebSocket-based job updates fed by JobQueue and worker Pub/Sub events.
+- ✅ Grafana dashboards visualizing backend and worker activity, alongside DCGM / cAdvisor metrics.
 
 ## 🔮 Extensibility & Future Integration
 
-Looking ahead to Phase 3 and beyond, this phase lays the foundation for **dual LangGraph orchestration** across Node and Python. Future phases will build on this:
+Looking ahead to Phase 3 and beyond, this phase lays the foundation for **dual-plane LangGraph orchestration** across Node and Python. Future phases will build on this:
 
-- **Full AI Workflow Integration:** ComfyUI, F5-TTS, and GPT-SoVITS workflows defined in Python LangGraph.
-- **Unified Resource Metrics:** Shared Prometheus metrics for end-to-end GPU utilization.
-- **Flexible Task Graphs:** Both Node and Python LangGraph layers dynamically compose multi-step workflows (e.g., image → video → voice → merge).
-- **Security and Secrets:** Worker credentials for MinIO and Redis managed via Phase 0 provisioning.
+- **Full AI workflow integration:** ComfyUI, TTS, and lip-sync models invoked from worker tasks, using the same graph and Redis bridge.
+- **Richer job graphs:** More complex, multi-step workflows (e.g., script → train_lora → render_video) synthesised from user intent and capabilities.
+- **Unified metrics:** Additional application-level metrics for end-to-end job performance on top of existing GPU and container telemetry.
+- **Security and secrets:** Refined handling of MinIO and Redis credentials and access patterns, building on Phase 0 provisioning.
 
 ## 🧊 Closing Remark
 
-Phase 2 is the architectural turning point — transforming a static pipeline into a **bi-directional orchestration system**. The Node.js backend defines user workflows, Python executes GPU workloads, and Redis synchronizes them both. With BullMQ retired, the system becomes leaner, clearer, and ready for true AI orchestration in Phase 3.
+Phase 2 is the architectural turning point — transforming the system into a **bi-directional orchestration setup**. The Node.js backend defines and advances user workflows, the Python worker executes GPU-style tasks, and Redis keeps both planes in sync. With BullMQ retired and shared schemas in place, the platform is ready for the richer AI pipelines planned for Phase 3.
 
 ## 🧭 Quick Navigation
 
+➡️ [Go to Phase 3 Overview](../phase3/phase3_overview.md)  
 ⬅️ [Back to Phase 1 Overview](../phase1/phase1_overview.md)
