@@ -8,29 +8,35 @@
 | [dual_orchestration.md](./dual_orchestration.md) | Definition and overview of the **Dual-Plane LangGraph Orchestration** model. |
 | [development_workflow_revisited.md](./development_workflow_revisited.md) | Local development and integration testing workflows revisited. |
 | [shared_schemas.md](./shared_schemas.md) | Overview of shared schema architecture, automated data model generation and Singeton configuration. |
-| [codebase-analysis/code-overview.md](./codebase-analysis/code-overview.md) | Overview of codebase snapshot as of the end of phase 2 development. Useful for providing context to llms. |
-| [codebase-analysis/code-issues.md](./codebase-analysis/code-issues.md) | Knonw issues and weak spots of current implementation, can be used as a repo for post-phase2 future todo tasks. |
+| [codebase-analysis/code-overview.md](./codebase-analysis/code-overview.md) | Overview of codebase snapshot as of the end of phase 2 development. Useful for providing context to LLMs. |
+| [codebase-analysis/code-issues.md](./codebase-analysis/code-issues.md) | Known issues and weak spots of current implementation, can be used as a repo for post-phase2 future todo tasks. |
 
 ## 🎯 Objective
 
-Phase 2 breathes computational life into the system: our first GPU-powered backend service, the **Python GPU Worker**, becomes operational. This service now operates under the new **LangGraph.js ↔ LangGraph.py** architecture, connected through **Redis Streams** for job dispatch and **Pub/Sub** for real-time updates.
+Phase 2 breathes computational life into the system: our first GPU-powered backend service, the **Python GPU Worker**, becomes operational. This service now operates under the new **Control-plane ↔ Data-plane** (i.e. *Node.js Langgraph Executor ↔ Python LangGraph executor*) architecture, connected through **Redis Streams** for job dispatch and **Pub/Sub** for real-time updates.
 
 This phase also includes a cleanup and transition step: we will **remove BullMQ** and all related dependencies from the Node.js backend, replacing it with native LangGraph-based orchestration and Redis-driven communication. This ensures a unified and extensible workflow graph spanning both the Node and Python layers.
 
-By the end of this phase, we will have a functioning GPU service that:
+By the end of this phase, we will have a functioning Python GPU-powered backend that will act as services host with the following abilities:
 
-- Receives job definitions from Node LangGraph through Redis Streams.
-- Executes them as **Dramatiq-managed GPU tasks** (`train_lora`, `train_voice`, `render_video`).
-- Reports progress to Redis via Pub/Sub for live updates to clients.
-- Exposes performance metrics to Prometheus.
-- Stores artifacts in MinIO under well-defined prefixes.
-- Shares models across containers via a common Docker volume.
+- Maintain a Python worker (executor) that listens for incoming graph jobs over a facility named Redis bridge.
+- Execute the nodes of a incoming graph workflow as **Dramatiq-managed GPU tasks** (`train_lora`, `train_voice`, `render_video`) ***NOTE: Initially tasks are trivially implemented, Dramatiq introduction is reserved for the next phase*** where applicable.
+- Report progress via Redis Pub/Sub for live updates related running jobs to subscribed clients.
+- Expose performance metrics to Prometheus.
+
+The backend initially will host services for:
+
+- Providing to clients its capabilities manifest
+- Training LORAs (stub service)
+- Storing artifacts in MinIO under well-defined naming conventions (dummy artifacts).
+
+In order to facilitate the dual-plane orchestraton design a directory of common data models (common JSON schemas). This will be reachable to all dev-containers of project subdomains like control plane (Node.js backend) and data plane (Python backend) via a shared Docker volume.
 
 ## ⚙️ Core Goals
 
-### 1. Establish the GPU Worker Service
+### 1. Establish the GPU Worker Docker Service in Compose
 
-- Implement a standalone **Python service (`gpu_worker`)** running with CUDA.
+- Implement a standalone **Container service (`worker`)** running with CUDA.
 - Integrate **LangGraph.py** for task orchestration and GPU job execution (**Dramatiq** to also be utilized in the future phases).
 - Define modular task handlers:
 
@@ -92,7 +98,7 @@ By the end of this phase, we will have a functioning GPU service that:
 ### 6. Integration and Validation
 
 - Node.js LangGraph submits job definitions to Redis Streams.
-- Python LangGraph consumes and executes them using Dramatiq.
+- Python LangGraph consumes them.
 - WebSocket clients receive updates through backend subscriptions.
 - Prometheus and Grafana visualize job throughput and GPU activity.
 - Old BullMQ-based code is fully removed and tests reflect the new pipeline.

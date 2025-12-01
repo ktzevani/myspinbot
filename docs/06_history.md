@@ -1,6 +1,6 @@
 # Architecture & Stack History
 
-This document captures how the current MySpinBot architecture and tech stack evolved from the original design, organised by **development phase**. Treat it as release notes for each iteration.
+This document captures how the current MySpinBot architecture and tech stack evolved from an original design, organised by **development phase**. Treat it as release notes for each iteration.
 
 ## 1) How to Read This
 
@@ -134,7 +134,7 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
 
 **Tech Stack**
 
-- Removed BullMQ and any Celery/Dramatiq assumptions in favour of:
+- Removed BullMQ and any Celery assumptions in favour of:
   - LangGraph.js / LangGraph.py + Redis Streams for orchestration.
 - Standardised on **Dev Containers** for backend, frontend, and worker development.
 - Kept infra choices stable (Traefik, Redis, MinIO, Prometheus, Grafana, cAdvisor, DCGM).

@@ -15,7 +15,7 @@ This directory contains all design, architecture, and implementation documents f
 | 03  | [Tech Stack](03_tech_stack.md)                       | Detailed component list, languages, frameworks, and dependencies. |
 | 04  | [Modular Breakdown](04_modular_breakdown.md)         | How the system is organized into logical and functional modules.  |
 | 05  | [Roadmap](05_roadmap.md)                             | Chronological development plan and phase progression.             |
-| 05  | [Project History](06_history.md)                             | History of development. Provides an overview on project evolution.             |
+| 06  | [Project History](06_history.md)                             | History of development. Provides an overview on project evolution.             |
 
 ## ⚙️ Implementation Phases
 
@@ -25,14 +25,14 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | :---- | :------------------------------------------------------- | :---------- | :---------------------------------------------------------------------- |
 | 0     | [Infrastructure Bootstrap](phase0/phase0_overview.md)    | ✅ Complete | Traefik + Prometheus + Grafana stack with TLS, monitoring, and metrics. |
 | 1     | [Backend & Frontend Scaffold](phase1/phase1_overview.md) | ✅ Complete | Node.js Fastify API + Next.js frontend + Redis queue.                   |
-| 2     | [GPU Worker Integration](phase2/phase2_overview.md)      | ✅ Complete | Implementation of dual-plane langgraph orchestration (Langgraph.js + Langgraph.py).    |
+| 2     | [Worker Integration & Dual-plane Orchestration](phase2/phase2_overview.md)      | ✅ Complete | Python GPU-powered Worker + Dual-plane Langgraph Orchestration (Langgraph.js + Langgraph.py).    |
 | 3     | AI Pipeline Implementation                               | 🕓 Pending | Definition of AI video generation pipeline (LLM → ComfyUI → TTS).    |
 | 4     | Observability & Quality                                  | ⏳ Planned  | ESRGAN, retries, metrics dashboards, CI hooks.                          |
 | 5     | Polish & Docs                                            | ⏳ Planned  | Authentication, UX refinement, public documentation.                    |
 
 ## 💬 Contributing to Documentation
 
-1. Keep all conceptual docs (`01_…05_…`) in root `docs/` — they define _what_ and _why_.
+1. Keep all conceptual docs (`01_…06_…`) in root `docs/` — they define _what_ and _why_.
 2. Place all phase-specific operational docs under `docs/phaseX/`.
 3. Use plain Markdown; keep formatting simple and readable on GitHub.
 
