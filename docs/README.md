@@ -15,6 +15,7 @@ This directory contains all design, architecture, and implementation documents f
 | 03  | [Tech Stack](03_tech_stack.md)                       | Detailed component list, languages, frameworks, and dependencies. |
 | 04  | [Modular Breakdown](04_modular_breakdown.md)         | How the system is organized into logical and functional modules.  |
 | 05  | [Roadmap](05_roadmap.md)                             | Chronological development plan and phase progression.             |
+| 05  | [Project History](06_history.md)                             | History of development. Provides an overview on project evolution.             |
 
 ## ⚙️ Implementation Phases
 
@@ -24,8 +25,8 @@ Each phase corresponds to a concrete implementation milestone — moving from fo
 | :---- | :------------------------------------------------------- | :---------- | :---------------------------------------------------------------------- |
 | 0     | [Infrastructure Bootstrap](phase0/phase0_overview.md)    | ✅ Complete | Traefik + Prometheus + Grafana stack with TLS, monitoring, and metrics. |
 | 1     | [Backend & Frontend Scaffold](phase1/phase1_overview.md) | ✅ Complete | Node.js Fastify API + Next.js frontend + Redis queue.                   |
-| 2     | [GPU Worker Integration](phase2/phase2_overview.md)      | 🕓 Pending  | Python worker (LangGraph.py + Dramatiq) with GPU task orchestration.    |
-| 3     | AI Pipeline Implementation                               | ⏳ Planned  | Node.js ↔ Python dual LangGraph orchestration (LLM → ComfyUI → TTS).    |
+| 2     | [GPU Worker Integration](phase2/phase2_overview.md)      | ✅ Complete | Implementation of dual-plane langgraph orchestration (Langgraph.js + Langgraph.py).    |
+| 3     | AI Pipeline Implementation                               | 🕓 Pending | Definition of AI video generation pipeline (LLM → ComfyUI → TTS).    |
 | 4     | Observability & Quality                                  | ⏳ Planned  | ESRGAN, retries, metrics dashboards, CI hooks.                          |
 | 5     | Polish & Docs                                            | ⏳ Planned  | Authentication, UX refinement, public documentation.                    |
 

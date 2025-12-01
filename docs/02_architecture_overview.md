@@ -1,144 +1,237 @@
 # Architecture Overview
 
-This document describes the system’s architecture at multiple levels: a high-level component map, detailed training and generation workflows, and user interaction flows. For each section, an informative diagram is provided.
+This document describes the current MySpinBot architecture at multiple levels: a high-level component map, the dual-plane execution model, concrete training and capabilities workflows, and user interaction flows. The design has evolved through multiple planned development cycles; see `06_history.md` for a summary of that evolution.
 
 ## 1) High‑Level System Architecture
 
-**Description:**
-The platform is a local, multi-service stack organized around a Node.js backend (TypeScript) that orchestrates AI workflows, a Python GPU worker stack that executes heavy jobs, and specialized services for LLMs (Ollama + Open WebUI), diffusion pipelines (ComfyUI), storage (MinIO), state (Postgres/Redis), ingress (Traefik), and observability (Prometheus/Grafana with cAdvisor and NVIDIA DCGM exporter). All services live on a shared Docker network and expose metrics for unified monitoring.
+**Description:**  
+The platform is a local, multi-service stack organized around a **control plane** (Node.js backend) that orchestrates LangGraph workflows, a **data plane** (Python worker) that executes heavy GPU-powered tasks, a Next.js frontend, and shared infrastructure for storage, routing, and observability. All services run on a shared Docker network and expose metrics for unified monitoring.
 
 **System Map**
 
 ```mermaid
 flowchart LR
-    %% Groups
+    %% Ingress & UI
     subgraph Ingress["Traefik Ingress"]
         T{{TLS & Routing}}
     end
 
-    subgraph Frontend
+    subgraph Frontend["Experience Layer (frontend/)"]
         UI[Next.js Web App]
     end
 
-    subgraph Backend["Node.js Backend"]
+    subgraph ControlPlane["Control Plane — backend/ (Node.js)"]
         API[Fastify API + WebSocket]
-        LGN[LangGraph - Node.js]
+        PLNR["Planner (LangGraph.js)"]
+        EXEC["Control Executor"]
+        JQ["JobQueue (Redis Streams + Pub/Sub)"]
     end
 
-    subgraph Workers["GPU & AI Services"]
-        LGP[LangGraph - Python]
-        DR[Dramatiq Workers]
-        PW[Python GPU Tasks]
-        CU[ComfyUI]
-        OL[Ollama]
-        OW[Open WebUI]
+    subgraph DataPlane["Data Plane — worker/ (Python)"]
+        WAPI[FastAPI /health + /metrics]
+        WBR["Redis Bridge (Streams + Pub/Sub)"]
+        WEXEC["Worker Executor (LangGraph.py)"]
+        TASKS["Task Registry (train_lora, train_voice, render_video, get_capabilities)"]
     end
 
     subgraph Data["State & Storage"]
-        PG[(Postgres)]
-        RD[(Redis: Streams + Pub/Sub)]
+        R[(Redis — Streams + Pub/Sub)]
         S3[(MinIO / S3)]
+        CONF[(Shared JSON Schemas + Config)]
     end
 
-    subgraph Observability
+    subgraph Observability["Observability"]
         PR[Prometheus]
         GF[Grafana]
         CA[cAdvisor]
         NV[NVIDIA DCGM Exporter]
     end
 
+    %% Planned external AI services
+    subgraph AI_Plan["Planned AI Services"]
+        CU[(ComfyUI Pipelines)]
+        OL[(Ollama LLM)]
+        TTS[(F5-TTS / GPT-SoVITS)]
+        W2L[(Wav2Lip / SadTalker)]
+    end
+
     %% Connections
     T --> UI
     T --> API
-    T --> OW
-    T --> CU
-    T --> GF
-    T --> PR
-    T --> S3
-
     UI <--> API
-    API --> LGN
-    API <--> RD
-    API <--> PG
-    API <--> OL
-    API <--> CU
 
-    %% Redis bridge between planes
-    LGN <--> RD
-    LGP <--> RD
+    API --> PLNR
+    PLNR --> JQ
+    API <--> JQ
 
-    %% Python execution plane
-    LGP --> DR
-    DR --> PW
-    PW <--> CU
-    PW <--> S3
-    PW <--> RD
-    PW <--> PG
+    JQ <--> R
+    R <--> WBR
+    WBR <--> WEXEC
+    WEXEC --> TASKS
+    WEXEC --> WAPI
 
-    OW <--> OL
+    TASKS --> S3
 
     PR --> GF
+    PR <--> API
+    PR <--> WAPI
     PR <--> CA
     PR <--> NV
-    PR <--> API
-    PR <--> PW
-    PR <--> RD
-    PR <--> CU
+
+    %% Planned integrations (not fully wired yet)
+    PLNR -. future .-> OL
+    WEXEC -. future .-> CU
+    WEXEC -. future .-> TTS
+    WEXEC -. future .-> W2L
+    CU -. artifacts .-> S3
+    TTS -. models .-> S3
 ```
 
-## 2) Training Workflow (LoRA + Voice)
+**Current implementation status:**
 
-**Description:**
-The training workflow runs as orchestrated graphs across two planes. The user uploads images and a short audio sample. The Node API validates inputs and **Node LangGraph** emits a _job message_ into Redis **Streams**. The Python side consumes the stream, expands it into a **Python LangGraph** of GPU tasks executed by **Dramatiq**. Artifacts are versioned in MinIO; status and metrics stream back via Redis **Pub/Sub** to the backend and onward to the frontend.
+- Fully implemented:
+  - Fastify HTTP API and WebSocket hub.
+  - Planner and control-plane executor.
+  - Redis-backed JobQueue and worker Redis Bridge.
+  - Python worker executor and task registry.
+  - MinIO integration for dummy artifacts.
+  - Shared JSON schemas and codegen for validators/models.
+  - Metrics endpoints for backend and worker.
+- Partially implemented / stubbed:
+  - Script generation via LLM (`script.generateScript`).
+  - GPU-specific workloads (`train_lora`, `train_voice`, `render_video`) — simulated but wired.
+  - Artifact handling, beyond dummy uploads.
+- Planned:
+  - Real LLM integration via Ollama.
+  - ComfyUI workflows for diffusion/video pipelines.
+  - TTS + lip-sync models and end-to-end video generation graphs.
+  - Richer agentic planner based on capabilities.
 
-**Training Pipeline**
+## 2) Dual‑Plane LangGraph Execution
+
+**Description:**  
+MySpinBot uses a dual-plane LangGraph orchestration model:
+
+- A **LangGraph graph JSON** represents each job, including both control-plane and data-plane nodes.
+- The **control plane** executes `plane: "node"` nodes (e.g. script generation, manifest merging).
+- The **data plane** executes `plane: "python"` nodes (e.g. `train_lora`, `train_voice`, `render_video`) and hands updated graphs back to the control plane.
+
+**Execution Loop (Control ↔ Data)**
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as User (Frontend)
-    participant A as Node API
-    participant G as LangGraph (Node)
-    participant R as Redis (Streams / PubSub)
-    participant P as LangGraph (Python)
-    participant D as Dramatiq Workers
-    participant W as GPU Tasks (kohya/F5‑TTS)
-    participant S as MinIO (S3)
-    participant DB as Postgres
+    participant UI as Next.js UI
+    participant API as Fastify API
+    participant PL as Planner (Node)
+    participant CQ as Control Stream (Redis)
+    participant CE as Control Executor
+    participant DQ as Data Stream (Redis)
+    participant WE as Worker Executor (Python)
+    participant TK as Python Tasks
 
-    U->>A: Upload images + audio, create profile
-    A->>DB: Insert profile metadata
-    A->>G: Start job graph (train_profile)
-    G->>R: XADD jobs:train_profile {profile_id, inputs}
-    R-->>P: XREADGROUP jobs:train_profile
-    P->>D: Dispatch task DAG (prepare→train_lora & train_voice→evaluate→upload)
-    D->>W: Run kohya LoRA / F5‑TTS
-    W->>S: Save LoRA (.safetensors) / voice checkpoints
-    W->>DB: Update artifact registry
-    P-->>R: PUBLISH progress:wf_id {step, pct}
-    R-->>A: Pub/Sub progress events
-    A-->>U: Live status via WebSocket
+    UI->>API: POST /api/train
+    API->>PL: build graph (script → train_lora …)
+    PL-->>API: graph JSON (langgraph.v1)
+    API->>CQ: enqueue control job (XADD)
+
+    CE->>CQ: read pending graph
+    CE->>CE: execute control-plane nodes
+    CE->>DQ: if python nodes remain → XADD to data stream
+
+    WE->>DQ: read python-plane job
+    WE->>TK: run python-plane node(s)
+    TK-->>WE: progress callbacks, artifact URIs
+    WE->>CQ: if control nodes remain → enqueue updated graph
+    WE-->>CQ: else publish completed/failed status
+
+    CE->>CQ: resume control-plane nodes (if any)
+    CE-->>API: final graph status
+    API-->>UI: status via WebSocket (mirrored from Redis)
 ```
 
-## 3) Generation Workflow (Two alternatives)
+Key properties:
 
-The generation stage transforms a **prompt or narration** into a complete short video, synchronizing visuals and speech using local, open-source models. Two main workflows exist:
+- **Graphs as contract** – nodes, plane assignments, and outputs all live in the graph.
+- **Redis Streams + Pub/Sub** – form the control/data bridge and carry status/progress.
+- **Idempotent executors** – both planes can resume partially completed graphs.
 
-1. **SVD + Wav2Lip** — animate a static scene using Stable Video Diffusion, then synchronize lips.
-2. **SadTalker** — direct talking-head animation driven by synthesized speech.
+## 3) Training & Capabilities Workflows
 
-### SVD + Wav2Lip
+### 3.1 Default Training Workflow
+
+The primary entrypoint is `POST /api/train`, which builds a default LangGraph via the Planner:
+
+- **Control-plane nodes** (Node.js):
+  - `script.generateScript` — stubbed script generator (future Ollama call).
+  - `script.postProcess` (conceptual) — space for post-script transformations.
+- **Data-plane nodes** (Python):
+  - `train_lora` — simulates LoRA training and uploads a dummy artifact to MinIO.
+  - `train_voice` — placeholder for voice fine-tuning.
+  - `render_video` — simulates a render and uploads a dummy video artifact.
+
+Conceptually:
+
+```mermaid
+flowchart TD
+    A[User POST /api/train] --> B["Planner (control plane)"]
+    B --> C["Node LangGraph: script.generateScript"]
+    C --> D["Python LangGraph: train_lora"]
+    D --> E["Python LangGraph: render_video"]
+    E --> F[Job completed + artifacts recorded]
+```
+
+The graph shape is intentionally generic so a future agentic planner can synthesize richer graphs from prompts and capability manifests.
+
+### 3.2 Capabilities Workflow
+
+`GET /api/capabilities` runs as a small hybrid graph:
+
+1. Python node `get_capabilities` — returns the worker capability manifest.
+2. Node node `capabilities.getManifest` — merges worker and control-plane capabilities into a single JSON object.
+
+This is the first concrete dual-plane workflow; additional features are expected to follow the same pattern.
+
+## 4) Shared Schemas, Job State & WebSockets
+
+The system is **schema-driven**:
+
+- Canonical JSON Schemas under `common/config/schemas/**` define:
+  - LangGraph graph format.
+  - Job messaging and status.
+  - Redis bridge configuration.
+  - Capability manifests.
+- Backend: generated **AJV validators** enforce graph and config correctness.
+- Worker: generated **Pydantic models** enforce the same contracts.
+
+**Job State & WebSocket Flow**
+
+```mermaid
+flowchart LR
+    U[Next.js Client] -->|POST /api/train| A[Fastify API]
+    A --> B[JobQueue<br/>persist job:* in Redis]
+    B <--> F[Control Executor]
+    B <--> C[Redis Streams & Pub/Sub]
+    C <--> R["Redis Bridge (Worker)"]
+    R <--> D[Worker Executor]
+    C --> B
+    B -->|poll job state| E[WebSocket Hub]
+    E -->|"{type:'update', ...}"| U
+```
+
+- The JobQueue mirrors worker Pub/Sub events into `job:<id>` keys.
+- The WebSocket hub polls the JobQueue at `configuration.websocket.updateInterval` and pushes consolidated state to subscribers.
+- Clients subscribe/unsubscribe per `jobId` and stop listening when the job reaches a terminal state.
+
+## 5) Planned Video Generation Pipelines
+
+The long-term goal is an end-to-end, local video generation pipeline that combines LLM planning, diffusion/video models, TTS, and lip-sync. Two main variants are planned.
+
+### 5.1 SVD + Wav2Lip
 
 _(“Scene → Video → Speech → Lip Sync”)_
 
-**Description:** The user provides a topic or narration prompt. The Node backend (via **LangGraph**) queries the local LLM (Ollama) to generate two components:
-
-- **Stage description:** guides ComfyUI’s text-to-image node to render a static scene.
-- **Narrative:** the spoken script for TTS synthesis.
-
-ComfyUI first creates an image from the stage description, which the **Stable Video Diffusion (SVD)** node animates into a short clip. In parallel, the **Python execution plane** synthesizes audio using the profile’s **F5‑TTS/GPT‑SoVITS** voice. Once both assets are ready, **Wav2Lip** aligns lip motion to speech, **ffmpeg** merges tracks, and **ESRGAN** upscales the final video before remuxing and uploading to MinIO.
-
-**Pipeline Diagram**
+**Idea:** A local LLM (via Ollama) generates a stage description and narrative; ComfyUI and Stable Video Diffusion create the video; TTS and Wav2Lip synchronize speech and lip motion; ESRGAN and ffmpeg polish the final MP4.
 
 ```mermaid
 flowchart TD
@@ -146,7 +239,7 @@ flowchart TD
     B --> C[LangGraph - Node + Ollama LLM]
     C --> |Stage Description| D[ComfyUI TTI with LoRA]
     D --> E[SVD - Stable Video Diffusion]
-    C --> |Narrative| F[TTS Synthesis F5‑TTS/GPT‑SoVITS]
+    C --> |Narrative| F[TTS Synthesis F5-TTS/GPT-SoVITS]
     E --> H[Wav2Lip Lip-Sync]
     F --> H
     H --> I[ESRGAN Upscale]
@@ -155,20 +248,18 @@ flowchart TD
     K --> L[Frontend Playback]
 ```
 
-### Using SadTalker
+### 5.2 SadTalker Path
 
 _(“Portrait → Talking Head → Speech Sync”)_
 
-**Description:** This path uses **SadTalker** to drive a portrait directly with synthesized speech, bypassing SVD and Wav2Lip. The LLM output is used similarly; SadTalker then animates the portrait using facial-motion cues extracted from the audio. After generation, **ESRGAN** upscales the frames and **ffmpeg** finalizes the video for storage and playback.
-
-**Pipeline Diagram**
+**Idea:** SadTalker animates a portrait directly from synthesized speech, bypassing SVD + Wav2Lip. The LLM still produces a narrative; ComfyUI prepares imagery where needed.
 
 ```mermaid
 flowchart TD
     A[User Prompt or Caption] --> B[Node API]
     B --> C[LangGraph - Node + Ollama LLM]
     C --> |Stage Description| D[ComfyUI TTI with LoRA]
-    C --> |Narrative| E[TTS Synthesis F5‑TTS/GPT‑SoVITS]
+    C --> |Narrative| E[TTS Synthesis F5-TTS/GPT-SoVITS]
     D --> F[SadTalker Talking-Head Animation]
     E --> F
     F --> G[ESRGAN Upscale]
@@ -177,16 +268,15 @@ flowchart TD
     I --> J[Frontend Playback]
 ```
 
-**Summary:**
-Both alternatives share the same upstream logic (**Node LangGraph → LLM → ComfyUI → TTS**) and differ only in how visual motion and synchronization are achieved:
+These pipelines are intentionally modular so components can be swapped (e.g., different diffusion or TTS models) without changing the overall orchestration.
 
-- **SVD + Wav2Lip:** general animated scenes or stylized avatars.
-- **SadTalker:** direct talking-head generation with natural facial motion.
+## 6) User Interaction & States
 
-## 4) User Interaction & States (Happy Path + Retries)
+Users primarily:
 
-**Description:**
-Users follow two primary flows, **Profile Training** and **Video Generation**. We represent UI states, backend events, and error‑retry loops (via **LangGraph** orchestration and Redis eventing). The frontend uses WebSockets to reflect job progress in real time; failed stages can be retried idempotently.
+- Trigger training jobs.
+- (In the future) generate videos from prompts or captions.
+- Monitor job progress via the Web UI.
 
 **UI / State Flow**
 
@@ -197,23 +287,24 @@ stateDiagram-v2
     %% Training branch
     Home --> TrainProfile : Upload images/audio
     TrainProfile --> Queued : Submit
-    Queued --> Training : Node LangGraph emits job → Redis Streams
-    Training --> Trained : Python LangGraph + Dramatiq finish, artifacts saved
+    Queued --> Training : Control plane emits job → Redis Streams
+    Training --> Trained : Data plane finishes, artifacts saved
     Training --> Failed : Error
     Failed --> Queued : Retry
 
-    %% Generation branch
+    %% Generation branch (planned)
     Home --> Generate : Enter topic/caption
-    Generate --> Generating : Node LangGraph orchestrates
+    Generate --> Generating : Orchestrate video pipeline
     Generating --> Reviewing : MP4 ready
     Reviewing --> [*]
     Generating --> FailedGen : Error
     FailedGen --> Generating : Retry
 ```
 
-## Notes on Extensibility
+**Notes on Extensibility**
 
-- **Model swaps**: The ComfyUI and TTS blocks are parameterized to allow switching base models (e.g., SD1.5 ↔ SDXL) and voice backends without touching the rest of the graph.
-- **Scalability**: Replace the single Python worker with multiple replicas. Python side scales by running more **Dramatiq** workers (per‑GPU queues); Node side scales workflow throughput independently. Backpressure can be applied via Redis Stream length/policies.
-- **Security**: Place Traefik basic‑auth or SSO in front of management UIs (Open WebUI, Grafana, Prometheus) and restrict them accordingly.
-- **Observability**: Each service exposes `/metrics` for Prometheus; higher‑level counters/gauges are added in Node and Python LangGraphs (per‑node timing, retries, failures) and Dramatiq middleware for task execution metrics.
+- Model swaps: ComfyUI and TTS blocks are parameterized to allow model changes without altering orchestration.
+- Scalability: Multiple worker replicas can consume from the same Redis Streams, scaling the data plane independently.
+- Security: Traefik and optional auth layers can front management UIs (Open WebUI, Grafana, etc.).
+- Observability: Both planes expose `/metrics`; higher-level job and node metrics can be added incrementally.
+

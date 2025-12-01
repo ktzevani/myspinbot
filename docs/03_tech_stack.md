@@ -1,60 +1,126 @@
-# Tech Stack Listing
+# Tech Stack Overview
 
-This section enumerates every core technology, framework, and dependency that composes MySpinBot. It explains versioning targets, compatible alternatives, and the rationale for inclusion or exclusion—emphasizing open-source, local-first, GPU-ready components.
+This document lists the core technologies used in MySpinBot as implemented today design choices. The stack has evolved iteratively; see `06_history.md`.
 
-## 1️⃣ Overview Table
+## 1) Stack Snapshot
 
-| Layer                 | Component                           | Version Target                       | Role                                                               | Viable Alternatives              | Rationale                                                                                                                                                                                                                                          |
-| :-------------------- | :---------------------------------- | :----------------------------------- | :----------------------------------------------------------------- | :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**          | **Next.js (React 19 + TypeScript)** | `15.x`                               | Web interface, training/upload forms, real-time progress dashboard | Vite + React, SvelteKit, Astro   | Next.js offers best full-stack integration (SSR + API routes) and vibrant ecosystem; aligns with LangChain.js demos and Open WebUI embedding.                                                                                                      |
-|                       | TailwindCSS + shadcn/ui             | `^3.4`                               | Styling, components                                                | Chakra UI, MUI, DaisyUI          | Tailwind is compact and composable; shadcn/ui aligns stylistically with the admin-like app; MUI too heavy for embedded dashboard use.                                                                                                              |
-|                       | Zustand                             | `^5.0`                               | Frontend state management                                          | Redux Toolkit, Recoil            | Simple and minimal; Redux too verbose for small local UI; Recoil ecosystem smaller.                                                                                                                                                                |
-| **Backend (JS)**      | **Fastify (TypeScript)**            | `^4.27`                              | Main API server, WebSocket channel                                 | Express, Hono                    | Fastify chosen for speed, built-in schema validation, and production maturity; Express slower under high concurrency.                                                                                                                              |
-|                       | LangChain.js + LangGraph.js         | `^0.4.9`                             | LLM orchestration + workflow graphs (job-level)                    | LangFlow (UI only), AutoGPT.js   | LangGraph brings deterministic flow control missing from vanilla LangChain; LangFlow is visual only and less automatable.                                                                                                                          |
-| **LLM Stack**         | **Ollama**                          | `>=0.3.10`                           | Model runtime hosting (OLMo, Mistral, Phi-3, etc.)                 | LM Studio, Text-Generation-WebUI | Ollama is a lightweight model server exposing a stable REST API with multi-model caching; alternatives like LM Studio or Text-Generation-WebUI are primarily UIs and heavier, and they do not provide the same standardized daemon API by default. |
-|                       | Open WebUI                          | `^0.2.8`                             | Web front-end for managing Ollama models                           | AnythingLLM, LibreChat           | Open WebUI natively integrates with Ollama (no adapters) and fits local management use-case; LibreChat heavier and multi-backend oriented.                                                                                                         |
-| **Diffusion / Video** | **ComfyUI**                         | `>=0.2.1`                            | Node-based image/video workflow engine                             | Automatic1111, Forge, InvokeAI   | ComfyUI is modular, API-driven, and designed for automation; others are GUI-first with limited headless mode.                                                                                                                                      |
-|                       | Stable Video Diffusion              | `1.1`                                | Image→Video synthesis                                              | Runway Gen2, ModelScope I2V      | SVD is open and GPU-efficient; Gen2 is closed-source, ModelScope slower on mid-tier GPUs.                                                                                                                                                          |
-|                       | ESRGAN (Real-ESRGAN)                | `^0.3.0`                             | Frame upscaling                                                    | SwinIR, BSRGAN                   | ESRGAN nodes are mature in Comfy ecosystem; newer SR models require heavier compute.                                                                                                                                                               |
-|                       | SadTalker / Wav2Lip                 | `SadTalker 0.0.2`, `Wav2Lip 1.0`     | Lip-sync and talking head animation                                | PC-AVS, MakeItTalk               | SadTalker + Wav2Lip combo open, lightweight, and proven; PC-AVS is research-only; MakeItTalk deprecated.                                                                                                                                           |
-| **Training / Voice**  | **kohya_ss / sd-scripts**           | `>=2024.01`                          | LoRA training                                                      | Diffusers LoRA Trainer           | kohya scripts more flexible for quick dataset finetuning; HuggingFace Diffusers LoRA heavier, slower.                                                                                                                                              |
-|                       | F5-TTS or GPT-SoVITS                | `>=2024.02`                          | Few-shot voice cloning                                             | Bark, StyleTTS2                  | F5-TTS open, runs on consumer GPUs; Bark lacks speaker consistency, StyleTTS2 closed weights.                                                                                                                                                      |
-| **GPU Jobs (Python)** | **LangGraph.py + Dramatiq**         | `langgraph^0.4.8`, `dramatiq^1.18.0` | Task-level orchestration & execution for GPU workflows             | Celery, Ray, Airflow             | LangGraph defines declarative DAGs of GPU tasks; Dramatiq executes them in isolated processes, offering simpler scaling and clearer observability than Celery for local-first environments.                                                        |
-|                       | FastAPI                             | `^0.115`                             | API for Python worker metrics and control                          | Flask, Sanic                     | FastAPI async-first, native Pydantic integration; lighter than Flask; Sanic less ecosystem support.                                                                                                                                                |
-|                       | PyTorch + CUDA Toolkit              | `2.4` + `12.x`                       | Core training/inference runtime                                    | TensorFlow, JAX                  | PyTorch’s ecosystem dominates LoRA, TTS, and diffusion; TensorFlow deprecated in most new models.                                                                                                                                                  |
-| **Data Layer**        | **PostgreSQL**                      | `16.x`                               | Relational data store                                              | MySQL, MariaDB, SQLite           | Postgres offers JSONB + full-text search, ideal for metadata-rich jobs; SQLite unsuitable for concurrency.                                                                                                                                         |
-|                       | Redis (Streams + Pub/Sub)           | `8.2`                                | Cross-plane communication (Node↔Python)                            | Valkey, KeyDB                    | Redis Streams ensure durable job messages; Pub/Sub used for progress events; lightweight and language-agnostic.                                                                                                                                    |
-|                       | MinIO                               | `RELEASE.2025-09-07T16-13-09Z`       | S3-compatible object storage                                       | Ceph, LocalFS                    | MinIO easy to deploy, perfect for local artifact storage; Ceph overkill.                                                                                                                                                                           |
-| **Monitoring & Ops**  | **Prometheus**                      | `^3.0`                               | Metrics collection                                                 | InfluxDB, Graphite               | Prometheus integrates natively with Grafana and Docker exporters.                                                                                                                                                                                  |
-|                       | Grafana                             | `^11.0`                              | Visualization dashboard                                            | Superset, Kibana                 | Grafana excels at time-series visualization and alerting.                                                                                                                                                                                          |
-|                       | cAdvisor                            | `^0.47`                              | Container CPU/memory metrics                                       | Node Exporter                    | cAdvisor exposes Docker metrics automatically, simpler for Compose.                                                                                                                                                                                |
-|                       | NVIDIA DCGM Exporter                | `^3.2`                               | GPU metrics exporter                                               | nvtop, gpustat                   | DCGM integrates with Prometheus natively, official NVIDIA support.                                                                                                                                                                                 |
-| **Ingress & Auth**    | **Traefik v2**                      | `2.11`                               | Reverse proxy, TLS, routing                                        | Nginx, Caddy                     | Traefik excels at dynamic container discovery and easy Let's Encrypt; fits Docker Compose natively.                                                                                                                                                |
+### Core Components
 
-## 2️⃣ Versioning Policy
+| Layer                    | Component / Library                   | Used In         | Role                                                                                           |
+| ------------------------ | ------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------- |
+| **Frontend**             | Next.js 15 + React + TypeScript       | `frontend/`     | Single-page UI for training requests and job progress visualization.                          |
+|                          | TailwindCSS + shadcn/ui               | `frontend/`     | Styling, layout, and basic UI components.                                                     |
+| **Backend (Control)**    | Node.js 20                            | `backend/`      | Runtime for the control plane (Fastify, LangGraph.js, Redis clients).                         |
+|                          | Fastify                               | `backend/`      | HTTP API, WebSocket endpoint, health & metrics.                                               |
+|                          | LangGraph.js                          | `backend/`      | Graph creation and control-plane execution for `plane: "node"` nodes.                         |
+|                          | `ioredis`                             | `backend/`      | Redis Streams and Pub/Sub client for the JobQueue.                                            |
+|                          | AJV (generated validators)            | `backend/`      | Validates config, LangGraph graphs, and job messages against shared JSON Schemas.             |
+|                          | `prom-client`                         | `backend/`      | Exposes `/metrics` endpoint for API, queue, and WebSocket metrics.                            |
+| **Worker (Data Plane)**  | Python 3.12 + FastAPI                 | `worker/`       | Lightweight API for `/health` and `/metrics`, worker lifecycle, and executor bootstrap.       |
+|                          | LangGraph.py                          | `worker/`       | Executes `plane: "python"` nodes in LangGraph graphs.                                         |
+|                          | Async Redis client                    | `worker/`       | Implements Redis Streams bridge and Pub/Sub progress channels.                                |
+|                          | Pydantic v2                           | `worker/`       | Generated data models for LangGraph graphs, job messages, and configuration.                  |
+|                          | `prometheus_client`                   | `worker/`       | Exposes `/metrics` with worker and job metrics.                                               |
+|                          | MinIO Python SDK / S3 client          | `worker/`       | Uploads dummy artifacts (LoRA weights, videos) to MinIO.                                      |
+| **Shared / Tooling**     | JSON Schema                           | `common/`       | Canonical definitions for graphs, jobs, capabilities, and configuration.                      |
+|                          | Codegen scripts (`codegen/`)          | `codegen/`      | Generate AJV validators (backend) and Pydantic models (worker) from shared schemas.           |
+| **Infra & Observability**| Docker Compose                        | root + `infra/` | Orchestrates infra, backend, frontend, and worker services (dev + prod variants).             |
+|                          | Traefik 2                             | `infra/`        | Reverse proxy, TLS termination, routing to backend/frontend/metrics endpoints.                |
+|                          | Redis                                 | `infra/`        | Central coordination fabric (Streams + Pub/Sub) for both planes.                              |
+|                          | MinIO                                 | `infra/`        | S3-compatible object storage for artifacts and uploads.                                       |
+|                          | Prometheus                            | `infra/`        | Metrics collection from backend, worker, and exporters.                                       |
+|                          | Grafana                               | `infra/`        | Metrics visualization and dashboards.                                                         |
+|                          | cAdvisor                              | `infra/`        | Container CPU/memory metrics for Prometheus.                                                  |
+|                          | NVIDIA DCGM Exporter                  | `infra/`        | GPU metrics exporter for Prometheus.                                                          |
+|                          | Redis Insight                         | `infra/`        | Optional Redis introspection UI for development.                                              |
 
-- **Pinned Base Images**: Every service Dockerfile references explicit tags (no `latest`) to maintain reproducibility.
-- **Minor Upgrade Cadence**: Non-breaking updates applied quarterly after integration testing.
-- **GPU Compatibility Window**: PyTorch and CUDA pinned per driver support (12.x baseline) for RTX 5070 Ti.
-- **Schema Stability**: Postgres migrations managed via Prisma (TS) and Alembic (Py) for cross-language safety.
+### Planned AI Services
 
-## 3️⃣ Ecosystem Rationale
+These components are part of the target design but not yet fully wired into the codebase:
 
-- **Full Open-Source Stack**: All components (LLM, diffusion, TTS, orchestration, infra) have OSI licenses or equivalent permissive terms.
-- **Dual-LangGraph Architecture**: Node LangGraph handles high-level user jobs; Python LangGraph handles GPU task DAGs, connected via Redis Streams and Pub/Sub.
-- **Local GPU Efficiency**: Each chosen framework runs inference/training efficiently on a single 16 GB card.
-- **Observability by Design**: Metrics exposure required for every service; minimal runtime assumptions (no cloud dependencies).
-- **Composability**: Each component replaceable with compatible API; e.g., Ollama ↔ LM Studio, ComfyUI ↔ Automatic1111 headless.
+| Component                | Role                                                     | Integration Status                                |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------------------- |
+| ComfyUI                  | Node-based image/video workflow engine.                  | Planned; to be driven by worker LangGraph nodes. |
+| Stable Video Diffusion   | Image→video synthesis.                                  | Planned via ComfyUI workflows.                   |
+| ESRGAN                   | Image/video upscaling.                                  | Planned post-processing step.                    |
+| F5-TTS / GPT-SoVITS      | Text-to-speech / voice cloning.                         | Planned; currently simulated in worker tasks.    |
+| Wav2Lip / SadTalker      | Lip-sync / talking-head animation.                      | Planned; `render_video` currently stubbed.       |
+| Ollama + Open WebUI      | Local LLM runtime + management UI for script planning.  | Planned; `generateScript` currently stubbed.     |
 
-## 4️⃣ Optional Modules (Future Integration)
+These planned services appear in the architecture diagrams as future integrations and can be introduced incrementally.
 
-| Area                      | Candidate                            | Benefit                                                     |
-| :------------------------ | :----------------------------------- | :---------------------------------------------------------- |
-| **Vector Indexing / RAG** | pgvector, Weaviate                   | Enable retrieval-augmented video scripting or voice memory. |
-| **Frontend GPU Demo**     | WebGPU / Three.js                    | Showcase real-time avatar rendering or shader filters.      |
-| **Auth / IAM**            | Keycloak, Auth.js                    | Role-based access for multiple users.                       |
-| **Job Analytics**         | Prometheus Pushgateway, Grafana Loki | Log + metrics correlation for pipeline profiling.           |
+## 2) Control vs Data Plane Split
 
-### Summary
+MySpinBot leans heavily into a **control-plane / data-plane split**:
 
-The stack balances modern developer ergonomics with strict open-source compliance and single-GPU practicality. Each layer was selected for **stability, community maturity, and ease of automation**, with well-defined alternatives documented for future flexibility.
+```mermaid
+flowchart LR
+    subgraph Control["Control Plane (Node.js)"]
+        NJS[Node 20 + Fastify]
+        LJS[LangGraph.js]
+        AJV[Generated AJV Validators]
+        IOR["Redis Client (ioredis)"]
+    end
+
+    subgraph Data["Data Plane (Python)"]
+        PY[Python 3.12 + FastAPI]
+        LGPY[LangGraph.py]
+        PYD[Pydantic v2 Models]
+        RCL[Async Redis Client]
+    end
+
+    subgraph Shared["Shared"]
+        JSCH[JSON Schemas]
+        CGEN[Codegen Scripts]
+    end
+
+    JSCH --> CGEN
+    CGEN --> AJV
+    CGEN --> PYD
+    NJS --> LJS
+    NJS --> IOR
+    PY --> LGPY
+    PY --> RCL
+```
+
+Key decisions:
+
+- **Graphs as the primary abstraction** – orchestration is expressed as LangGraph graphs, not ad-hoc JSON or queue messages.
+- **Redis Streams + Pub/Sub as the only coordination fabric** – there is no BullMQ, Celery, or external broker.
+- **Generated validators/models** – JSON Schemas in `common/` feed codegen for AJV (backend) and Pydantic (worker), minimizing schema drift.
+
+## 3) Shared Schemas & Codegen
+
+The shared schema layer underpins cross-plane correctness:
+
+- Canonical schemas live under `common/config/schemas/**` (graphs, jobs, capabilities, redis config, storage).
+- Backend validators are generated into `backend/src/validators/**`.
+- Worker models are generated into `worker/src/worker/models/**`.
+- A small `codegen/` directory provides:
+  - `gen-backend-validators.sh` – regenerate AJV validators.
+  - `gen-worker-datamodel.sh` – regenerate Pydantic models.
+  - `gen-all.sh` – convenience wrapper for both.
+
+Both planes validate their configuration and job payloads against the same definitions, ensuring that graphs accepted by the backend are also executable by the worker.
+
+## 4) Development Workflow & Versioning
+
+- **Dev Containers per subsystem**  
+  `backend/`, `frontend/`, and `worker/` each ship a VS Code Dev Container configuration and Dockerfile. Development (including tests) happens inside these containers for parity with production images.
+
+- **Docker-based orchestration**  
+  A small set of Compose files under the root and `infra/` directory bring up Traefik, Redis, MinIO, Prometheus, Grafana, Redis Insight, and the app services.
+
+- **Versioning guidelines**  
+  - Pin base images and core dependencies (Node.js, Python, Redis, MinIO, Prometheus) to specific major/minor versions for reproducibility.
+  - Upgrade on a controlled cadence (e.g. quarterly) after integration testing.
+  - Keep schema changes backward-compatible where possible; regenerate validators/models as part of the upgrade process.
+
+## 5) Design Principles 
+
+- **All-open-source, local-first** – no proprietary APIs or hosted dependencies are required; everything runs on a single GPU box.
+- **Dual-LangGraph orchestration** – Node LangGraph handles user-facing workflows; Python LangGraph handles GPU-style DAGs.
+- **Schema-driven contracts** – shared schemas are the single source of truth for graphs, jobs, and configuration.
+- **Observability by default** – every service exposes metrics; Prometheus + Grafana provide a unified view of system health.
+- **Composable AI services** – planned diffusion, TTS, lip-sync, and LLM components are decoupled so they can be swapped or extended without rewriting the core orchestration.
+

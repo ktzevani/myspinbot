@@ -19,10 +19,11 @@ I stole the idea from Computerphile’s [_MikeBot3000: Can We Build an AI Mike f
 | ------------------------------------ | ----------------------------------------------------------- |
 | **Frontend (Next.js 15)**            | User UI for uploads, prompts, and previews                  |
 | **Backend (Fastify + LangGraph.js)** | Orchestrates jobs, LLM prompts, and pipelines               |
-| **GPU Worker (Python + Celery/RQ)**  | Handles LoRA, TTS, and video generation                     |
+| **GPU Worker (Python + LangGraph.py + Dramatiq)**  | Handles LoRA, TTS, and video generation                     |
 | **ComfyUI Engine**                   | Diffusion/video workflows (SD 1.5 / SDXL / SVD / SadTalker) |
 | **Ollama LLM Host**                  | Stage + narrative generation using local models             |
-| **Data Layer**                       | PostgreSQL 16 + Redis 7 + MinIO (S3)                        |
+| **Distributed Computing Framework**                  | Abstractions over Redis Streams and Pub/Sub |
+| **Persistence Layer**                       | PostgreSQL 16 + MinIO (S3)                        |
 | **Ingress / TLS**                    | Traefik 2.11 routing for all subdomains                     |
 | **Monitoring**                       | Prometheus 3 + Grafana 11 + cAdvisor + DCGM exporter        |
 
@@ -41,8 +42,8 @@ Start [here](./docs/README.md).
 | 🧊 Subzero | Repo setup + docs freeze               | ✅ Completed |
 | 0          | Infra Bootstrap (Traefik + Monitoring) | ✅ Completed |
 | 1          | Backend & Frontend Scaffold            | ✅ Completed |
-| 2          | GPU Worker Integration                 | 🕓 Pending   |
-| 3          | AI Pipeline Implementation             | ⏳ Planned   |
+| 2          | GPU Worker Integration                 | ✅ Completed  |
+| 3          | AI Pipeline Implementation             | 🕓 Pending   |
 | 4          | Quality & Observability                | ⏳ Planned   |
 | 5          | Polish & Docs                          | ⏳ Planned   |
 

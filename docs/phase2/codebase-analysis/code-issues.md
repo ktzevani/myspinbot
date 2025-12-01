@@ -24,7 +24,7 @@ Scope: Known flaws/soft spots across architecture and implementation (excluding 
 - Progress/status emission assumes Redis keys pre-exist; `publish_progress` with stepping reads `job:<id>:progress` without default -> will throw if missing.
 - Executor error handling can ack and then publish status with wrong reference: in `_run_loop` catch block references `result.job_id` even when result undefined.
 - Capability task returns JSON string embedded in object; control merges without validating fields beyond schema; malformed worker manifest passes silently.
-- MinIO usage: `connect_minio` pulls creds from env but buckets created per task without IAM/policy; no cleanup or preflight connectivity test; errors print but don’t set task failure output.
+- MinIO usage: `connect_minio` pulls creds from env but buckets created per task without IAM/policy; no cleanup or preflight connectivity test; errors print but donï¿½t set task failure output.
 - RedisBridge lacks reconnection/backoff; any Redis hiccup stops progress publishing/polling.
 
 ## Frontend (Next.js)

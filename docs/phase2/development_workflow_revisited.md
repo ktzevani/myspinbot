@@ -198,7 +198,7 @@ The Dev Container entrypoint launches:
 
 * FastAPI metrics server
 * Redis Streams polling loop
-* Dramatiq GPU task orchestrator
+* Python worker (executor)
 
 ### Debugging
 

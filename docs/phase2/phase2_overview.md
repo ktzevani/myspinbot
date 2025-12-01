@@ -8,6 +8,8 @@
 | [dual_orchestration.md](./dual_orchestration.md) | Definition and overview of the **Dual-Plane LangGraph Orchestration** model. |
 | [development_workflow_revisited.md](./development_workflow_revisited.md) | Local development and integration testing workflows revisited. |
 | [shared_schemas.md](./shared_schemas.md) | Overview of shared schema architecture, automated data model generation and Singeton configuration. |
+| [codebase-analysis/code-overview.md](./codebase-analysis/code-overview.md) | Overview of codebase snapshot as of the end of phase 2 development. Useful for providing context to llms. |
+| [codebase-analysis/code-issues.md](./codebase-analysis/code-issues.md) | Knonw issues and weak spots of current implementation, can be used as a repo for post-phase2 future todo tasks. |
 
 ## 🎯 Objective
 
@@ -29,7 +31,7 @@ By the end of this phase, we will have a functioning GPU service that:
 ### 1. Establish the GPU Worker Service
 
 - Implement a standalone **Python service (`gpu_worker`)** running with CUDA.
-- Integrate **LangGraph.py** and **Dramatiq** for task orchestration and GPU job execution.
+- Integrate **LangGraph.py** for task orchestration and GPU job execution (**Dramatiq** to also be utilized in the future phases).
 - Define modular task handlers:
 
   - `train_lora`: stub for LoRA fine-tuning.

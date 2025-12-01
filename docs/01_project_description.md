@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project aims to deliver a fully local, end‑to‑end platform that generates short, personalized videos of custom “bots” (human‑like or stylized avatars) from minimal user data: a small image set and a few seconds of audio. It must run on a single consumer GPU (e.g. RTX 5070 Ti) and rely strictly on open‑source components—models, code, and tooling—to ensure privacy, reproducibility, and longevity. Beyond a working product, the project actual goal is **primarily educational**, i.e. to showcase a modern, modular AI stack that cleanly integrates Node.js (TypeScript) orchestration, LangGraph workflows on both Node.js and Python, ComfyUI diffusion pipelines, Ollama‑hosted local LLMs, Python‑based training jobs (LoRA, TTS, lip‑sync) managed by Dramatiq workers, and full observability (Prometheus/Grafana) within one coherent system.
+This project aims to deliver a fully local, end‑to‑end platform that generates short, personalized videos of custom “bots” (human‑like or stylized avatars) from minimal user data: a small image set and a few seconds of audio. It must run on a single consumer GPU (e.g. RTX 5070 Ti) and rely strictly on open‑source components—models, code, and tooling—to ensure privacy, reproducibility, and longevity. Beyond a working product, the project actual goal is **primarily educational**, i.e. to showcase a modern, modular AI stack that cleanly integrates React UI layer, Node.js  orchestration, LangGraph distributed workflows on both Node.js and Python runtimes, ComfyUI diffusion pipelines, Ollama‑hosted local LLMs, Python‑based training jobs (LoRA, TTS, lip‑sync) managed by Dramatiq workers, and full observability (Prometheus/Grafana) within one coherent system.
 
 ## What we will enable
 
@@ -19,7 +19,7 @@ Generative media tools are increasingly cloud‑bound, license‑entangled, and 
 
 - **Functional**: From upload to final MP4 (process) completes end‑to‑end on a 5070 Ti without OOMs, with selectable presets (speed/quality). Trained profiles are reusable; LLM‑guided prompts produce coherent stage + narrative.
 - **Quality**: Lip‑sync is believable for portrait scenarios; video is artifact‑controlled at 576p–720p baseline with optional upscaling; voice timbre similarity is recognizably close for few‑shot inputs.
-- **Operational**: Workflows execute safely and recover on failure. LangGraph in Node.js manages job orchestration; Redis Streams bridge job state to Python, where LangGraph and Dramatiq coordinate GPU tasks. Metrics are exposed to Prometheus. All services are reproducible via Docker Compose with Traefik‑routed subdomains.
+- **Operational**: Workflows execute safely and recover on failure. A dual‑plane LangGraph design runs control‑plane graphs in Node.js and data‑plane graphs in Python, with Redis Streams + Pub/Sub bridging job state between the two executors. Metrics are exposed to Prometheus, and all services are reproducible via Docker Compose with Traefik‑routed subdomains.
 - **Open‑source compliance**: Core models and code are truly open (OSI‑compatible where applicable); documentation is complete and versioned; no proprietary APIs or hosted dependencies are required.
 
 ## Scope and constraints
@@ -30,7 +30,7 @@ Generative media tools are increasingly cloud‑bound, license‑entangled, and 
 
 ## Who this is for
 
-- **Builders** who want a transparent, reproducible reference stack for local AI media pipelines.
+- **Builders** who want a transparent, reproducible reference stack for local AI pipelines.
 - **Researchers** evaluating practical trade‑offs between small LLM planning, diffusion video, and audio‑driven animation under strict compute budgets.
 - **Teams** needing an on‑prem solution for private media generation where data and model artifacts must remain local.
 
