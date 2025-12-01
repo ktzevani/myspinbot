@@ -11,7 +11,7 @@ At this stage, the repository is organized around **four primary code modules** 
 | Module                  | Location        | Primary Language | Responsibility                                                                                              |
 | ----------------------- | --------------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
 | **Frontend (Next.js)**  | `frontend/`     | TypeScript       | User‑facing UI for triggering training, monitoring job progress, and later inspecting artifacts.           |
-| **Backend (Control)**   | `backend/`      | TypeScript       | Fastify API + WebSocket hub, Planner, control‑plane LangGraph executor, Redis bridge, metrics.            |
+| **Backend (Control)**   | `backend/`      | JavaScript       | Fastify API + WebSocket hub, Planner, control‑plane LangGraph executor, Redis bridge, metrics.            |
 | **Worker (Data Plane)** | `worker/`       | Python           | FastAPI service, Redis bridge, data‑plane LangGraph executor, task registry, MinIO artifact handling.     |
 | **Shared Schemas**      | `common/`       | JSON / Scripts   | Canonical JSON Schemas, baseline config, and codegen scripts for validators/models used by both planes.   |
 | **Infrastructure**      | `infra/` + root | YAML / Docker    | Traefik, Redis, MinIO, Prometheus, Grafana, Redis Insight, Dev Containers, and Docker Compose definitions. |

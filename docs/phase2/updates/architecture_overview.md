@@ -12,7 +12,8 @@ At a high level the system is now a **three‑tier stack**:
   Orchestrates workflows, exposes HTTP + WebSocket APIs, and persists job state in Redis.
 - **Data Plane (worker/)** — Python + FastAPI + LangGraph.py  
   Executes python‑plane LangGraph nodes (GPU‑style tasks), uploads artifacts to MinIO, and publishes progress via Redis Pub/Sub.
-- **Experience & Infra Layer** — Next.js frontend, Redis, MinIO, Traefik, Prometheus/Grafana, cAdvisor/DCGM.
+- **Experience Layer (frontend/)** — Next.js UI for triggering training requests and monitoring job progress.
+- **Infra Layer (infra/ + shared services)** — Redis, MinIO, Traefik, Prometheus/Grafana, cAdvisor/DCGM.
 
 ### System Map (Current + Planned Targets)
 
@@ -37,6 +38,7 @@ flowchart LR
     subgraph DataPlane["Data Plane — Python"]
         WAPI[FastAPI /metrics + /health]
         WEXEC["Worker Executor (LangGraph.py)"]
+        WBR["Redis Bridge (Streams + Pub/Sub)"]
         TASKS["Task Registry(train_lora, train_voice, render_video, get_capabilities)"]
     end
 
@@ -71,7 +73,8 @@ flowchart LR
     API <--> JQ
 
     JQ <--> R
-    R <--> WEXEC
+    R <--> WBR
+    WBR <--> WEXEC
     WEXEC --> TASKS
     WEXEC --> WAPI
 
@@ -206,9 +209,10 @@ Phase 2 establishes a **schema‑driven runtime**:
 flowchart LR
     U[Next.js Client] -->|POST /api/train| A[Fastify API]
     A --> B[JobQueue<br/>persist job:* in Redis]
-    B --> C[Redis Streams & Pub/Sub]
-    C --> D[Worker Executor]
-    D --> C
+    B <--> F[Control Executor]
+    B <--> C[Redis Streams & Pub/Sub]
+    C <--> R["Redis Bridge (Worker)"]
+    R <--> D[Worker Executor]
     C --> B
     B -->|poll job state| E[WebSocket Hub]
     E -->|"{type:'update', ...}"| U
@@ -283,4 +287,3 @@ This section summarizes how the **current Phase 2 architecture** differs from th
   - `/metrics` endpoints, Prometheus scraping, and Grafana dashboards are already present and will be extended as AI pipelines are filled in.
 
 In other words, **Phase 2 delivers the structural skeleton of the intended architecture**—graphs, bridges, schemas, and metrics—while leaving model‑heavy components and advanced planning logic for subsequent phases.
-
