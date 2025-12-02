@@ -71,7 +71,7 @@ services:
       context: .
       dockerfile: sandbox/Dockerfile
     container_name: myspinbot-sandbox
-    entrypoint: ["/bin/sh", "-l"]
+    entrypoint: ["bash", "-l"]
     stdin_open: true
     tty: true
     volumes:

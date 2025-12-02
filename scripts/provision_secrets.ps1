@@ -199,6 +199,10 @@ $PgDir = Join-Path $InfraDir 'postgres\secrets'
 $PgEnv = Join-Path $PgDir 'root.env'
 $pgAdminURL = "pgadmin.$DOMAIN"
 
+$POSTGRES_USER = $AUTH_USER
+$POSTGRES_PASSWORD = $AUTH_PASS
+$POSTGRES_DB = $DB_NAME
+
 New-Item -ItemType Directory -Force -Path $PgDir | Out-Null
 
 if (($FORCE -eq 'true') -or -not (Test-Path $PgEnv)) {
@@ -206,11 +210,11 @@ if (($FORCE -eq 'true') -or -not (Test-Path $PgEnv)) {
     try {
         # Same credentials as Traefik BasicAuth
         $content = @()
-        $content += "POSTGRES_USER=$AUTH_USER"
-        $content += "POSTGRES_PASSWORD=$AUTH_PASS"
+        $content += "POSTGRES_USER=$POSTGRES_USER"
+        $content += "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
         $content += "PGADMIN_DEFAULT_EMAIL=${AUTH_USER}@$DOMAIN"
         $content += "PGADMIN_DEFAULT_PASSWORD=$AUTH_PASS"
-        $content += "POSTGRES_DB=$DB_NAME"
+        $content += "POSTGRES_DB=$POSTGRES_DB"
         Set-Content -Path $PgEnv -Value $content -Encoding Ascii
         Write-Host ("   Created PostgreSQL root.env: {0}" -f $PgEnv)
     }
@@ -221,6 +225,38 @@ if (($FORCE -eq 'true') -or -not (Test-Path $PgEnv)) {
 }
 else {
     Write-Host '-> PostgreSQL root.env already exists (use FORCE=true to regenerate).'
+}
+
+$PgAdminDir = Join-Path $InfraDir 'postgres\pgadmin'
+$PgAdminServersTemplateFile = Join-Path $PgAdminDir 'servers.json.template'
+$PgAdminServersFile = Join-Path $PgAdminDir 'servers.json'
+
+if (($FORCE -eq 'true') -or -not (Test-Path $PgAdminServersTemplateFile)) {
+    Write-Host '-> Generating PgAdmin servers.json ...'
+    try {
+        $template = Get-Content -Raw -Path $PgAdminServersTemplateFile
+        $regex = [regex]'\$\{([A-Za-z_][A-Za-z0-9_]*)\}'
+        $expanded = $regex.Replace($template, {
+                param($match)
+                $varName = $match.Groups[1].Value
+                $value = Get-Variable -Name $varName -ErrorAction SilentlyContinue
+                if ($value) {
+                    return $value.Value
+                }
+                else {
+                    throw "Variable `${varName} is not defined in the script."
+                }
+            })
+        $expanded | Set-Content -Path $PgAdminServersFile
+        Write-Host ("   Created PgAdmin servers.json: {0}" -f $PgAdminServersFile)
+    }
+    catch {
+        Write-Error "[X] Failed to write PostgreSQL credentials: $_"
+        exit 1
+    }
+}
+else {
+    Write-Host '-> PgAdmin servers.json already exists (use FORCE=true to regenerate).'
 }
 
 $ApiDir = Join-Path $RootDir 'backend\secrets'

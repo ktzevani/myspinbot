@@ -185,7 +185,6 @@ services:
       - ./infra/postgres/pgadmin/config.env
       - ./infra/postgres/secrets/root.env
     volumes:
-      - ./infra/postgres/pgadmin:/var/lib/pgadmin
       - ./infra/postgres/pgadmin/servers.json:/pgadmin4/servers.json
     networks:
       - internal-network

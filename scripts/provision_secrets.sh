@@ -17,6 +17,29 @@
 
 set -euo pipefail
 
+expand_template() {
+  local template_file="$1"
+  local output_file="$2"
+  if [[ ! -f "$template_file" ]]; then
+    echo "Error: template '$template_file' does not exist" >&2
+    exit 1
+  fi
+  {
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+      while [[ "$line" =~ \$\{([A-Za-z_][A-Za-z0-9_]*)\} ]]; do
+        var="${BASH_REMATCH[1]}"
+        if [[ -z "${!var+x}" ]]; then
+          echo "Error: variable '$var' is not defined in the environment" >&2
+          exit 1
+        fi
+        value="${!var}"
+        line="${line/\$\{$var\}/$value}"
+      done
+      printf '%s\n' "$line"
+    done < "$template_file"
+  } > "$output_file"
+}
+
 # ── Configuration (defaults, overridable) ───────────────────────
 AUTH_USER="${AUTH_USER:-admin}"
 AUTH_PASS="${AUTH_PASS:-password}"
@@ -107,19 +130,34 @@ fi
 PG_ENV_FILE="$PG_SECRETS_DIR/root.env"
 PGADMIN_URL="pgadmin.$DOMAIN"
 
+POSTGRES_USER="$AUTH_USER"
+POSTGRES_PASSWORD="$AUTH_PASS"
+POSTGRES_DB="$DB_NAME"
+
 if [[ "$FORCE" == "true" || ! -f "$PG_ENV_FILE" ]]; then
   echo "→ Generating PostgreSQL root.env (synchronized with Traefik BasicAuth)..."
   {
-    echo "POSTGRES_USER=${AUTH_USER}"
-    echo "POSTGRES_PASSWORD=${AUTH_PASS}"
+    echo "POSTGRES_USER=${POSTGRES_USER}"
+    echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}"
     echo "PGADMIN_DEFAULT_EMAIL=${AUTH_USER}@${DOMAIN}"
     echo "PGADMIN_DEFAULT_PASSWORD=${AUTH_PASS}"
-    echo "POSTGRES_DB=${DB_NAME}"
+    echo "POSTGRES_DB=${POSTGRES_DB}"
   } >"$PG_ENV_FILE"
   chmod 600 "$PG_ENV_FILE"
   echo "   Created PostgreSQL root.env: $PG_ENV_FILE"
 else
   echo "→ PostgreSQL root.env already exists (use FORCE=true to regenerate)."
+fi
+
+PGADMIN_TEMPLATE="$INFRA_DIR/postgres/pgadmin/servers.json.template"
+PGADMIN_OUTPUT="$INFRA_DIR/postgres/pgadmin/servers.json"
+
+if [[ "$FORCE" == "true" || ! -f "$PGADMIN_TEMPLATE" ]]; then
+  echo "→ Generating PgAdmin servers.json ..."
+  expand_template "$PGADMIN_TEMPLATE" "$PGADMIN_OUTPUT"
+  echo " Created PgAdmin servers.json: $PGADMIN_OUTPUT"
+else
+  echo "→ PgAdmin servers.json already exists (use FORCE=true to regenerate)."
 fi
 
 API_ENV_FILE="$API_SECRETS_DIR/root.env"
