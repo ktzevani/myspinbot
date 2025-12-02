@@ -27,7 +27,7 @@ services:
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`proxy.myspinbot.local`)"
+      - "traefik.http.routers.dashboard.rule=Host(`proxy.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
@@ -43,7 +43,7 @@ services:
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.prom.rule=Host(`prometheus.myspinbot.local`)"
+      - "traefik.http.routers.prom.rule=Host(`prometheus.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.prom.entrypoints=websecure"
       - "traefik.http.routers.prom.tls=true"
       - "traefik.http.services.prom.loadbalancer.server.port=9090"
@@ -56,10 +56,8 @@ services:
     restart: unless-stopped
     user: "472"
     env_file:
-      - .env
-    environment:
-      - GF_PATHS_DATA=/var/lib/grafana
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - ./infra/grafana/secrets/root.env
+      - ./infra/grafana/config.env
     volumes:
       - ./infra/grafana/data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning
@@ -67,7 +65,7 @@ services:
     networks: [internal-network]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.myspinbot.local`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
@@ -158,11 +156,48 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.redis.rule=Host(`redis.myspinbot.local`)"
+      - "traefik.http.routers.redis.rule=Host(`redis.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.redis.entrypoints=websecure"
       - "traefik.http.routers.redis.tls=true"
       - "traefik.http.services.redis.loadbalancer.server.port=5540"
       - "traefik.http.routers.redis.middlewares=dashboard-auth@file"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: myspinbot-postgres
+    restart: unless-stopped
+    env_file:
+      - ./infra/postgres/secrets/root.env
+    networks:
+      - internal-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myspinbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: myspinbot-pgadmin
+    env_file:
+      - ./infra/postgres/pgadmin/config.env
+      - ./infra/postgres/secrets/root.env
+    volumes:
+      - ./infra/postgres/pgadmin:/var/lib/pgadmin
+      - ./infra/postgres/pgadmin/servers.json:/pgadmin4/servers.json
+    networks:
+      - internal-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.${PROJECT_DOMAIN}`)"
+      - "traefik.http.routers.pgadmin.entrypoints=websecure"
+      - "traefik.http.routers.pgadmin.tls=true"
+      - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
 
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
@@ -179,7 +214,7 @@ services:
       - internal-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.minio.rule=Host(`s3.myspinbot.local`)"
+      - "traefik.http.routers.minio.rule=Host(`s3.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.minio.entrypoints=websecure"
       - "traefik.http.routers.minio.tls=true"
       - "traefik.http.services.minio.loadbalancer.server.port=9001"
@@ -193,6 +228,8 @@ services:
         NODE_ENV: production
     container_name: myspinbot-backend
     restart: unless-stopped
+    env_file:
+      - ./backend/secrets/root.env
     environment:
       - REDIS_URL=redis://redis:6379
     healthcheck:
@@ -203,7 +240,7 @@ services:
       start_period: 10s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`api.myspinbot.local`)"
+      - "traefik.http.routers.api.rule=Host(`api.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.services.api.loadbalancer.server.port=3000"
@@ -214,6 +251,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   ui:
     image: myspinbot-frontend:prod
@@ -221,13 +260,13 @@ services:
       context: ./frontend
       target: runtime
       args:
-        NEXT_PUBLIC_API_URL: https://api.myspinbot.local
+        NEXT_PUBLIC_API_URL: https://api.${PROJECT_DOMAIN}
         NODE_ENV: production
     container_name: myspinbot-frontend
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ui.rule=Host(`ui.myspinbot.local`)"
+      - "traefik.http.routers.ui.rule=Host(`ui.${PROJECT_DOMAIN}`)"
       - "traefik.http.routers.ui.entrypoints=websecure"
       - "traefik.http.routers.ui.tls=true"
       - "traefik.http.services.ui.loadbalancer.server.port=3001"
@@ -297,3 +336,4 @@ volumes:
   redis-insight-data:
   minio-data:
   models-cache:
+  postgres-data:

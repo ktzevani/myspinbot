@@ -1,0 +1,12 @@
+{
+    "Servers": {
+        "myspinbot": {
+            "Name": "MySpinBot Root Postgres Database",
+            "Group": "Servers",
+            "Port": 5432,
+            "Host": "postgres",
+            "SSLMode": "prefer",
+            "MaintenanceDB": "postgres"
+        }
+    }
+}

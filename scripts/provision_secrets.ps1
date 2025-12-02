@@ -1,35 +1,33 @@
 ﻿<#
 .SYNOPSIS
-    MySpinBot - Local Secrets, Certificates & MinIO Provisioning (PowerShell)
+    MySpinBot - Local Secrets, Certificates & Authentication Provisioning (PowerShell)
 
 .DESCRIPTION
     Prepares the local development environment for MySpinBot by generating:
       • BasicAuth credentials (via OpenSSL) for Traefik-protected services
-      • MinIO root credentials synchronized with Traefik BasicAuth
       • Wildcard TLS certificates (via mkcert) for local HTTPS routing
+      • Infrastructure facilities credentials synchronized with Traefik BasicAuth
 
     The script ensures all secret directories exist, installs dependencies (OpenSSL & mkcert) if missing,
     and keeps all generated files outside of version control under the /secrets directory.
 
 .PARAMETERS
-    AUTH_USER : Optional username for BasicAuth and MinIO (default = "admin")
-    AUTH_PASS : Optional password for BasicAuth and MinIO (default = "password")
+    AUTH_USER : Optional username for authentication (default = "admin")
+    AUTH_PASS : Optional password for authentication (default = "password")
     DOMAIN    : Optional local domain for certificates (default = "myspinbot.local")
+    DB_NAME   : Optional name for root database (default = "myspinbot")
     FORCE     : Overwrite existing files if "true"
 
 .NOTES
     All sensitive files (htpasswd, root.env, certs) are generated in the secrets/ directory
     and should remain untracked by git.
-
-    Example usage:
-        PS> ./scripts/provision_secrets.ps1
-        PS> AUTH_USER=myuser AUTH_PASS=SuperSecret DOMAIN=myspinbot.dev ./scripts/provision_secrets.ps1
 #>
 
 param(
     [string]$AUTH_USER = $env:AUTH_USER,
     [string]$AUTH_PASS = $env:AUTH_PASS,
     [string]$DOMAIN = $env:DOMAIN,
+    [string]$DB_NAME = $env:DB_NAME,
     [string]$FORCE = $env:FORCE
 )
 
@@ -37,16 +35,19 @@ param(
 if (-not $AUTH_USER) { $AUTH_USER = 'admin' }
 if (-not $AUTH_PASS) { $AUTH_PASS = 'password' }
 if (-not $DOMAIN) { $DOMAIN = 'myspinbot.local' }
+if (-not $DB_NAME) { $DB_NAME = 'myspinbot' }
 if (-not $FORCE) { $FORCE = 'false' }
 
 Write-Host '--- [MySpinBot] Provisioning local secrets and certificates ---'
 Write-Host ('   -> Domain: {0}' -f $DOMAIN)
 Write-Host ('   -> User:   {0}' -f $AUTH_USER)
+Write-Host ('   -> Database:   {0}' -f $DB_NAME)
 
 # Paths
-$RootDir = (Resolve-Path (Join-Path $PSScriptRoot '..\infra')).Path
-$SecretsDir = Join-Path $RootDir 'traefik\secrets'
-$CertsDir = Join-Path $RootDir 'traefik\certs'
+$RootDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$InfraDir = Join-Path $RootDir 'infra'
+$SecretsDir = Join-Path $InfraDir 'traefik\secrets'
+$CertsDir = Join-Path $InfraDir 'traefik\certs'
 
 New-Item -ItemType Directory -Force -Path $SecretsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $CertsDir   | Out-Null
@@ -111,7 +112,6 @@ else {
 }
 
 # 4) Permissions
-
 try {
     icacls $SecretsDir /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
     icacls $CertsDir   /inheritance:e /grant "$($env:USERNAME):(F)" /T | Out-Null
@@ -121,10 +121,57 @@ catch {
 }
 
 
-# 5) Provision MinIO root credentials (synchronized with Traefik)
+# 5) Provision facilities foundational configs
 
-$MinioDir = Join-Path $RootDir 'minio\secrets'
+$RootEnv = Join-Path $RootDir '.env'
+
+if (($FORCE -eq 'true') -or -not (Test-Path $RootDir)) {
+    Write-Host '-> Generating root .env ...'
+    try {
+        $content = @()
+        $content += "PROJECT_DOMAIN=$DOMAIN"
+        Set-Content -Path $RootEnv -Value $content -Encoding Ascii
+        Write-Host ("   Created root .env: {0}" -f $RootEnv)
+    }
+    catch {
+        Write-Error "[X] Failed to write to .env: $_"
+        exit 1
+    }
+}
+else {
+    Write-Host '-> Root .env already exists (use FORCE=true to regenerate).'
+}
+
+$GrafanaDir = Join-Path $InfraDir 'grafana\secrets'
+$GrafanaEnv = Join-Path $GrafanaDir 'root.env'
+$GrafanaURL = "grafana.$DOMAIN"
+
+New-Item -ItemType Directory -Force -Path $GrafanaDir | Out-Null
+
+if (($FORCE -eq 'true') -or -not (Test-Path $GrafanaDir)) {
+    Write-Host '-> Generating Grafana root.env (synchronized with Traefik BasicAuth)...'
+    try {
+        # Same credentials as Traefik BasicAuth
+        $content = @()
+        $content += "GF_SECURITY_ADMIN_USER=$AUTH_USER"
+        $content += "GF_SECURITY_ADMIN_PASSWORD=$AUTH_PASS"
+        $content += "GF_SERVER_DOMAIN=$GrafanaURL"
+        Set-Content -Path $GrafanaEnv -Value $content -Encoding Ascii
+        Write-Host ("   Created Grafana root.env: {0}" -f $GrafanaEnv)
+    }
+    catch {
+        Write-Error "[X] Failed to write Grafana credentials: $_"
+        exit 1
+    }
+}
+else {
+    Write-Host '-> Grafana root.env already exists (use FORCE=true to regenerate).'
+}
+
+$MinioDir = Join-Path $InfraDir 'minio\secrets'
 $MinioEnv = Join-Path $MinioDir 'root.env'
+$MinioURL = "s3.$DOMAIN"
+
 New-Item -ItemType Directory -Force -Path $MinioDir | Out-Null
 
 if (($FORCE -eq 'true') -or -not (Test-Path $MinioEnv)) {
@@ -148,19 +195,83 @@ else {
     Write-Host '-> MinIO root.env already exists (use FORCE=true to regenerate).'
 }
 
-# 6) Final Summary
-$minioDomain = "s3.$DOMAIN"
+$PgDir = Join-Path $InfraDir 'postgres\secrets'
+$PgEnv = Join-Path $PgDir 'root.env'
+$pgAdminURL = "pgadmin.$DOMAIN"
 
+New-Item -ItemType Directory -Force -Path $PgDir | Out-Null
+
+if (($FORCE -eq 'true') -or -not (Test-Path $PgEnv)) {
+    Write-Host '-> Generating PostgreSQL root.env (synchronized with Traefik BasicAuth)...'
+    try {
+        # Same credentials as Traefik BasicAuth
+        $content = @()
+        $content += "POSTGRES_USER=$AUTH_USER"
+        $content += "POSTGRES_PASSWORD=$AUTH_PASS"
+        $content += "PGADMIN_DEFAULT_EMAIL=${AUTH_USER}@$DOMAIN"
+        $content += "PGADMIN_DEFAULT_PASSWORD=$AUTH_PASS"
+        $content += "POSTGRES_DB=$DB_NAME"
+        Set-Content -Path $PgEnv -Value $content -Encoding Ascii
+        Write-Host ("   Created PostgreSQL root.env: {0}" -f $PgEnv)
+    }
+    catch {
+        Write-Error "[X] Failed to write PostgreSQL credentials: $_"
+        exit 1
+    }
+}
+else {
+    Write-Host '-> PostgreSQL root.env already exists (use FORCE=true to regenerate).'
+}
+
+$ApiDir = Join-Path $RootDir 'backend\secrets'
+$ApiEnv = Join-Path $ApiDir 'root.env'
+$ApiURL = "api.$DOMAIN"
+
+New-Item -ItemType Directory -Force -Path $ApiDir | Out-Null
+
+if (($FORCE -eq 'true') -or -not (Test-Path $ApiDir)) {
+    Write-Host '-> Generating Backend root.env (synchronized with Traefik BasicAuth)...'
+    try {
+        # Same credentials as Traefik BasicAuth
+        $content = @()
+        $content += "POSTGRES_URL=postgres://${AUTH_USER}:$AUTH_PASS@postgres:5432/$DB_NAME"
+        Set-Content -Path $ApiEnv -Value $content -Encoding Ascii
+        Write-Host ("   Created Backend root.env: {0}" -f $ApiEnv)
+    }
+    catch {
+        Write-Error "[X] Failed to write Backend credentials: $_"
+        exit 1
+    }
+}
+else {
+    Write-Host '-> Backend root.env already exists (use FORCE=true to regenerate).'
+}
+
+# 6) Final Summary
 Write-Host ''
 Write-Host '--- [MySpinBot] Provisioning Summary ---'
 Write-Host ('   -> BasicAuth user:  {0}' -f $AUTH_USER)
 Write-Host ('   -> Domain:          {0}' -f $DOMAIN)
-Write-Host ('   -> Traefik secrets: {0}' -f $SecretsDir)
-Write-Host ('   -> MinIO secrets:   {0}' -f $MinioDir)
+Write-Host ('   -> Project Root:        {0}' -f $RootDir)
 Write-Host ('   -> Certificates:    {0}' -f $CertsDir)
+Write-Host ('   -> Traefik secrets: {0}' -f $SecretsDir)
+Write-Host ('   -> Grafana secrets:   {0}' -f $GrafanaDir)
+Write-Host ('   -> MinIO secrets:   {0}' -f $MinioDir)
+Write-Host ('   -> PostgreSQL secrets:   {0}' -f $PgDir)
+Write-Host ('   -> Backend secrets:   {0}' -f $ApiDir)
 Write-Host ''
-Write-Host ('✅  Access MinIO Console at: https://{0}' -f $minioDomain)
+Write-Host ('✅  Access Grafana web ui at: https://{0}' -f $GrafanaURL)
 Write-Host ('    Username: {0}' -f $AUTH_USER)
-Write-Host ('    Password: (stored in infra\minio\secrets\root.env)')
+Write-Host ('    Password: (stored in {0})' -f $GrafanaEnv)
+Write-Host ''
+Write-Host ('✅  Access MinIO Console at: https://{0}' -f $MinioURL)
+Write-Host ('    Username: {0}' -f $AUTH_USER)
+Write-Host ('    Password: (stored in {0})' -f $MinioEnv)
+Write-Host ''
+Write-Host ('✅  Access pgAdmin Console at: https://{0}' -f $pgAdminURL)
+Write-Host ('    Username: {0}' -f $AUTH_USER)
+Write-Host ('    Password: (stored in {0})' -f $PgEnv)
+Write-Host ''
+Write-Host ('✅  Access Backend API at: https://{0}' -f $ApiURL)
 Write-Host ''
 Write-Host '✅ [MySpinBot] Local provisioning complete.'

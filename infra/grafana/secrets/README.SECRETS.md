@@ -1,0 +1,15 @@
+# 🔐 Grafana Local Secrets
+
+This directory stores **local secret files** used by the MySpinBot Grafana platform for authentication.
+It is **excluded from Git** for security reasons, as it contains sensitive
+credentials that must exist only on your local machine or within a protected CI/CD environment.
+
+## 🗁️ Expected Local Files
+
+| File       | Purpose                                                                                                           |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| `root.env` | Defines Grafana credentials (`GF_SECURITY_ADMIN_USER`, `GF_SECURITY_ADMIN_PASSWORD`) and URL (`GF_SERVER_DOMAIN`) |
+
+## 🧰 Provisioning Secrets
+
+For more information about how to use the provisioning scripts please refer to [provision_scripts.md](../../../docs/phase0/provision_scripts.md).

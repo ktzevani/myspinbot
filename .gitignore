@@ -74,6 +74,10 @@ logs/
 **/prometheus/data/
 **/grafana/data/
 
+# ── PostgreSQl & pgAdmin ────────────────────
+**/pgadmin/*.db
+**/pgadmin/sessions
+
 # ── Local runtime / cache ────────────────────
 **/tmp/
 **/.cache/
