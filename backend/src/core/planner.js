@@ -1,108 +1,136 @@
-import { Graph, START, END } from "@langchain/langgraph";
 import { getConfiguration } from "../config.js";
 import validateGraphSchema from "../validators/langgraph/graph.schema-validator.cjs";
+import { buildPipelineGraph } from "./pipelines.js";
 
 const LANGGRAPH_SCHEMA_VERSION = "langgraph.v1";
 
 const validator = validateGraphSchema.default;
 
-const defaultGraphTemplate = {
-  nodes: [
-    {
-      id: "scripting",
-      name: "Generate bot script",
-      task: "script.generateScript",
-      plane: "node",
-      status: "pending",
-      progressWeight: 0.25,
-      params: {
-        tone: "casual",
-        length: 20,
-        persona: "default",
-        model: "llama3",
-        temperature: 0.4,
-      },
-      input: {
-        prompt: "Testing prompt template",
-      },
-    },
-    {
-      id: "post-scripting",
-      name: "Generate bot script",
-      task: "script.generateScript",
-      plane: "node",
-      status: "pending",
-      progressWeight: 0.25,
-    },
-    {
-      id: "training",
-      name: "Execute GPU tasks",
-      task: "train_lora",
-      plane: "python",
-      status: "pending",
-      progressWeight: 0.5,
-    },
-  ],
-  edges: [
-    { from: "scripting", to: "post-scripting", kind: "normal" },
-    { from: "post-scripting", to: "training", kind: "normal" },
-  ],
-};
-
 export class Planner {
-  constructor(
-    configuration = getConfiguration(),
-    template = defaultGraphTemplate
-  ) {
+  constructor(configuration = getConfiguration()) {
     this.configuration = configuration;
-    this.graphTemplate = template;
   }
 
-  #buildGraph() {
-    // TODO: To be implemented
-    return JSON.parse(JSON.stringify(this.graphTemplate));
+  #buildGraph(request = {}) {
+    return buildPipelineGraph(request);
   }
 
-  #validateWithLangGraph(nodes, edges) {
-    const graph = new Graph();
+  #validateDAG(nodes = [], edges = []) {
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+      throw new Error("Planner received invalid graph structure");
+    }
+
+    const nodeIds = new Set();
     for (const node of nodes) {
-      graph.addNode(node.id, async (state) => state);
+      if (!node?.id || typeof node.id !== "string") {
+        throw new Error("Planner graph nodes must include string ids");
+      }
+      if (nodeIds.has(node.id)) {
+        throw new Error(`Duplicate node id detected: ${node.id}`);
+      }
+      nodeIds.add(node.id);
     }
-    const entry = nodes[0]?.id;
-    if (entry) {
-      graph.addEdge(START, entry);
+
+    const adjacency = new Map();
+    const indegree = new Map();
+    const outdegree = new Map();
+
+    for (const id of nodeIds) {
+      adjacency.set(id, []);
+      indegree.set(id, 0);
+      outdegree.set(id, 0);
     }
+
     for (const edge of edges) {
-      graph.addEdge(edge.from, edge.to);
+      if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
+        throw new Error(
+          `Planner graph edge references unknown node: ${edge.from} -> ${edge.to}`
+        );
+      }
+      adjacency.get(edge.from).push(edge.to);
+      indegree.set(edge.to, (indegree.get(edge.to) ?? 0) + 1);
+      outdegree.set(edge.from, (outdegree.get(edge.from) ?? 0) + 1);
     }
-    if (nodes.length > 0) {
-      graph.addEdge(nodes.at(-1).id, END);
+
+    // Cycle detection (DFS)
+    const visited = new Set();
+    const inStack = new Set();
+    const hasCycle = (nodeId) => {
+      if (inStack.has(nodeId)) return true;
+      if (visited.has(nodeId)) return false;
+      visited.add(nodeId);
+      inStack.add(nodeId);
+      for (const next of adjacency.get(nodeId) || []) {
+        if (hasCycle(next)) return true;
+      }
+      inStack.delete(nodeId);
+      return false;
+    };
+    for (const id of nodeIds) {
+      if (hasCycle(id)) {
+        throw new Error("Planner graph contains a cycle");
+      }
     }
-    graph.validate();
+
+    // Reachability: ensure every node is reachable from at least one source.
+    const sources = [...nodeIds].filter((id) => (indegree.get(id) ?? 0) === 0);
+    if (sources.length === 0 && nodeIds.size > 0) {
+      throw new Error("Planner graph has no entry nodes (indegree = 0)");
+    }
+    const reachable = new Set();
+    const stack = [...sources];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (reachable.has(current)) continue;
+      reachable.add(current);
+      for (const next of adjacency.get(current) || []) {
+        stack.push(next);
+      }
+    }
+    if (reachable.size !== nodeIds.size) {
+      throw new Error("Planner graph has unreachable nodes");
+    }
+
+    return { nodeIds, indegree, outdegree, sources };
   }
 
-  getJobGraph({ workflowId, context = {}, metadata = {} }) {
-    const graphTemplate = this.#buildGraph();
-    this.#validateWithLangGraph(graphTemplate.nodes, graphTemplate.edges);
+  getJobGraph({ workflowId, context = {}, metadata = {}, request = {} }) {
+    const partialGraph = this.#buildGraph(request);
 
-    const jobGraph = {
+    try {
+      this.#validateDAG(partialGraph.nodes, partialGraph.edges);
+    } catch (err) {
+      throw new Error(`Planner produced invalid graph: ${err?.message}`);
+    }
+
+    const pipelineMeta = partialGraph.pipelineMeta || {};
+    const mergedPipelineMeta = {
+      ...(metadata.pipeline || {}),
+      ...pipelineMeta,
+    };
+
+    const fullGraph = {
       schema: LANGGRAPH_SCHEMA_VERSION,
       workflowId: workflowId,
-      context,
+      context: {
+        ...context,
+        pipeline: mergedPipelineMeta,
+      },
       metadata: {
+        ...metadata,
         planner: "control-plane",
         version: this.configuration.version ?? "unknown",
-        ...metadata,
+        pipeline: mergedPipelineMeta,
       },
-      nodes: graphTemplate.nodes,
-      edges: graphTemplate.edges.map((edge) => ({
+      nodes: partialGraph.nodes,
+      edges: partialGraph.edges.map((edge) => ({
         from: edge.from,
         to: edge.to,
         kind: edge.kind ?? "normal",
       })),
     };
 
-    const valid = validator(jobGraph);
+    const valid = validator(fullGraph);
     if (!valid) {
       const errorDetails = validator.errors
         ?.map((err) => `${err.instancePath || "/"} ${err.message}`)
@@ -110,6 +138,6 @@ export class Planner {
       throw new Error(`Planner produced invalid graph: ${errorDetails}`);
     }
 
-    return JSON.stringify(jobGraph);
+    return JSON.stringify(fullGraph);
   }
 }

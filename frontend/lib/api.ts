@@ -27,14 +27,17 @@ export async function postTrain(opts: {
   file: File;
   prompt: string;
 }): Promise<TrainResponse> {
-  const form = new FormData();
-  form.set("image", opts.file);
-  form.set("prompt", opts.prompt);
-
   const res = await fetch(`${API_BASE}/api/train`, {
     method: "POST",
-    // body: form,
-    body: "dummy",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      mode: "train_and_generate",
+      variant: "svd_wav2lip",
+      prompt: opts.prompt,
+      // placeholder for future options/profile; backend is tolerant
+    }),
   });
   if (!res.ok) throw new Error(`Train failed: ${res.status}`);
   return res.json();

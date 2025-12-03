@@ -91,20 +91,21 @@ async def upload_dummy_artifact(
 
 @task("train_lora")
 async def train_lora(params: Dict[str, Any], _: Dict[str, Any]):
-    """LoRA training task."""
+    """LoRA training task honoring pipeline variant/options."""
 
     progress_weight, publish_progress_cb = (
-        params["progress_weight"],
+        params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
+    preset = params.get("preset") or params.get("variant") or "default"
     train_id = str(uuid.uuid4())
 
-    print(f"[Worker] 🎨 Starting LoRA training for {train_id}")
+    print(f"[Worker] 🎨 Starting LoRA training for {train_id} (preset={preset})")
 
-    # Simulated artifact
+    # Simulated artifact keyed by preset/variant
     result = await upload_dummy_artifact(
         "loras",
-        f"{train_id}_model.pt",
+        f"{train_id}_{preset}_model.pt",
         content=b"dummy lora weights",
     )
     # Simulated progress
@@ -117,19 +118,20 @@ async def train_lora(params: Dict[str, Any], _: Dict[str, Any]):
 
 @task("train_voice")
 async def train_voice(params: Dict[str, Any], _: Dict[str, Any]):
-    """Simulated voice model training task."""
+    """Simulated voice model training task honoring variant/options."""
 
     progress_weight, publish_progress_cb = (
-        params["progress_weight"],
+        params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
+    preset = params.get("preset") or params.get("variant") or "default"
     train_id = str(uuid.uuid4())
 
-    print(f"[Worker] 🎤 Starting voice training for {train_id}")
+    print(f"[Worker] 🎤 Starting voice training for {train_id} (preset={preset})")
     # Simulated artifact
     result = await upload_dummy_artifact(
         "voices",
-        f"{train_id}_voice.bin",
+        f"{train_id}_{preset}_voice.bin",
         content=b"dummy voice weights",
     )
     # Simulated progress
@@ -141,19 +143,24 @@ async def train_voice(params: Dict[str, Any], _: Dict[str, Any]):
 
 @task("render_video")
 async def render_video(params: Dict[str, Any], _: Dict[str, Any]):
-    """Simulated video rendering task."""
+    """Simulated video rendering task honoring variant/options."""
 
     progress_weight, publish_progress_cb = (
-        params["progress_weight"],
+        params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
+    variant = params.get("variant") or params.get("preset") or "default"
+    mode = params.get("mode") or "train_and_generate"
+    options = params.get("options") or {}
     train_id = str(uuid.uuid4())
 
-    print(f"[Worker] 🎬 Starting video rendering for {train_id}")
+    print(
+        f"[Worker] 🎬 Starting video rendering for {train_id} (variant={variant}, mode={mode}, options={options})"
+    )
     # Simulated artifact
     result = await upload_dummy_artifact(
         "videos",
-        f"{train_id}_output.mp4",
+        f"{train_id}_{variant}_output.mp4",
         content=b"dummy video content",
     )
     # Simulated progress

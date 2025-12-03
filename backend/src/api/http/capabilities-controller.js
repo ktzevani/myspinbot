@@ -3,9 +3,9 @@ import jobQueue from "../../core/job-queue.js";
 import { randomUUID } from "node:crypto";
 import { Planner } from "../../core/planner.js";
 
-const AppConfiguration = getConfiguration();
+const appConfig = getConfiguration();
 
-const capsGraphTemplate = {
+const capsGraph = {
   nodes: [
     {
       id: "worker.info",
@@ -29,8 +29,14 @@ const capsGraphTemplate = {
 
 export async function getCapabilitiesManifest() {
   const jobId = randomUUID();
-  const planner = new Planner(AppConfiguration, capsGraphTemplate);
-  const graph = planner.getJobGraph({ workflowId: jobId });
+  const planner = new Planner(appConfig);
+  const graph = planner.getJobGraph({
+    workflowId: jobId,
+    request: {
+      mode: "process_graph",
+      graph: JSON.stringify(capsGraph),
+    },
+  });
   jobQueue.enqueueDataJob(jobId, graph);
   const graphObj = JSON.parse(await jobQueue.getJobResult(jobId));
   return graphObj?.nodes[1]?.output;

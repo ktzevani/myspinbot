@@ -20,7 +20,11 @@ describe("POST /api/train", () => {
     const res = await fastify.inject({
       method: "POST",
       url: "/api/train",
-      payload: {},
+      payload: {
+        mode: "train_and_generate",
+        prompt: "Testing prompt",
+        variant: "svd_wav2lip",
+      },
     });
 
     expect(res.statusCode).toBe(200);

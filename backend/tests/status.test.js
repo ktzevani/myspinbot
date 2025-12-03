@@ -11,7 +11,13 @@ describe("GET /api/status/:id", () => {
     fastify = Fastify();
     await registerRoutes(fastify);
     await fastify.ready();
-    jobId = (await submitTrainJob()).jobId;
+    jobId = (
+      await submitTrainJob({
+        mode: "train_and_generate",
+        prompt: "Testing prompt",
+        variant: "svd_wav2lip",
+      })
+    ).jobId;
   });
 
   afterAll(async () => {

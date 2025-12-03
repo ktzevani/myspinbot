@@ -28,8 +28,8 @@ async function statusRoute(fastify) {
 }
 
 async function trainRoute(fastify) {
-  fastify.post("/train", async (_, reply) => {
-    return reply.send(await submitTrainJob());
+  fastify.post("/train", async (req, reply) => {
+    return reply.send(await submitTrainJob(req.body || {}));
   });
 }
 

@@ -58,6 +58,15 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - Shared schema entries for `workflowId`, `variant`, and allowed parameters.
   - Planner aware of which variant is requested / default.
 
+#### ✅ Goal 2 — Current Implementation Snapshot
+
+- **Pipeline catalog added**: new `backend/src/core/pipelines.js` defines two variants (`svd_wav2lip`, `sadtalker`) with LangGraph templates for train-and-generate and generate-only runs (script → LoRA/voice → render with variant-aware params).
+- **Planner now builds hybrid graphs**: `Planner#getJobGraph` delegates to the pipeline catalog, validates DAGs, and stamps pipeline metadata (mode, variant, prompt, options, profileId) into both graph context and metadata.
+- **Variant-aware API surface**: `/api/train` accepts optional JSON body (`mode`, `variant`, `prompt`, `options`, `profileId`), defaults to train-and-generate + `svd_wav2lip`, and queues the corresponding pipeline graph.
+- **Front-end request wiring**: `frontend/lib/api.ts` now POSTs JSON to `/api/train` with prompt + default mode/variant, ready for future UI controls without needing multipart uploads.
+- **Graph shape tests**: added `backend/tests/planner.test.js` to assert planner output for default (train+generate, SVD+Wav2Lip) and generate-only SadTalker pipelines, including metadata and params.
+- **Worker tasks honor variants/options**: `worker/src/worker/services/tasks.py` now threads `variant`/`preset`/`options` into simulated LoRA/voice/render tasks (artifact naming + logs), matching the pipeline definitions.
+
 ### 3️⃣ AI Runtime Services & Infra (Ollama, Open WebUI, ComfyUI)
 
 - Add dedicated **LLM and diffusion services** to the Docker/Traefik stack:

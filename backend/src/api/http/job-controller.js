@@ -5,10 +5,13 @@ import { Planner } from "../../core/planner.js";
 
 const validateJobResponse = jobSchemaValidator.default;
 
-export async function submitTrainJob() {
+export async function submitTrainJob(requestBody = {}) {
   const jobId = randomUUID();
   const planner = new Planner();
-  const graph = planner.getJobGraph({ workflowId: jobId });
+  const graph = planner.getJobGraph({
+    workflowId: jobId,
+    request: requestBody,
+  });
   return await jobQueue.enqueueControlJob(jobId, graph);
 }
 
