@@ -35,8 +35,6 @@
         "njpwerner.autodocstring",
         "openai.chatgpt",
         "tamasfe.even-better-toml",
-        "visualstudioexptteam.intellicode-api-usage-examples",
-        "visualstudioexptteam.vscodeintellicode",
         "wholroyd.jinja"
       ]
     }

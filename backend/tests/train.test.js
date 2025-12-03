@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Fastify from "fastify";
 import { registerRoutes } from "../src/api/http/routes.js";
+import { JobStatus } from "../src/model/defs.js";
 
 describe("POST /api/train", () => {
   let fastify;
@@ -19,12 +20,12 @@ describe("POST /api/train", () => {
     const res = await fastify.inject({
       method: "POST",
       url: "/api/train",
-      payload: { dataset: "demo" },
+      payload: {},
     });
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body).toHaveProperty("jobId");
-    expect(body.status).toBe("queued");
+    expect(body.status).toBe(JobStatus.ADVERTISED);
   });
 });

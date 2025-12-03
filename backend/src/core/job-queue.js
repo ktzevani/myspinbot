@@ -86,6 +86,7 @@
 import IORedis from "ioredis";
 import { JobStatus } from "../model/defs.js";
 import { getConfiguration } from "../config.js";
+import JobRepository from "./job-repository.js";
 
 const JobProperty = Object.freeze({
   STATUS: "status",
@@ -130,6 +131,7 @@ class JobQueue {
         `${configuration.bridge.streams.process}:data`,
     };
     this.ready = false;
+    this.jobRepo = new JobRepository();
     process.on("SIGTERM", () => this.stop());
     process.on("SIGINT", () => this.stop());
   }
@@ -140,6 +142,20 @@ class JobQueue {
       pipeline.set(jobDbKey(jobId, property), value);
       pipeline.expire(jobDbKey(jobId, property), this.jobKeyTTL);
       await pipeline.exec();
+      // Mirror into Postgres for history
+      try {
+        if (property === JobProperty.STATUS) {
+          await this.jobRepo.updateJobStatus(jobId, value);
+          await this.jobRepo.appendJobEvent({ jobId, status: value });
+        } else if (property === JobProperty.PROGRESS) {
+          await this.jobRepo.updateJobProgress(jobId, Number(value));
+          await this.jobRepo.appendJobEvent({ jobId, progress: Number(value) });
+        } else if (property === JobProperty.DATA) {
+          await this.jobRepo.appendJobEvent({ jobId, data: JSON.parse(value) });
+        }
+      } catch (err) {
+        console.error("[JobQueue] Failed to persist event to Postgres:", err);
+      }
     }
   }
 
@@ -280,7 +296,26 @@ class JobQueue {
       graph
     );
 
-    return { jobId, status: JobStatus.ADVERTISED, progress: 0, created };
+    const job = { jobId, status: JobStatus.ADVERTISED, progress: 0, created };
+
+    try {
+      await this.jobRepo.upsertJob({
+        jobId,
+        status: job.status,
+        progress: job.progress,
+        graph: JSON.parse(graph),
+        created,
+      });
+      await this.jobRepo.appendJobEvent({
+        jobId,
+        status: job.status,
+        progress: job.progress,
+      });
+    } catch (err) {
+      console.error("[JobQueue] Failed to persist job to Postgres:", err);
+    }
+
+    return job;
   }
 
   async enqueueDataJob(jobId, graph) {
@@ -318,12 +353,31 @@ class JobQueue {
       graph
     );
 
-    return {
+    const retJob = {
       jobId,
       status: job ? job.status : JobStatus.ADVERTISED,
       progress: job ? job.progress : 0,
       created,
     };
+
+    try {
+      await this.jobRepo.upsertJob({
+        jobId,
+        status: retJob.status,
+        progress: retJob.progress,
+        graph: JSON.parse(graph),
+        created,
+      });
+      await this.jobRepo.appendJobEvent({
+        jobId,
+        status: retJob.status,
+        progress: retJob.progress,
+      });
+    } catch (err) {
+      console.error("[JobQueue] Failed to persist handoff to Postgres:", err);
+    }
+
+    return retJob;
   }
 
   async getJobState(jobId) {
@@ -386,6 +440,11 @@ class JobQueue {
     });
     pipeline.expire(jobDbKey(jobId), this.jobKeyTTL);
     await pipeline.exec();
+    try {
+      await this.jobRepo.updateJobGraph(jobId, payload, created);
+    } catch (err) {
+      console.error("[JobQueue] Failed to persist graph to Postgres:", err);
+    }
   }
 
   async #publish(channel, payload) {

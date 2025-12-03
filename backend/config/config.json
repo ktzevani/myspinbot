@@ -1,5 +1,11 @@
 {
     "websocket": {
         "updateInterval": 750
+    },
+    "persistence": {
+        "pool": {
+            "max": 10,
+            "idleMs": 30000
+        }
     }
 }

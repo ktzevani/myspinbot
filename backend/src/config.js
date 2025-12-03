@@ -29,6 +29,7 @@ export function getConfiguration() {
         error: `Invalid redis configuration: ${validateRedisConfig.error}`,
       };
     }
+    partialConfig.persistence.url = process.env.POSTGRES_URL || "";
     backendConfiguration = {
       bridge: bridgeConfig,
       ...partialConfig,

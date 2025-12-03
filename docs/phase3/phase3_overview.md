@@ -27,12 +27,20 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - Graph snapshots (serialized LangGraph per major transition).
   - Artifact records (URIs in MinIO, file types, sizes, provenance).
 - Add a lightweight **persistence layer** to the backend:
-  - Schema migrations for core tables: `jobs`, `job_events`, `artifacts`, `profiles` (optional).
+  - Schema migrations for core tables: `jobs`, `job_events`.
   - Repository module for reading/writing job state in sync with Redis keys.
   - Simple `GET /api/jobs` and `GET /api/jobs/:id` endpoints for history/introspection.
 - Define clear **ownership rules**:
   - Redis Streams + Pub/Sub remain the real‑time execution bus.
   - Postgres becomes the durable record of what happened (audit trail, history, analytics).
+
+#### ✅ Goal 1 — Current Implementation Snapshot
+
+- **Postgres service** added to the Compose stack (credentials are provisioned by automation scripts, port 5432 exposed in dev overlay).
+- **pgAdmin service** added to the Compose stack (credentials are provisioned by automation scripts, public URL is configured via traefik).
+- **Schema + migrations** applied at backend startup: `jobs`, `job_events` tables with indexes and uniqueness on `(job_id)`.
+- **Persistence hooks** inside the JobQueue mirror enqueue/status/progress/data events from Redis into Postgres and store LangGraph snapshots per update.
+- **History APIs**: `GET /api/jobs` (paged list) and `GET /api/jobs/:id` (job + last graph + recent events) now surface stored records.
 
 ### 2️⃣ End‑to‑End Pipeline Definitions
 

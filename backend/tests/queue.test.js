@@ -4,22 +4,20 @@ import IORedis from "ioredis";
 import jobQueue from "../src/core/job-queue.js";
 import { JobStatus, WsAction } from "../src/model/defs.js";
 import { WebSocket } from "ws";
-import { registerRoutes as registerHttpRoutes } from "../src/api/http/routes.js";
-import { registerRoutes as registerWsRoutes } from "../src/api/ws/routes.js";
+import { registerRoutes } from "../src/api/ws/routes.js";
 import { getConfiguration } from "../src/config.js";
+import { randomUUID } from "node:crypto";
 
-let fastify;
-let port;
-let redisPub;
+let fastify = null;
+let port = null;
+let redisPub = null;
 
 const AppConfiguration = getConfiguration();
 
 beforeAll(async () => {
   fastify = Fastify({ logger: false });
-  await registerHttpRoutes(fastify);
-  await registerWsRoutes(fastify);
-  const address = await fastify.listen({ port: 0 });
-  port = new URL(address).port;
+  await registerRoutes(fastify);
+  port = new URL(await fastify.listen({ port: 0 })).port;
   redisPub = new IORedis(process.env.REDIS_URL || "redis://redis:6379");
 });
 
@@ -28,12 +26,36 @@ afterAll(async () => {
   await redisPub.quit();
 });
 
+async function submitTestJob() {
+  const jobId = randomUUID();
+  const graph = {
+    nodes: [
+      {
+        id: "worker.node",
+        name: "Test Node 1",
+        task: "worker.test1",
+        plane: "python",
+        status: "pending",
+        progressWeight: 0.5,
+      },
+      {
+        id: "control.node",
+        name: "Test Node 2",
+        task: "control.test1",
+        plane: "node",
+        status: "pending",
+        progressWeight: 0.5,
+      },
+    ],
+    edges: [{ from: "worker.node", to: "control.node", kind: "normal" }],
+  };
+  await jobQueue.enqueueControlJob(jobId, JSON.stringify(graph));
+  return jobId;
+}
+
 describe("Queue integration", () => {
   it("Job Status: adds a job and retrieves status", async () => {
-    const jobId = await jobQueue.enqueueJob(
-      AppConfiguration.bridge.jobs.available.PROCESS_GRAPH,
-      { dataset: "unit-test" }
-    );
+    const jobId = await submitTestJob();
     const jobState = await jobQueue.getJobState(jobId);
     expect(jobState).toHaveProperty("status");
     expect(jobState).toHaveProperty("progress");
@@ -45,18 +67,7 @@ describe("Queue integration", () => {
   });
 
   it("Job Progress: creates a job and informs its status to subscribed clients", async () => {
-    const response = await fastify.inject({
-      method: "POST",
-      url: "/api/train",
-      payload: { dataset: "queue-integration" },
-    });
-    expect(response.statusCode).toBe(200);
-
-    const body = JSON.parse(response.body);
-    expect(body).toHaveProperty("jobId");
-    expect(body.status).toBe(JobStatus.QUEUED);
-
-    const jobId = body.jobId;
+    const jobId = await submitTestJob();
     const url = `ws://localhost:${port}/ws`;
     const ws = new WebSocket(url);
 
@@ -83,10 +94,7 @@ describe("Queue integration", () => {
   }, 15000);
 
   it("Job Lifecycle: status flow end-to-end", async () => {
-    const jobId = await jobQueue.enqueueJob(
-      AppConfiguration.bridge.jobs.available.PROCESS_GRAPH,
-      { dataset: "lifecycle" }
-    );
+    const jobId = await submitTestJob();
     await redisPub.publish(
       `${AppConfiguration.bridge.channels.status}:${jobId}`,
       JSON.stringify({ jobId: jobId, status: JobStatus.RUNNING })
