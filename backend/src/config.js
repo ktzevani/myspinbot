@@ -14,7 +14,7 @@ export function getCapabilities() {
   if (!backendCapabilities) {
     if (!validatePlaneManifest(capabilities)) {
       throw {
-        error: `Invalid capabilities manifest: ${validatePlaneManifest.error}`,
+        error: `Invalid capabilities manifest: ${JSON.stringify(validatePlaneManifest.errors)}`,
       };
     }
     backendCapabilities = capabilities;
@@ -26,7 +26,7 @@ export function getConfiguration() {
   if (!backendConfiguration) {
     if (!validateRedisConfig(bridgeConfig)) {
       throw {
-        error: `Invalid redis configuration: ${validateRedisConfig.error}`,
+        error: `Invalid redis configuration: ${JSON.stringify(validateRedisConfig.errors)}`,
       };
     }
     partialConfig.persistence.url = process.env.POSTGRES_URL || "";

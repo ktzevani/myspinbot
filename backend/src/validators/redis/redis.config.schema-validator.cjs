@@ -1,7 +1,7 @@
 "use strict";
 module.exports = validate30;
 module.exports.default = validate30;
-var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redis.config.schema.json","title":"Redis Configuration","type":"object","description":"Configuration for Redis connection, stream names, pub/sub channels, and job management.","required":["url","streams","channels","jobs"],"properties":{"url":{"type":"string","description":"Redis connection string (e.g. 'redis://redis:6379').","pattern":"^redis://.+"},"streams":{"type":"object","description":"List of Redis streams used by the bridge.","required":["info","process"],"properties":{"info":{"type":"string","description":"Root name of stream for exchanging high level information (e.g. 'stream:info:data')."},"process":{"type":"string","description":"Root name of stream for exchanging job messages (e.g. 'stream:process:data')."},"plan":{"type":"string","description":"Root name of stream for exchanging planner messages (e.g. 'stream:plan:control')."}},"additionalProperties":false},"channels":{"type":"object","description":"List of pub/sub channels used by the bridge.","required":["progress","status","data"],"properties":{"progress":{"type":"string","description":"Channel onto which jobs publish their progress (e.g. 'channel:progress')."},"status":{"type":"string","description":"Channel onto which jobs publish their status (e.g. 'channel:status')."},"data":{"type":"string","description":"Channel onto which jobs publish intermediate generic data (e.g. 'channel:data')."}},"additionalProperties":false},"jobs":{"type":"object","description":"Configuration for jobs.","required":["ttl"],"properties":{"available":{"type":"object","description":"List of mappings of available jobs supported by the Redis bridge, to worker tasks.","required":["GET_CAPABILITIES","PROCESS_GRAPH"],"properties":{"GET_CAPABILITIES":{"type":"string","description":"Worker task mapped to this job."},"PROCESS_GRAPH":{"type":"string","description":"Worker task mapped to this job."}}},"ttl":{"type":"integer","minimum":1,"description":"Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."}},"additionalProperties":false}},"additionalProperties":false};
+var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redis.config.schema.json","title":"Redis Configuration","type":"object","description":"Configuration for Redis connection, stream names, pub/sub channels, and job management.","required":["url","streams","channels","jobs"],"properties":{"url":{"type":"string","description":"Redis connection string (e.g. 'redis://redis:6379').","pattern":"^redis://.+"},"streams":{"type":"object","description":"List of Redis streams used by the bridge.","required":["control","data"],"properties":{"control":{"type":"string","description":"Stream for advertising jobs at control plane."},"data":{"type":"string","description":"Stream for advertising jobs at data plane."}},"additionalProperties":false},"channels":{"type":"object","description":"List of pub/sub channels used by the bridge.","required":["progress","status","data"],"properties":{"progress":{"type":"string","description":"Channel onto which jobs publish their progress (e.g. 'channel:progress')."},"status":{"type":"string","description":"Channel onto which jobs publish their status (e.g. 'channel:status')."},"data":{"type":"string","description":"Channel onto which jobs publish intermediate generic data (e.g. 'channel:data')."}},"additionalProperties":false},"jobs":{"type":"object","description":"Configuration for jobs.","required":["ttl"],"properties":{"ttl":{"type":"integer","minimum":1,"description":"Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."}},"additionalProperties":false},"planning":{"type":"object","description":"Configuration for planner.","required":["pipelines"],"properties":{"pipelines":{"type":"object","description":"List of mappings of available jobs supported by the Redis bridge, to worker tasks.","required":["PROCESS","TRAIN_GENERATE","GENERATE"],"properties":{"PROCESS":{"type":"string","description":"Planner request type for creating execution pipelines for generic graphs."},"TRAIN_GENERATE":{"type":"string","description":"Planner request type for creating execution pipelines combining training and generation."},"GENERATE":{"type":"string","description":"Planner request type for creating execution pipelines for generation."}}}},"additionalProperties":false}},"additionalProperties":false};
 var pattern4 = new RegExp("^redis://.+", "u");
 
 function validate30(data, valCxt){
@@ -39,7 +39,7 @@ return false;
 else {
 var _errs1 = errors;
 for(var key0 in data){
-if(!((((key0 === "url") || (key0 === "streams")) || (key0 === "channels")) || (key0 === "jobs"))){
+if(!(((((key0 === "url") || (key0 === "streams")) || (key0 === "channels")) || (key0 === "jobs")) || (key0 === "planning"))){
 validate30.errors = [{instancePath:instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"}];
 return false;
 break;
@@ -73,24 +73,24 @@ var _errs4 = errors;
 if(errors === _errs4){
 if(data1 && typeof data1 == "object" && !Array.isArray(data1)){
 var missing1;
-if(((data1.info === undefined) && (missing1 = "info")) || ((data1.process === undefined) && (missing1 = "process"))){
+if(((data1.control === undefined) && (missing1 = "control")) || ((data1.data === undefined) && (missing1 = "data"))){
 validate30.errors = [{instancePath:instancePath+"/streams",schemaPath:"#/properties/streams/required",keyword:"required",params:{missingProperty: missing1},message:"must have required property '"+missing1+"'"}];
 return false;
 }
 else {
 var _errs6 = errors;
 for(var key1 in data1){
-if(!(((key1 === "info") || (key1 === "process")) || (key1 === "plan"))){
+if(!((key1 === "control") || (key1 === "data"))){
 validate30.errors = [{instancePath:instancePath+"/streams",schemaPath:"#/properties/streams/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key1},message:"must NOT have additional properties"}];
 return false;
 break;
 }
 }
 if(_errs6 === errors){
-if(data1.info !== undefined){
+if(data1.control !== undefined){
 var _errs7 = errors;
-if(typeof data1.info !== "string"){
-validate30.errors = [{instancePath:instancePath+"/streams/info",schemaPath:"#/properties/streams/properties/info/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+if(typeof data1.control !== "string"){
+validate30.errors = [{instancePath:instancePath+"/streams/control",schemaPath:"#/properties/streams/properties/control/type",keyword:"type",params:{type: "string"},message:"must be string"}];
 return false;
 }
 var valid1 = _errs7 === errors;
@@ -99,29 +99,16 @@ else {
 var valid1 = true;
 }
 if(valid1){
-if(data1.process !== undefined){
+if(data1.data !== undefined){
 var _errs9 = errors;
-if(typeof data1.process !== "string"){
-validate30.errors = [{instancePath:instancePath+"/streams/process",schemaPath:"#/properties/streams/properties/process/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+if(typeof data1.data !== "string"){
+validate30.errors = [{instancePath:instancePath+"/streams/data",schemaPath:"#/properties/streams/properties/data/type",keyword:"type",params:{type: "string"},message:"must be string"}];
 return false;
 }
 var valid1 = _errs9 === errors;
 }
 else {
 var valid1 = true;
-}
-if(valid1){
-if(data1.plan !== undefined){
-var _errs11 = errors;
-if(typeof data1.plan !== "string"){
-validate30.errors = [{instancePath:instancePath+"/streams/plan",schemaPath:"#/properties/streams/properties/plan/type",keyword:"type",params:{type: "string"},message:"must be string"}];
-return false;
-}
-var valid1 = _errs11 === errors;
-}
-else {
-var valid1 = true;
-}
 }
 }
 }
@@ -139,29 +126,41 @@ var valid0 = true;
 }
 if(valid0){
 if(data.channels !== undefined){
-var data5 = data.channels;
-var _errs13 = errors;
-if(errors === _errs13){
-if(data5 && typeof data5 == "object" && !Array.isArray(data5)){
+var data4 = data.channels;
+var _errs11 = errors;
+if(errors === _errs11){
+if(data4 && typeof data4 == "object" && !Array.isArray(data4)){
 var missing2;
-if((((data5.progress === undefined) && (missing2 = "progress")) || ((data5.status === undefined) && (missing2 = "status"))) || ((data5.data === undefined) && (missing2 = "data"))){
+if((((data4.progress === undefined) && (missing2 = "progress")) || ((data4.status === undefined) && (missing2 = "status"))) || ((data4.data === undefined) && (missing2 = "data"))){
 validate30.errors = [{instancePath:instancePath+"/channels",schemaPath:"#/properties/channels/required",keyword:"required",params:{missingProperty: missing2},message:"must have required property '"+missing2+"'"}];
 return false;
 }
 else {
-var _errs15 = errors;
-for(var key2 in data5){
+var _errs13 = errors;
+for(var key2 in data4){
 if(!(((key2 === "progress") || (key2 === "status")) || (key2 === "data"))){
 validate30.errors = [{instancePath:instancePath+"/channels",schemaPath:"#/properties/channels/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key2},message:"must NOT have additional properties"}];
 return false;
 break;
 }
 }
-if(_errs15 === errors){
-if(data5.progress !== undefined){
-var _errs16 = errors;
-if(typeof data5.progress !== "string"){
+if(_errs13 === errors){
+if(data4.progress !== undefined){
+var _errs14 = errors;
+if(typeof data4.progress !== "string"){
 validate30.errors = [{instancePath:instancePath+"/channels/progress",schemaPath:"#/properties/channels/properties/progress/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+return false;
+}
+var valid2 = _errs14 === errors;
+}
+else {
+var valid2 = true;
+}
+if(valid2){
+if(data4.status !== undefined){
+var _errs16 = errors;
+if(typeof data4.status !== "string"){
+validate30.errors = [{instancePath:instancePath+"/channels/status",schemaPath:"#/properties/channels/properties/status/type",keyword:"type",params:{type: "string"},message:"must be string"}];
 return false;
 }
 var valid2 = _errs16 === errors;
@@ -170,25 +169,13 @@ else {
 var valid2 = true;
 }
 if(valid2){
-if(data5.status !== undefined){
+if(data4.data !== undefined){
 var _errs18 = errors;
-if(typeof data5.status !== "string"){
-validate30.errors = [{instancePath:instancePath+"/channels/status",schemaPath:"#/properties/channels/properties/status/type",keyword:"type",params:{type: "string"},message:"must be string"}];
-return false;
-}
-var valid2 = _errs18 === errors;
-}
-else {
-var valid2 = true;
-}
-if(valid2){
-if(data5.data !== undefined){
-var _errs20 = errors;
-if(typeof data5.data !== "string"){
+if(typeof data4.data !== "string"){
 validate30.errors = [{instancePath:instancePath+"/channels/data",schemaPath:"#/properties/channels/properties/data/type",keyword:"type",params:{type: "string"},message:"must be string"}];
 return false;
 }
-var valid2 = _errs20 === errors;
+var valid2 = _errs18 === errors;
 }
 else {
 var valid2 = true;
@@ -203,99 +190,46 @@ validate30.errors = [{instancePath:instancePath+"/channels",schemaPath:"#/proper
 return false;
 }
 }
-var valid0 = _errs13 === errors;
+var valid0 = _errs11 === errors;
 }
 else {
 var valid0 = true;
 }
 if(valid0){
 if(data.jobs !== undefined){
-var data9 = data.jobs;
-var _errs22 = errors;
-if(errors === _errs22){
-if(data9 && typeof data9 == "object" && !Array.isArray(data9)){
+var data8 = data.jobs;
+var _errs20 = errors;
+if(errors === _errs20){
+if(data8 && typeof data8 == "object" && !Array.isArray(data8)){
 var missing3;
-if((data9.ttl === undefined) && (missing3 = "ttl")){
+if((data8.ttl === undefined) && (missing3 = "ttl")){
 validate30.errors = [{instancePath:instancePath+"/jobs",schemaPath:"#/properties/jobs/required",keyword:"required",params:{missingProperty: missing3},message:"must have required property '"+missing3+"'"}];
 return false;
 }
 else {
-var _errs24 = errors;
-for(var key3 in data9){
-if(!((key3 === "available") || (key3 === "ttl"))){
+var _errs22 = errors;
+for(var key3 in data8){
+if(!(key3 === "ttl")){
 validate30.errors = [{instancePath:instancePath+"/jobs",schemaPath:"#/properties/jobs/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key3},message:"must NOT have additional properties"}];
 return false;
 break;
 }
 }
-if(_errs24 === errors){
-if(data9.available !== undefined){
-var data10 = data9.available;
-var _errs25 = errors;
-if(errors === _errs25){
-if(data10 && typeof data10 == "object" && !Array.isArray(data10)){
-var missing4;
-if(((data10.GET_CAPABILITIES === undefined) && (missing4 = "GET_CAPABILITIES")) || ((data10.PROCESS_GRAPH === undefined) && (missing4 = "PROCESS_GRAPH"))){
-validate30.errors = [{instancePath:instancePath+"/jobs/available",schemaPath:"#/properties/jobs/properties/available/required",keyword:"required",params:{missingProperty: missing4},message:"must have required property '"+missing4+"'"}];
-return false;
-}
-else {
-if(data10.GET_CAPABILITIES !== undefined){
-var _errs27 = errors;
-if(typeof data10.GET_CAPABILITIES !== "string"){
-validate30.errors = [{instancePath:instancePath+"/jobs/available/GET_CAPABILITIES",schemaPath:"#/properties/jobs/properties/available/properties/GET_CAPABILITIES/type",keyword:"type",params:{type: "string"},message:"must be string"}];
-return false;
-}
-var valid4 = _errs27 === errors;
-}
-else {
-var valid4 = true;
-}
-if(valid4){
-if(data10.PROCESS_GRAPH !== undefined){
-var _errs29 = errors;
-if(typeof data10.PROCESS_GRAPH !== "string"){
-validate30.errors = [{instancePath:instancePath+"/jobs/available/PROCESS_GRAPH",schemaPath:"#/properties/jobs/properties/available/properties/PROCESS_GRAPH/type",keyword:"type",params:{type: "string"},message:"must be string"}];
-return false;
-}
-var valid4 = _errs29 === errors;
-}
-else {
-var valid4 = true;
-}
-}
-}
-}
-else {
-validate30.errors = [{instancePath:instancePath+"/jobs/available",schemaPath:"#/properties/jobs/properties/available/type",keyword:"type",params:{type: "object"},message:"must be object"}];
-return false;
-}
-}
-var valid3 = _errs25 === errors;
-}
-else {
-var valid3 = true;
-}
-if(valid3){
-if(data9.ttl !== undefined){
-var data13 = data9.ttl;
-var _errs31 = errors;
-if(!((typeof data13 == "number") && (!(data13 % 1) && !isNaN(data13)))){
+if(_errs22 === errors){
+if(data8.ttl !== undefined){
+var data9 = data8.ttl;
+var _errs23 = errors;
+if(!((typeof data9 == "number") && (!(data9 % 1) && !isNaN(data9)))){
 validate30.errors = [{instancePath:instancePath+"/jobs/ttl",schemaPath:"#/properties/jobs/properties/ttl/type",keyword:"type",params:{type: "integer"},message:"must be integer"}];
 return false;
 }
-if(errors === _errs31){
-if(typeof data13 == "number"){
-if(data13 < 1 || isNaN(data13)){
+if(errors === _errs23){
+if(typeof data9 == "number"){
+if(data9 < 1 || isNaN(data9)){
 validate30.errors = [{instancePath:instancePath+"/jobs/ttl",schemaPath:"#/properties/jobs/properties/ttl/minimum",keyword:"minimum",params:{comparison: ">=", limit: 1},message:"must be >= 1"}];
 return false;
 }
 }
-}
-var valid3 = _errs31 === errors;
-}
-else {
-var valid3 = true;
 }
 }
 }
@@ -306,10 +240,101 @@ validate30.errors = [{instancePath:instancePath+"/jobs",schemaPath:"#/properties
 return false;
 }
 }
-var valid0 = _errs22 === errors;
+var valid0 = _errs20 === errors;
 }
 else {
 var valid0 = true;
+}
+if(valid0){
+if(data.planning !== undefined){
+var data10 = data.planning;
+var _errs25 = errors;
+if(errors === _errs25){
+if(data10 && typeof data10 == "object" && !Array.isArray(data10)){
+var missing4;
+if((data10.pipelines === undefined) && (missing4 = "pipelines")){
+validate30.errors = [{instancePath:instancePath+"/planning",schemaPath:"#/properties/planning/required",keyword:"required",params:{missingProperty: missing4},message:"must have required property '"+missing4+"'"}];
+return false;
+}
+else {
+var _errs27 = errors;
+for(var key4 in data10){
+if(!(key4 === "pipelines")){
+validate30.errors = [{instancePath:instancePath+"/planning",schemaPath:"#/properties/planning/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key4},message:"must NOT have additional properties"}];
+return false;
+break;
+}
+}
+if(_errs27 === errors){
+if(data10.pipelines !== undefined){
+var data11 = data10.pipelines;
+var _errs28 = errors;
+if(errors === _errs28){
+if(data11 && typeof data11 == "object" && !Array.isArray(data11)){
+var missing5;
+if((((data11.PROCESS === undefined) && (missing5 = "PROCESS")) || ((data11.TRAIN_GENERATE === undefined) && (missing5 = "TRAIN_GENERATE"))) || ((data11.GENERATE === undefined) && (missing5 = "GENERATE"))){
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines",schemaPath:"#/properties/planning/properties/pipelines/required",keyword:"required",params:{missingProperty: missing5},message:"must have required property '"+missing5+"'"}];
+return false;
+}
+else {
+if(data11.PROCESS !== undefined){
+var _errs30 = errors;
+if(typeof data11.PROCESS !== "string"){
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines/PROCESS",schemaPath:"#/properties/planning/properties/pipelines/properties/PROCESS/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+return false;
+}
+var valid5 = _errs30 === errors;
+}
+else {
+var valid5 = true;
+}
+if(valid5){
+if(data11.TRAIN_GENERATE !== undefined){
+var _errs32 = errors;
+if(typeof data11.TRAIN_GENERATE !== "string"){
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines/TRAIN_GENERATE",schemaPath:"#/properties/planning/properties/pipelines/properties/TRAIN_GENERATE/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+return false;
+}
+var valid5 = _errs32 === errors;
+}
+else {
+var valid5 = true;
+}
+if(valid5){
+if(data11.GENERATE !== undefined){
+var _errs34 = errors;
+if(typeof data11.GENERATE !== "string"){
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines/GENERATE",schemaPath:"#/properties/planning/properties/pipelines/properties/GENERATE/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+return false;
+}
+var valid5 = _errs34 === errors;
+}
+else {
+var valid5 = true;
+}
+}
+}
+}
+}
+else {
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines",schemaPath:"#/properties/planning/properties/pipelines/type",keyword:"type",params:{type: "object"},message:"must be object"}];
+return false;
+}
+}
+}
+}
+}
+}
+else {
+validate30.errors = [{instancePath:instancePath+"/planning",schemaPath:"#/properties/planning/type",keyword:"type",params:{type: "object"},message:"must be object"}];
+return false;
+}
+}
+var valid0 = _errs25 === errors;
+}
+else {
+var valid0 = true;
+}
 }
 }
 }

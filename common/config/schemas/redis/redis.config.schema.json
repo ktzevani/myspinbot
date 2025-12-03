@@ -20,21 +20,17 @@
       "type": "object",
       "description": "List of Redis streams used by the bridge.",
       "required": [
-        "info",
-        "process"
+        "control",
+        "data"
       ],
       "properties": {
-        "info": {
+        "control": {
           "type": "string",
-          "description": "Root name of stream for exchanging high level information (e.g. 'stream:info:data')."
+          "description": "Stream for advertising jobs at control plane."
         },
-        "process": {
+        "data": {
           "type": "string",
-          "description": "Root name of stream for exchanging job messages (e.g. 'stream:process:data')."
-        },
-        "plan": {
-          "type": "string",
-          "description": "Root name of stream for exchanging planner messages (e.g. 'stream:plan:control')."
+          "description": "Stream for advertising jobs at data plane."
         }
       },
       "additionalProperties": false
@@ -70,28 +66,43 @@
         "ttl"
       ],
       "properties": {
-        "available": {
-          "type": "object",
-          "description": "List of mappings of available jobs supported by the Redis bridge, to worker tasks.",
-          "required": [
-            "GET_CAPABILITIES",
-            "PROCESS_GRAPH"
-          ],
-          "properties": {
-            "GET_CAPABILITIES": {
-              "type": "string",
-              "description": "Worker task mapped to this job."
-            },
-            "PROCESS_GRAPH": {
-              "type": "string",
-              "description": "Worker task mapped to this job."
-            }
-          }
-        },
         "ttl": {
           "type": "integer",
           "minimum": 1,
           "description": "Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "planning": {
+      "type": "object",
+      "description": "Configuration for planner.",
+      "required": [
+        "pipelines"
+      ],
+      "properties": {
+        "pipelines": {
+          "type": "object",
+          "description": "List of mappings of available jobs supported by the Redis bridge, to worker tasks.",
+          "required": [
+            "PROCESS",
+            "TRAIN_GENERATE",
+            "GENERATE"
+          ],
+          "properties": {
+            "PROCESS": {
+              "type": "string",
+              "description": "Planner request type for creating execution pipelines for generic graphs."
+            },
+            "TRAIN_GENERATE": {
+              "type": "string",
+              "description": "Planner request type for creating execution pipelines combining training and generation."
+            },
+            "GENERATE": {
+              "type": "string",
+              "description": "Planner request type for creating execution pipelines for generation."
+            }
+          }
         }
       },
       "additionalProperties": false

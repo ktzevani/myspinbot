@@ -124,12 +124,6 @@ class JobQueue {
   constructor(configuration = getConfiguration()) {
     this.configuration = configuration;
     this.jobKeyTTL = configuration.bridge.jobs.ttl;
-    this.job2Stream = {
-      [configuration.bridge.jobs.available.GET_CAPABILITIES]:
-        `${configuration.bridge.streams.info}:data`,
-      [configuration.bridge.jobs.available.PROCESS_GRAPH]:
-        `${configuration.bridge.streams.process}:data`,
-    };
     this.ready = false;
     this.jobRepo = new JobRepository();
     process.on("SIGTERM", () => this.stop());
@@ -227,16 +221,13 @@ class JobQueue {
 
   async ensureControlGroup(name) {
     return this.ensureGroup(
-      `${this.configuration.bridge.streams.process}:control`,
+      `${this.configuration.bridge.streams.control}`,
       name
     );
   }
 
   async ensureDataGroup(name) {
-    return this.ensureGroup(
-      `${this.configuration.bridge.streams.process}:data`,
-      name
-    );
+    return this.ensureGroup(`${this.configuration.bridge.streams.data}`, name);
   }
 
   async pollControlJob(consumerId, groupName) {
@@ -249,7 +240,7 @@ class JobQueue {
       "COUNT",
       1,
       "STREAMS",
-      `${this.configuration.bridge.streams.process}:control`,
+      `${this.configuration.bridge.streams.control}`,
       ">"
     );
 
@@ -262,7 +253,7 @@ class JobQueue {
 
   async acknowledgeControlJob(jobId, groupName) {
     return await this.redisDBClient.xack(
-      `${this.configuration.bridge.streams.process}:control`,
+      `${this.configuration.bridge.streams.control}`,
       groupName,
       jobId
     );
@@ -286,7 +277,7 @@ class JobQueue {
     await pipeline.exec();
 
     await this.redisDBClient.xadd(
-      `${this.configuration.bridge.streams.process}:control`,
+      `${this.configuration.bridge.streams.control}`,
       "*",
       "jobId",
       jobId,
@@ -343,7 +334,7 @@ class JobQueue {
     await pipeline.exec();
 
     await this.redisDBClient.xadd(
-      `${this.configuration.bridge.streams.process}:data`,
+      `${this.configuration.bridge.streams.data}`,
       "*",
       "jobId",
       jobId,

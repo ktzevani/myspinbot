@@ -1,9 +1,8 @@
 {
   "url": "redis://redis:6379",
   "streams": {
-    "info": "stream:info",
-    "process": "stream:process",
-    "plan": "stream:plan"
+    "control": "stream:control",
+    "data": "stream:data"
   },
   "channels": {
     "progress": "channel:progress",
@@ -11,10 +10,13 @@
     "data": "channel:data"
   },
   "jobs": {
-    "available": {
-      "GET_CAPABILITIES": "get_capabilities",
-      "PROCESS_GRAPH": "train_lora"
-    },
     "ttl": 43200
+  },
+  "planning": {
+    "pipelines": {
+      "PROCESS": "process_graph",
+      "TRAIN_GENERATE": "train_and_generate",
+      "GENERATE": "generate_from_profile"
+    }
   }
 }

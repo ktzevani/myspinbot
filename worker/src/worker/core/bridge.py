@@ -34,22 +34,9 @@ class RedisBridge:
         self.channels = configuration.channels
         self.group = group
         self.job_ttl = configuration.jobs.ttl
-        self.stream_roots = configuration.streams
-        self.stream_process_data = f"{self.stream_roots.process}:data"
-        self.stream_process_control = f"{self.stream_roots.process}:control"
-        self.stream_info_data = f"{self.stream_roots.info}:data"
-        self.stream_plan_data = (
-            f"{self.stream_roots.plan}:data" if self.stream_roots.plan else None
-        )
-        self._managed_streams = [
-            stream
-            for stream in [
-                self.stream_info_data,
-                self.stream_process_data,
-                self.stream_plan_data,
-            ]
-            if stream
-        ]
+        self.data_stream = f"{configuration.streams.data}"
+        self.control_stream = f"{configuration.streams.control}"
+        self._managed_streams = [self.data_stream]
         current_task = asyncio.current_task()
         self.consumer = (
             f"consumer-{current_task.get_name() if current_task else 'default'}"
@@ -141,7 +128,7 @@ class RedisBridge:
 
     async def poll_job(self, timeout: int = 200) -> Dict[str, Any] | None:
         """Poll the process:data stream for workflow graphs."""
-        entries = await self._read_streams({self.stream_process_data: ">"}, 1, timeout)
+        entries = await self._read_streams({self.data_stream: ">"}, 1, timeout)
         if len(entries) > 0:
             return entries[0]
         return None
@@ -152,7 +139,7 @@ class RedisBridge:
         """
         if not self.redis:
             raise RuntimeError("Redis not connected")
-        stream = self.stream_process_data
+        stream = self.data_stream
         try:
             acked = await self.redis.xack(stream, self.group, xid)
             if acked:
@@ -191,7 +178,7 @@ class RedisBridge:
         graph_str = graph if isinstance(graph, str) else json_dumps_safe(graph)
         created = _current_timestamp_ms()
         await self.redis.xadd(
-            self.stream_process_control,
+            self.control_stream,
             fields={"jobId": job_id, "created": created, "graph": graph_str},
         )
 
