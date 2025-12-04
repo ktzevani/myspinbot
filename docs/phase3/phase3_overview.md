@@ -85,6 +85,13 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - At minimum, container‑level metrics via cAdvisor and DCGM.
   - Optional service‑level Prometheus metrics if available from Ollama / ComfyUI images.
 
+#### ✅ Goal 3 — Current Implementation Snapshot
+
+- **Services added to Compose (profile `ai`)**: `ollama` (GPU), `openwebui`, and `comfyui` now ship in `docker-compose.yml` with dedicated data volumes and NVIDIA device reservations for Ollama/ComfyUI. For `comfyui` a custom docker image is developed.
+- **Traefik routing**: `https://openwebui.${PROJECT_DOMAIN}` and `https://comfyui.${PROJECT_DOMAIN}` are exposed behind the existing BasicAuth middleware; Ollama stays internal-only for security. Use `--profile ai` when starting the stack.
+- **Usage example**: `docker compose --profile ai up -d ollama openwebui comfyui` then browse to the routed hostnames. Open WebUI points at the internal Ollama host by default.
+- **Observability**: these services sit on the same `internal-network` and are covered by cAdvisor/DCGM exporter for container/GPU metrics; service-level metrics can be added later if images expose them.
+
 ### 4️⃣ LLM & Agentic Planner Integration
 
 - Replace the stubbed `script.generateScript` with a **real LLM integration**:

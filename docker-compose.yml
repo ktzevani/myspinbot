@@ -218,6 +218,85 @@ services:
       - "traefik.http.routers.minio.tls=true"
       - "traefik.http.services.minio.loadbalancer.server.port=9001"
 
+  ollama:
+    image: ollama/ollama:0.13.1
+    container_name: myspinbot-ollama
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    labels:
+      - "traefik.enable=false"
+    profiles: ["ai"]
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: myspinbot-openwebui
+    restart: unless-stopped
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_NAME=MySpinBot Open WebUI
+    volumes:
+      - openwebui-data:/app/backend/data
+    networks:
+      - internal-network
+    depends_on:
+      - ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.openwebui.rule=Host(`openwebui.${PROJECT_DOMAIN}`)"
+      - "traefik.http.routers.openwebui.entrypoints=websecure"
+      - "traefik.http.routers.openwebui.tls=true"
+      - "traefik.http.services.openwebui.loadbalancer.server.port=8080"
+    profiles: ["ai"]
+
+  comfyui:
+    build:
+      context: .
+      dockerfile: infra/comfyui/Dockerfile
+      args:
+        WORKER_ENVIRONMENT: production
+    image: myspinbot/comfyui:prod
+    container_name: myspinbot-comfyui
+    restart: unless-stopped
+    networks:
+      - internal-network
+    security_opt:
+      - "apparmor:unconfined"
+    cap_add:
+      - SYS_PTRACE
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188 --disable-auto-launch
+    volumes:
+      - comfyui-data:/opt/comfyui
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.comfyui.rule=Host(`comfyui.${PROJECT_DOMAIN}`)"
+      - "traefik.http.routers.comfyui.entrypoints=websecure"
+      - "traefik.http.routers.comfyui.tls=true"
+      - "traefik.http.services.comfyui.loadbalancer.server.port=8188"
+      - "traefik.http.routers.comfyui.middlewares=dashboard-auth@file"
+    profiles: ["ai"]
+
   api:
     image: myspinbot-backend:prod
     build:
@@ -311,8 +390,6 @@ services:
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_BUCKETS=loras,voices,videos
       - MINIO_USE_SSL=false
-    volumes:
-      - models-cache:/opt/models
     gpus: all
 
   codegen:
@@ -334,5 +411,7 @@ volumes:
   redis-data:
   redis-insight-data:
   minio-data:
-  models-cache:
   postgres-data:
+  ollama-data:
+  openwebui-data:
+  comfyui-data:
