@@ -1,11 +1,3 @@
-async function simulateProgress(publish, weight, totalSteps = 5, delay = 0.5) {
-  const progressStep = Math.round((weight / totalSteps) * 1e4) / 1e4;
-  for (let i = 0; i < totalSteps; i += 1) {
-    await publish(progressStep);
-    await new Promise((resolve) => setTimeout(resolve, delay * 1000));
-  }
-}
-
 export async function generateScript(params, input) {
   const {
     tone,
@@ -13,58 +5,86 @@ export async function generateScript(params, input) {
     persona,
     model,
     temperature,
+    endpoint,
+    timeoutMs,
     progressWeight,
     publishProgressCb,
-    publishDataCb,
   } = params;
   const { prompt } = input;
 
-  await simulateProgress(publishProgressCb, progressWeight, 3, 0.4);
+  if (!prompt) throw new Error("Missing prompt for script generation");
+  if (!endpoint) throw new Error("LLM endpoint is required");
+  if (!model) throw new Error("LLM model is required");
+  if (temperature === undefined) throw new Error("LLM temperature is required");
+  if (!persona) throw new Error("Persona is required");
+  if (!tone) throw new Error("Tone is required");
+  if (!length) throw new Error("Length is required");
 
-  if (!prompt) {
-    return {};
-  }
-
-  return { test: "Dummy test value" };
-
-  const targetHost =
-    process.env.LLM_URL ||
-    process.env.OLLAMA_URL ||
-    process.env.OLLAMA_HOST ||
-    process.env.OPENWEBUI_URL ||
-    "http://127.0.0.1:11434";
-
-  const llmEndpoint = `${targetHost.replace(/\/$/, "")}/api/generate`;
+  const resolvedTimeout = timeoutMs ?? 20000;
+  const llmEndpoint = `${endpoint.replace(/\/$/, "")}/api/generate`;
   const template = [
-    "You generate a stage prompt for diffusion and a spoken narration for a short clip.",
+    "You generate two fields for a short talking video:",
+    '1) "stagePrompt": a detailed, camera-ready visual description suitable for diffusion (include style, composition, mood).',
+    '2) "narration": concise spoken text (<= 80 words) matching the topic and tone.',
     `Topic: ${prompt}`,
     `Tone: ${tone}`,
     `Persona: ${persona}`,
-    `Narration length: ${length} seconds (concise).`,
-    'Respond with JSON: {"stagePrompt": "...", "narration": "..."}. No markdown.',
+    `Target length: ~${length} seconds of speech.`,
+    'Respond ONLY with JSON: {"stagePrompt": "...", "narration": "..."}. No markdown.',
   ].join("\n");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), resolvedTimeout);
 
-  const response = await fetch(llmEndpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt: template,
-      temperature,
-      stream: false,
-    }),
-  });
+  // Emit five evenly spaced progress updates
+  const steps = 5;
+  const stepWeight =
+    typeof progressWeight === "number" && progressWeight > 0
+      ? progressWeight / steps
+      : 0;
+  const bump = async () => {
+    if (stepWeight > 0) {
+      await publishProgressCb(stepWeight);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  };
 
-  if (!response.ok) {
-    const text = await response.text();
+  await bump();
+
+  let payload;
+  try {
+    const response = await fetch(llmEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        prompt: template,
+        temperature,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    await bump();
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `LLM request failed: ${response.status} ${response.statusText} - ${text}`
+      );
+    }
+
+    payload = await response.json();
+  } catch (err) {
     throw new Error(
-      `LLM request failed: ${response.status} ${response.statusText} - ${text}`
+      `LLM request failed: ${err?.message || err || "unknown error"}`
     );
   }
 
-  const payload = await response.json();
-  const raw = (payload.response || "").trim();
+  const raw = (payload?.response || "").trim();
   const cleaned = raw.replace(/```json|```/gi, "").trim();
+
+  await bump();
 
   let parsed = {};
   try {
@@ -85,14 +105,21 @@ export async function generateScript(params, input) {
     `(${tone}/${persona}) Narration for "${prompt}" lasting ~${length}s.`;
 
   const tokensUsed =
-    (payload.eval_count || 0) + (payload.prompt_eval_count || 0) ||
+    (payload?.eval_count || 0) + (payload?.prompt_eval_count || 0) ||
     Math.round(cleaned.length / 4);
 
-  return {
+  await bump();
+
+  const result = {
     stagePrompt,
     narration,
     tokensUsed,
     model,
     temperature,
+    provider: "ollama",
   };
+
+  await bump();
+
+  return result;
 }

@@ -108,6 +108,12 @@ with all steps recorded as structured jobs, artifacts, and metrics.
 - Keep the planner **single‑pass and deterministic** in Phase 3:
   - No iterative optimization loops yet; just predictable, testable graph generation.
 
+#### ✅ Goal 4 — Current Implementation Snapshot
+
+- **Real script generation hook**: `script.generateScript` now calls a configurable Ollama endpoint (`LLM_ENDPOINT`/`OLLAMA_BASE_URL`, default `http://ollama:11434/api/generate`) with a JSON-only prompt template. Falls back to a deterministic narration/stage pair if the LLM fails or times out.
+- **Configurable defaults**: LLM defaults (model, temperature, tone/persona, length, timeout) live in backend configuration and are threaded into planner-generated script nodes.
+- **Data emission**: successful runs publish `{ script: { stagePrompt, narration, tokensUsed, model } }` via the existing data callback for downstream consumers.
+
 ### 5️⃣ Worker‑Side Pipeline Orchestration (ComfyUI, TTS, Lip‑Sync, Dramatiq)
 
 - Introduce **Dramatiq** into the worker as the internal job execution framework for GPU‑style tasks:

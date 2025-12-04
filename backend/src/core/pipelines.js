@@ -1,4 +1,3 @@
-import { normalize } from "node:path";
 import { getConfiguration } from "../config.js";
 
 const appConfig = getConfiguration();
@@ -141,6 +140,7 @@ function addCommonParams(node, options) {
 }
 
 function buildScriptNode(prompt) {
+  const defaultLlm = appConfig?.llm || {};
   const scriptNode = {
     id: "script",
     name: "Generate script",
@@ -149,11 +149,16 @@ function buildScriptNode(prompt) {
     status: "pending",
     progressWeight: 0.2,
     params: {
-      tone: "casual",
-      length: 20,
-      persona: "default",
-      model: "llama3",
-      temperature: 0.4,
+      tone: defaultLlm.tone || "casual",
+      length: defaultLlm.lengthSeconds || 20,
+      persona: defaultLlm.persona || "default",
+      model: defaultLlm.model || "llama3",
+      temperature:
+        typeof defaultLlm.temperature === "number"
+          ? defaultLlm.temperature
+          : 0.4,
+      endpoint: defaultLlm.endpoint,
+      timeoutMs: defaultLlm.timeoutMs,
     },
     input: { prompt },
   };

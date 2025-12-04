@@ -1,11 +1,20 @@
 {
-    "websocket": {
-        "updateInterval": 750
-    },
-    "persistence": {
-        "pool": {
-            "max": 10,
-            "idleMs": 30000
-        }
+  "websocket": {
+    "updateInterval": 750
+  },
+  "persistence": {
+    "pool": {
+      "max": 10,
+      "idleMs": 30000
     }
+  },
+  "llm": {
+    "endpoint": "http://ollama:11434",
+    "model": "mistral:7b-instruct",
+    "temperature": 0.4,
+    "persona": "default",
+    "tone": "casual",
+    "lengthSeconds": 20,
+    "timeoutMs": 20000
+  }
 }
