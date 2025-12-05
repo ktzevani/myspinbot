@@ -241,9 +241,8 @@ async def render_video(params: Dict[str, Any], node_input: Dict[str, Any]):
         "render_meta": render_meta,
     }
 
-    await publish_progress_cb(progress_weight * 0.8)
-    await asyncio.sleep(0.2)
-    await publish_progress_cb(progress_weight * 0.1)
+    await publish_progress_cb(progress_weight * 0.9)
+
     print(f"[Worker] ✅ Video rendering completed: {result.get('video')}")
     return result
 
