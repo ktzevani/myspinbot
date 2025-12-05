@@ -80,28 +80,28 @@ class Executor:
                 "Number of polling loop iterations",
             ),
         }
-        self._stop_event = asyncio.Event()
-        self._runner: Optional[asyncio.Task] = None
-        self._handler_arity: Dict[str, int] = {}
+        self.stop_event = asyncio.Event()
+        self.runner: Optional[asyncio.Task] = None
+        self.handler_arity: Dict[str, int] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
-        if self._runner:
+        if self.runner:
             return
-        self._stop_event.clear()
-        self._runner = asyncio.create_task(self._run_loop(), name="executor-loop")
+        self.stop_event.clear()
+        self.runner = asyncio.create_task(self._run_loop(), name="executor-loop")
 
     async def stop(self) -> None:
-        if not self._runner:
+        if not self.runner:
             return
-        self._stop_event.set()
-        self._runner.cancel()
+        self.stop_event.set()
+        self.runner.cancel()
         with suppress(asyncio.CancelledError):
-            await self._runner
-        self._runner = None
+            await self.runner
+        self.runner = None
 
     # ------------------------------------------------------------------
     # Main polling loop
@@ -110,7 +110,7 @@ class Executor:
     async def _run_loop(self) -> None:
         print("[Executor] 🚀 Starting python-plane executor loop...")
 
-        while not self._stop_event.is_set():
+        while not self.stop_event.is_set():
 
             loop_metric = self.metrics.get("worker_loop_iterations_total")
             if loop_metric:

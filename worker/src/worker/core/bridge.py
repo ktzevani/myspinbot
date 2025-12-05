@@ -36,7 +36,7 @@ class RedisBridge:
         self.job_ttl = configuration.jobs.ttl
         self.data_stream = f"{configuration.streams.data}"
         self.control_stream = f"{configuration.streams.control}"
-        self._managed_streams = [self.data_stream]
+        self.managed_streams = [self.data_stream]
         current_task = asyncio.current_task()
         self.consumer = (
             f"consumer-{current_task.get_name() if current_task else 'default'}"
@@ -52,7 +52,7 @@ class RedisBridge:
         if not self.redis:
             raise RuntimeError("Redis not connected")
 
-        for stream in self._managed_streams:
+        for stream in self.managed_streams:
             try:
                 await self.redis.xgroup_create(
                     name=stream, groupname=self.group, id="0-0", mkstream=True
