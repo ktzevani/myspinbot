@@ -1,18 +1,83 @@
-FROM nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
 
-# ---- System Deps ------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl vim wget build-essential git patch \
-    autoconf automake libtool pkg-config \
-    python3 python3-pip python3-dev \
-    libffi-dev libssl-dev zlib1g-dev \
-    libjpeg-dev libpng-dev libtiff-dev libwebp-dev \
-    libpq-dev libxml2-dev libxslt1-dev libsqlite3-dev \
-    gfortran nodejs npm && \
-    npm i -g pyright && \
-    rm -rf /var/lib/apt/lists/*
+# ---- System Deps ----
 
-# ---- Python Environment -----------------------------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -y --fix-missing && apt-get install -y \
+    locales \
+    ca-certificates \
+    && apt-get clean
+
+# UTF-8
+RUN localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+ENV LANG=en_US.utf8
+ENV LC_ALL=en_US.UTF-8
+
+RUN apt-get update -y --fix-missing \
+    && apt-get install -y --no-install-recommends \
+    autoconf \
+    automake \
+    build-essential \
+    curl \
+    ffmpeg \
+    gdb \
+    gfortran \
+    git \
+    git-lfs \
+    gnupg \
+    libcairo2-dev \
+    libffi-dev \
+    libglib2.0-0 \
+    libjpeg-dev \
+    libpango1.0-dev \
+    libpng-dev \
+    libportaudio2 \
+    libpq-dev \
+    libsm6 \
+    libsqlite3-dev \
+    libssl-dev \
+    libtiff-dev \
+    libtool \
+    libwebp-dev \
+    libxext6 \
+    libxml2-dev \
+    libxrender1 \
+    libxslt1-dev \
+    nodejs \
+    npm \
+    patch \
+    pkg-config \
+    portaudio19-dev \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    python3.12-venv \
+    rsync \
+    socat \
+    unzip \
+    vim \
+    wget \
+    zip \
+    zlib1g \
+    zlib1g-dev \
+    && git lfs install \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add libEGL ICD loaders and libraries + Vulkan ICD loaders and libraries
+# Per https://github.com/mmartial/ComfyUI-Nvidia-Docker/issues/26
+RUN apt-get update && apt-get install -y libglvnd0 libglvnd-dev libegl1-mesa-dev libvulkan1 libvulkan-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /usr/share/glvnd/egl_vendor.d \
+    && echo '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}' > /usr/share/glvnd/egl_vendor.d/10_nvidia.json \
+    && mkdir -p /usr/share/vulkan/icd.d \
+    && echo '{"file_format_version":"1.0.0","ICD":{"library_path":"libGLX_nvidia.so.0","api_version":"1.3"}}' > /usr/share/vulkan/icd.d/nvidia_icd.json
+ENV MESA_D3D12_DEFAULT_ADAPTER_NAME="NVIDIA"
+
+# ---- Python Environment ----
+
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     ln -s /root/.local/bin/uv /usr/local/bin/uv && \
     ln -s /root/.local/bin/uvx /usr/local/bin/uvx
@@ -24,7 +89,8 @@ ENV VIRTUAL_ENV=/venv
 RUN uv venv --python "$(command -v python3)" /venv && \
     uv pip install --no-cache-dir numpy cython mako setuptools wheel pip ninja patchelf
 
-# ---- CUDA / PyCUDA Compatibility Patch --------------------------------------
+# ---- CUDA / PyCUDA Compatibility Patch ----
+ENV TORCH_CUDA_ARCH_LIST="8.6;8.9;12.0"
 ENV CFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS" \
     CXXFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS"
 
@@ -65,32 +131,57 @@ RUN mkdir -p /tmp/src && \
     patch -p1 < cu13.patch && \
     uv pip install -v --no-cache-dir --no-build-isolation .
 
-# ---- Add Orchestration/SDK Libraries ----------------------------------------
-RUN uv pip install --no-cache-dir dramatiq pydantic prometheus-client minio langgraph
 
-# ---- Install gdb ------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends gdb \
-    && rm -rf /var/lib/apt/lists/*
-
-# ---- Final setup ------------------------------------------------------------
 ENV NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    COMFY_HOME=/opt/comfyui
 
-# ---- Create working directory ----
-WORKDIR /opt/comfyui
+# ---- Setup ComfyUI working directory ----
 
-# ---- Clone ComfyUI ----
+RUN mkdir -p $COMFY_HOME
+WORKDIR $COMFY_HOME
+
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git .
+RUN git config --global --add safe.directory $COMFY_HOME
+RUN git config --global --add safe.directory $COMFY_HOME/custom_nodes/comfyui-f5-tts
 
-# ---- Install gdb ------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends python3.12-venv \
-    && rm -rf /var/lib/apt/lists/*
+RUN uv pip install --no-cache-dir \
+    -r requirements.txt \
+    audio_separator \
+    cached_path \
+    conformer \
+    dac \
+    dacite \
+    diffusers \
+    dramatiq \
+    f5-tts \
+    insightface \
+    jieba \
+    kokoro_onnx \
+    langgraph \
+    lpips \
+    minio \
+    moviepy \
+    omegaconf \
+    opencv-python \
+    prometheus-client \
+    protobuf \
+    pydantic \
+    pygit2 \
+    pyright \
+    s3tokenizer \
+    sageattention \
+    torch \
+    torchcrepe \
+    ultralytics \
+    vector-quantize-pytorch
 
-# ---- Create venv and install dependencies ----
-RUN python3 -m venv /opt/comfyui/venv && \
-    /opt/comfyui/venv/bin/pip install --upgrade pip && \
-    /opt/comfyui/venv/bin/pip install torch torchvision torchaudio \
-    --index-url https://download.pytorch.org/whl/cu130 && \
-    /opt/comfyui/venv/bin/pip install -r requirements.txt
+RUN uv pip install --no-cache-dir --no-build-isolation \
+    ftfy \
+    onnxruntime \
+    gguf \
+    pyloudnorm \
+    faiss-cpu \
+    sounddevice
 
-CMD ["sh", "-c", "/opt/comfyui/venv/bin/python main.py $CLI_ARGS"]
+CMD ["sh", "-c", "python main.py $CLI_ARGS"]
