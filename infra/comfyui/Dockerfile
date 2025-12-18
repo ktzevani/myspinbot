@@ -1,4 +1,9 @@
-FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu22.04
+# FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+ARG PYTHON_VERSION WORKER_ENVIRONMENT WORKER_MODE
+ENV WORKER_MODE=${WORKER_MODE}
+ENV WORKER_ENVIRONMENT=${WORKER_ENVIRONMENT}
 
 # ---- System Deps ----
 
@@ -48,11 +53,7 @@ RUN apt-get update -y --fix-missing \
     patch \
     pkg-config \
     portaudio19-dev \
-    python3 \
-    python3-dev \
     python3-pip \
-    python3-venv \
-    python3.12-venv \
     rsync \
     socat \
     unzip \
@@ -82,17 +83,24 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     ln -s /root/.local/bin/uv /usr/local/bin/uv && \
     ln -s /root/.local/bin/uvx /usr/local/bin/uvx
 
-RUN mkdir -p /venv
-ENV PATH=/venv/bin:$PATH
-ENV VIRTUAL_ENV=/venv
+RUN mkdir -p /opt/uv-cache
+ENV UV_CACHE_DIR=/opt/uv-cache
 
-RUN uv venv --python "$(command -v python3)" /venv && \
-    uv pip install --no-cache-dir numpy cython mako setuptools wheel pip ninja patchelf
+RUN mkdir -p /venv
+ENV PATH=/venv/bin:$PATH \
+    VIRTUAL_ENV=/venv
+
+RUN uv python install ${PYTHON_VERSION} && uv venv --python ${PYTHON_VERSION} /venv && \
+    uv pip install numpy cython mako setuptools wheel pip ninja patchelf
+
+ENV TORCH_CUDA_ARCH_LIST="8.6;8.9;12.0" \
+    UV_HTTP_TIMEOUT=240 \
+    CFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS" \
+    CXXFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS" \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # ---- CUDA / PyCUDA Compatibility Patch ----
-ENV TORCH_CUDA_ARCH_LIST="8.6;8.9;12.0"
-ENV CFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS" \
-    CXXFLAGS="-Wno-error=deprecated-declarations -DCUDA_DISABLE_DEPRECATION_WARNINGS"
 
 RUN printf '%s\n' \
     'def get_config():' \
@@ -131,21 +139,25 @@ RUN mkdir -p /tmp/src && \
     patch -p1 < cu13.patch && \
     uv pip install -v --no-cache-dir --no-build-isolation .
 
+# ---- Setup working directory ----
 
-ENV NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    COMFY_HOME=/opt/comfyui
+ENV WORKER_HOME=/opt/${WORKER_MODE}
+RUN mkdir -p ${WORKER_HOME} 
+WORKDIR ${WORKER_HOME}
 
-# ---- Setup ComfyUI working directory ----
+RUN [ "$WORKER_MODE" = "comfyui" ] && git clone https://github.com/comfyanonymous/ComfyUI.git . && \
+    git config --global --add safe.directory $WORKER_HOME && \
+    git config --global --add safe.directory $WORKER_HOME/custom_nodes/comfyui-f5-tts || true
 
-RUN mkdir -p $COMFY_HOME
-WORKDIR $COMFY_HOME
+RUN uv pip install \
+    torch torchvision torchaudio  \
+    --index-url https://download.pytorch.org/whl/cu130 \
+    --extra-index-url https://pypi.nvidia.com
+# --index-url https://download.pytorch.org/whl/cu128 \
 
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git .
-RUN git config --global --add safe.directory $COMFY_HOME
-RUN git config --global --add safe.directory $COMFY_HOME/custom_nodes/comfyui-f5-tts
+RUN echo "PyTorch Installed."
 
-RUN uv pip install --no-cache-dir \
+RUN uv pip install \
     -r requirements.txt \
     audio_separator \
     cached_path \
@@ -170,18 +182,32 @@ RUN uv pip install --no-cache-dir \
     pygit2 \
     pyright \
     s3tokenizer \
-    sageattention \
-    torch \
-    torchcrepe \
-    ultralytics \
-    vector-quantize-pytorch
+    ultralytics 
 
-RUN uv pip install --no-cache-dir --no-build-isolation \
+RUN echo "ComfyUI Dependencies 1/3 Intalled"
+
+ENV MAX_JOBS=6 \
+    NVCC_THREADS=3 \
+    CMAKE_BUILD_PARALLEL_LEVEL=6
+
+RUN uv pip install --no-build-isolation git+https://github.com/Dao-AILab/flash-attention.git
+RUN echo "Flash Attention is built"
+
+RUN uv pip install --no-build-isolation \
+    faiss-cpu \
+    vector-quantize-pytorch \ 
+    torchcrepe \
     ftfy \
-    onnxruntime \
+    onnxruntime-gpu
+RUN echo "ComfyUI Dependencies 2/3 Intalled"
+
+RUN uv pip install --no-build-isolation \
     gguf \
     pyloudnorm \
-    faiss-cpu \
     sounddevice
+RUN echo "ComfyUI Dependencies 3/3 Intalled"
 
-CMD ["sh", "-c", "python main.py $CLI_ARGS"]
+COPY ./docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

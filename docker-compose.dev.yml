@@ -1,6 +1,6 @@
 services:
   api:
-    image: myspinbot-backend:dev
+    image: myspinbot/backend:dev
     build:
       args:
         NODE_ENV: development
@@ -22,7 +22,7 @@ services:
       - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
 
   ui:
-    image: myspinbot-frontend:dev
+    image: myspinbot/frontend:dev
     build:
       target: development
       args:
@@ -64,6 +64,21 @@ services:
       - ./worker/config:/app/config
       - ./common/config/schemas:/app/config/schemas
       - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
+
+  comfyui:
+    image: myspinbot/comfyui:dev
+    build:
+      args:
+        WORKER_ENVIRONMENT: development
+        WORKER_MODE: comfyui
+        PYTHON_VERSION: 3.13.11
+    ports:
+      - "5679:5678"
+    entrypoint: ["/bin/bash", "-l"]
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./infra/comfyui/.vscode:/opt/comfyui/.vscode
 
   sandbox:
     image: myspinbot/sandbox:dev

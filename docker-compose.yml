@@ -262,15 +262,19 @@ services:
 
   comfyui:
     build:
-      context: .
-      dockerfile: infra/comfyui/Dockerfile
+      context: infra/comfyui
+      dockerfile: Dockerfile
       args:
         WORKER_ENVIRONMENT: production
+        WORKER_MODE: comfyui
+        PYTHON_VERSION: 3.13.11 # 3.11.14
     image: myspinbot/comfyui:prod
     container_name: myspinbot-comfyui
     restart: unless-stopped
     networks:
       - internal-network
+    depends_on:
+      - traefik
     security_opt:
       - "apparmor:unconfined"
     cap_add:
@@ -283,8 +287,6 @@ services:
               count: all
               capabilities: [gpu]
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CLI_ARGS=--listen 0.0.0.0 --port 8188 --disable-auto-launch
     volumes:
       - comfyui-data:/opt/comfyui
@@ -298,7 +300,7 @@ services:
     profiles: ["ai"]
 
   api:
-    image: myspinbot-backend:prod
+    image: myspinbot/backend:prod
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -333,7 +335,7 @@ services:
         condition: service_healthy
 
   ui:
-    image: myspinbot-frontend:prod
+    image: myspinbot/frontend:prod
     build:
       context: ./frontend
       target: runtime
