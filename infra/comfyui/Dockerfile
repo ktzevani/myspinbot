@@ -204,6 +204,10 @@ RUN echo "ComfyUI Dependencies 2/3 Intalled"
 RUN uv pip install --no-build-isolation \
     gguf \
     pyloudnorm \
+    color_matcher \
+    ipykernel \
+    ipywidgets \
+    ipympl \
     sounddevice
 RUN echo "ComfyUI Dependencies 3/3 Intalled"
 
