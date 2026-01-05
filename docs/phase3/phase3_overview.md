@@ -140,6 +140,15 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - Implement **“hybrid” tasks** that call real services when available, but fall back to simulated output when not.
   - Focus on **correct orchestration and data flow** (URIs, parameters, progress) over perfect visual quality.
 
+#### ✅ Goal 5 — Current Implementation Snapshot
+
+- **Dramatiq wired in-process**: Redis-backed Dramatiq broker + results backend spin up with the worker; actors for `train_lora`, `train_voice`, and `render_video` run via an embedded worker thread and are invoked from LangGraph nodes through `run_actor_with_result`, preserving Redis Stream progress callbacks.
+- **Training tasks produce real artifacts**: `train_lora`/`train_voice` now emit JSON manifests and WAV samples (not just dummy bytes), upload them to MinIO with typed metadata, and report staged progress across the node’s `progressWeight`.
+- **Render pipeline is hybrid but end-to-end**: `render_video` synthesizes speech audio (stdlib WAV generator), attempts a ComfyUI txt2img render (polls `/prompt` + `/history`; falls back to deterministic placeholder PNG), and publishes a video manifest that couples audio + image + variant metadata to MinIO; progress is emitted along the way.
+- **Media helpers**: stdlib-only PNG generator, lightweight TTS surrogate, and best-effort ComfyUI client with timeout/error handling live under `worker/src/worker/services/media.py`.
+- **Worker bootstrapping**: `worker.main` starts the Dramatiq worker alongside the LangGraph executor so python-plane nodes can dispatch GPU-style work without a separate process during dev.
+- **Lip-sync placeholder**: until Wav2Lip/SadTalker are wired, the manifest captures audio + render pairing as a stand-in for muxed, lip-synced video; the pipeline is ready to swap in real models once available.
+
 ### 6️⃣ Artifact & Profile Management
 
 - Introduce basic **artifact semantics** around MinIO usage:
