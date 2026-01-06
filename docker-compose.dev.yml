@@ -11,6 +11,7 @@ services:
     tty: true
     volumes:
       - ./docs:/app/docs
+      - ./common/shared:/app/shared
       - ./backend/.vscode:/app/.vscode
       - ./backend/src:/app/src
       - ./backend/tests:/app/tests
@@ -18,6 +19,7 @@ services:
       - ./backend/package.json:/app/package.json
       - ./backend/vitest.config.ts:/app/vitest.config.ts
       - ./backend/config:/app/config
+      - ./backend/GEMINI.md:/app/GEMINI.md
       - ./common/config/schemas:/app/config/schemas
       - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
 
@@ -31,6 +33,7 @@ services:
       - "9230:9230"
     volumes:
       - ./docs:/app/docs
+      - ./common/shared:/app/shared
       - ./frontend/.vscode:/app/.vscode
       - ./frontend/app:/app/app
       - ./frontend/components:/app/components
@@ -45,6 +48,7 @@ services:
       - ./frontend/tailwind.config.ts:/app/tailwind.config.ts
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/vitest.config.ts:/app/vitest.config.ts
+      - ./frontend/GEMINI.md:/app/GEMINI.md
 
   worker:
     image: myspinbot/worker:dev
@@ -57,21 +61,21 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./docs:/app/docs
-      - ./worker/.vscode:/app/.vscode
-      - ./worker/src:/app/src
-      - ./worker/pyproject.toml:/app/pyproject.toml
-      - ./worker/config:/app/config
-      - ./common/config/schemas:/app/config/schemas
-      - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
+      - ./docs:/opt/app/docs
+      - ./common/shared:/opt/app/shared
+      - ./worker/.vscode:/opt/app/.vscode
+      - ./worker/src:/opt/app/src
+      - ./worker/pyproject.toml:/opt/app/pyproject.toml
+      - ./worker/GEMINI.md:/opt/app/GEMINI.md
+      - ./worker/config:/opt/app/config
+      - ./common/config/schemas:/opt/app/config/schemas
+      - ./common/config/redis.bridge.json:/opt/app/config/redis.bridge.json
 
   comfyui:
     image: myspinbot/comfyui:dev
     build:
       args:
         WORKER_ENVIRONMENT: development
-        WORKER_MODE: comfyui
-        PYTHON_VERSION: 3.13.11
     ports:
       - "5679:5678"
     entrypoint: ["/bin/bash", "-l"]

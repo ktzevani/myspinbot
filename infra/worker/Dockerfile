@@ -149,6 +149,13 @@ RUN [ "$WORKER_MODE" = "comfyui" ] && git clone https://github.com/comfyanonymou
     git config --global --add safe.directory $WORKER_HOME && \
     git config --global --add safe.directory $WORKER_HOME/custom_nodes/comfyui-f5-tts || true
 
+COPY ./worke[r] .
+COPY ./commo[n]/config ./config
+COPY ./docker-entrypoint.s[h] ./docker-entrypoint.sh
+
+RUN mv $WORKER_HOME/docker-entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 RUN uv pip install \
     torch torchvision torchaudio  \
     --index-url https://download.pytorch.org/whl/cu130 \
@@ -157,8 +164,9 @@ RUN uv pip install \
 
 RUN echo "PyTorch Installed."
 
+RUN [ "$WORKER_MODE" = "comfyui" ] && uv pip install -r requirements.txt || true
+
 RUN uv pip install \
-    -r requirements.txt \
     audio_separator \
     cached_path \
     conformer \
@@ -184,7 +192,7 @@ RUN uv pip install \
     s3tokenizer \
     ultralytics 
 
-RUN echo "ComfyUI Dependencies 1/3 Intalled"
+RUN echo "ComfyUI Dependencies 1/3 Installed"
 
 ENV MAX_JOBS=6 \
     NVCC_THREADS=3 \
@@ -199,7 +207,7 @@ RUN uv pip install --no-build-isolation \
     torchcrepe \
     ftfy \
     onnxruntime-gpu
-RUN echo "ComfyUI Dependencies 2/3 Intalled"
+RUN echo "ComfyUI Dependencies 2/3 Installed"
 
 RUN uv pip install --no-build-isolation \
     gguf \
@@ -209,9 +217,9 @@ RUN uv pip install --no-build-isolation \
     ipywidgets \
     ipympl \
     sounddevice
-RUN echo "ComfyUI Dependencies 3/3 Intalled"
+RUN echo "ComfyUI Dependencies 3/3 Installed"
 
-COPY ./docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN [ "$WORKER_MODE" = "app" ] && uv pip install --no-cache-dir -e .[dev,test] || true
+RUN [ "$WORKER_MODE" = "app" ] && echo "Python worker dependencies installed" || true
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]

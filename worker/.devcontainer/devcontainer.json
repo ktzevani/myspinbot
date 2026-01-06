@@ -5,7 +5,7 @@
     "../../docker-compose.dev.yml"
   ],
   "service": "worker",
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/opt/app",
   "runServices": [
     "worker"
   ],
@@ -25,7 +25,7 @@
         "bierner.markdown-mermaid",
         "charliermarsh.ruff",
         "donjayamanne.python-environment-manager",
-        "donjayamanne.python-extension-pack",
+        "Google.geminicodeassist",
         "kevinrose.vsc-python-indent",
         "ms-python.black-formatter",
         "ms-python.debugpy",
@@ -33,7 +33,6 @@
         "ms-python.vscode-pylance",
         "ms-python.vscode-python-envs",
         "njpwerner.autodocstring",
-        "openai.chatgpt",
         "tamasfe.even-better-toml",
         "wholroyd.jinja"
       ]

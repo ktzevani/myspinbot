@@ -8,11 +8,6 @@ scripts = { "myspinbot-worker" = "worker.main:run" }
 dependencies = [
     # Core runtime
     "redis>=6.4",
-    "dramatiq[redis]>=1.18.0",
-    "pydantic>=2.12.4",
-    "prometheus-client>=0.23.1",
-    "minio>=7.2.18",
-    "langgraph>=1.0.2",
     # Web / metrics serving
     "fastapi>=0.121.0",
     "uvicorn>=0.38.0",

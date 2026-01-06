@@ -20,8 +20,8 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "firsttris.vscode-jest-runner",
+        "Google.geminicodeassist",
         "ms-vscode.js-debug-nightly",
-        "openai.chatgpt",
         "vitest.explorer"
       ]
     }

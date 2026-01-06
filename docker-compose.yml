@@ -200,7 +200,7 @@ services:
 
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    container_name: minio
+    container_name: myspinbot-minio
     entrypoint: ["/bin/sh", "/init.sh"]
     restart: unless-stopped
     env_file:
@@ -263,7 +263,7 @@ services:
   comfyui:
     build:
       context: infra/comfyui
-      dockerfile: Dockerfile
+      dockerfile: infra/worker/Dockerfile
       args:
         WORKER_ENVIRONMENT: production
         WORKER_MODE: comfyui
@@ -360,9 +360,11 @@ services:
   worker:
     build:
       context: .
-      dockerfile: worker/Dockerfile
+      dockerfile: infra/worker/Dockerfile
       args:
         WORKER_ENVIRONMENT: production
+        WORKER_MODE: app
+        PYTHON_VERSION: 3.13.11 # 3.11.14
     image: myspinbot/worker:prod
     container_name: myspinbot-worker
     restart: unless-stopped
