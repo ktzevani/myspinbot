@@ -247,6 +247,129 @@ async def render_video(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
+@task("f5_to_tts")
+async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
+    """Voice model training task honoring variant/options."""
+
+    progress_weight, publish_progress_cb = (
+        params.get("progress_weight", 0),
+        params["publish_progress_cb"],
+    )
+    preset = params.get("preset") or params.get("variant") or "default"
+    voice_id = str(uuid.uuid4())
+    await publish_progress_cb(progress_weight * 0.1)
+
+    waveform = synthesize_wave_speech(
+        node_input.get("sample_text")
+        or params.get("sample_text")
+        or "Default voice line."
+    )
+    audio_artifact = upload_bytes(
+        "voices",
+        f"{voice_id}_{preset}.wav",
+        content=waveform,
+        content_type="audio/wav",
+    )
+    voice_manifest = {
+        "voiceId": voice_id,
+        "preset": preset,
+        "language": node_input.get("language") or params.get("language") or "en",
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "audio": audio_artifact.meta.model_dump(mode="json"),
+    }
+    voice_meta_artifact = upload_bytes(
+        "voices",
+        f"{voice_id}_{preset}.json",
+        json.dumps(voice_manifest, indent=2).encode("utf-8"),
+        content_type="application/json",
+    )
+    result = {
+        "voiceArtifact": audio_artifact.meta.model_dump(mode="json"),
+        "voiceMeta": voice_meta_artifact.meta.model_dump(mode="json"),
+    }
+
+    await publish_progress_cb(progress_weight * 0.7)
+    await asyncio.sleep(0.3)
+    await publish_progress_cb(progress_weight * 0.2)
+    print(f"[Worker] ✅ Voice model training completed: {result}")
+    return result
+
+
+@task("render_video_infinitetalk")
+async def render_video_infinitetalk(params: Dict[str, Any], node_input: Dict[str, Any]):
+    """Hybrid video rendering task using ComfyUI + synthetic TTS with a structured manifest."""
+
+    progress_weight, publish_progress_cb = (
+        params.get("progress_weight", 0),
+        params["publish_progress_cb"],
+    )
+    variant = params.get("variant") or params.get("preset") or "default"
+    comfy_url = params.get("comfy_url") or os.getenv(
+        "COMFYUI_BASE_URL", "http://comfyui:8188"
+    )
+    # Gather upstream context
+    stage_prompt = (
+        node_input.get("stagePrompt")
+        or node_input.get("prompt")
+        or node_input.get("script", {}).get("stagePrompt")
+        or params.get("stagePrompt")
+        or "Untitled scene"
+    )
+    narration = (
+        node_input.get("narration")
+        or node_input.get("script", {}).get("narration")
+        or params.get("narration")
+        or "Narration not provided."
+    )
+    await publish_progress_cb(progress_weight * 0.1)
+    print(f"[Worker] 🎬 Starting video rendering (variant={variant})")
+
+    audio = synthesize_wave_speech(narration)
+    audio_artifact = upload_bytes(
+        "audio",
+        f"{uuid.uuid4()}_{variant}.wav",
+        content=audio,
+        content_type="audio/wav",
+    )
+
+    image_bytes, render_meta = await _generate_visual(
+        stage_prompt, comfy_url if comfy_url else None
+    )
+    image_artifact = upload_bytes(
+        "renders",
+        f"{uuid.uuid4()}_{variant}.png",
+        content=image_bytes,
+        content_type="image/png",
+    )
+
+    video_manifest = {
+        "variant": variant,
+        "stagePrompt": stage_prompt,
+        "narration": narration,
+        "image": image_artifact.meta.model_dump(mode="json"),
+        "audio": audio_artifact.meta.model_dump(mode="json"),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    manifest_artifact = upload_bytes(
+        "videos",
+        f"{uuid.uuid4()}_{variant}_manifest.json",
+        content=json.dumps(video_manifest, indent=2).encode("utf-8"),
+        content_type="application/json",
+    )
+
+    result = {
+        "video": manifest_artifact.meta.model_dump(mode="json"),
+        "audio": audio_artifact.meta.model_dump(mode="json"),
+        "image": image_artifact.meta.model_dump(mode="json"),
+        "render_meta": render_meta,
+    }
+
+    await publish_progress_cb(progress_weight * 0.9)
+    await asyncio.sleep(0.3)
+    print(f"[Worker] ✅ Video rendering completed: {result.get('video')}")
+    return result
+
+
 @task("get_capabilities")
 async def get_capabilities(_params: Dict[str, Any], _input: Dict[str, Any]):
     """Return the registered capabilities manifest to callers."""

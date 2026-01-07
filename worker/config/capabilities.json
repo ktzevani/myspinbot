@@ -7,14 +7,26 @@
       "description": "Fine-tunes a Stable Diffusion LoRA using uploaded identity/style datasets.",
       "version": "2025.02.0",
       "plane": "python",
-      "runtime": { "kind": "gpu", "timeoutSeconds": 1800, "concurrency": 1 },
-      "handler": { "module": "worker.tasks", "method": "train_lora" },
+      "runtime": {
+        "kind": "gpu",
+        "timeoutSeconds": 1800,
+        "concurrency": 1
+      },
+      "handler": {
+        "module": "worker.tasks",
+        "method": "train_lora"
+      },
       "io": {
         "input": {
           "type": "object",
-          "required": ["profileId", "dataset"],
+          "required": [
+            "profileId",
+            "dataset"
+          ],
           "properties": {
-            "profileId": { "type": "string" },
+            "profileId": {
+              "type": "string"
+            },
             "dataset": {
               "type": "object",
               "properties": {
@@ -26,7 +38,10 @@
                   },
                   "minItems": 10
                 },
-                "resolution": { "type": "integer", "minimum": 256 }
+                "resolution": {
+                  "type": "integer",
+                  "minimum": 256
+                }
               }
             },
             "hyperparameters": {
@@ -42,9 +57,15 @@
             "artifact": {
               "type": "object",
               "properties": {
-                "bucket": { "type": "string" },
-                "key": { "type": "string" },
-                "sizeBytes": { "type": "number" }
+                "bucket": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "type": "number"
+                }
               }
             }
           }
@@ -63,17 +84,29 @@
           "type": "string",
           "description": "Training scheduler identifier.",
           "required": false,
-          "enum": ["cosine", "constant", "linear"],
+          "enum": [
+            "cosine",
+            "constant",
+            "linear"
+          ],
           "default": "cosine"
         }
       ],
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": ["worker_job_duration_seconds", "minio_upload_bytes"]
+        "metrics": [
+          "worker_job_duration_seconds",
+          "minio_upload_bytes"
+        ]
       },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": false, "sideEffects": "model-write" }
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": false,
+        "sideEffects": "model-write"
+      }
     },
     {
       "id": "train.train_voice",
@@ -81,20 +114,37 @@
       "description": "Creates a few-shot TTS voice profile from uploaded audio samples.",
       "version": "2025.02.0",
       "plane": "python",
-      "runtime": { "kind": "gpu", "timeoutSeconds": 2400, "concurrency": 1 },
-      "handler": { "module": "worker.tasks", "method": "train_voice" },
+      "runtime": {
+        "kind": "gpu",
+        "timeoutSeconds": 2400,
+        "concurrency": 1
+      },
+      "handler": {
+        "module": "worker.tasks",
+        "method": "train_voice"
+      },
       "io": {
         "input": {
           "type": "object",
-          "required": ["profileId", "audioSamples"],
+          "required": [
+            "profileId",
+            "audioSamples"
+          ],
           "properties": {
-            "profileId": { "type": "string" },
+            "profileId": {
+              "type": "string"
+            },
             "audioSamples": {
               "type": "array",
-              "items": { "type": "string", "description": "MinIO object key" },
+              "items": {
+                "type": "string",
+                "description": "MinIO object key"
+              },
               "minItems": 1
             },
-            "language": { "type": "string" }
+            "language": {
+              "type": "string"
+            }
           }
         },
         "output": {
@@ -103,9 +153,15 @@
             "artifact": {
               "type": "object",
               "properties": {
-                "bucket": { "type": "string" },
-                "key": { "type": "string" },
-                "format": { "type": "string" }
+                "bucket": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "format": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -130,10 +186,17 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": ["worker_job_duration_seconds"]
+        "metrics": [
+          "worker_job_duration_seconds"
+        ]
       },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": false, "sideEffects": "model-write" }
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": false,
+        "sideEffects": "model-write"
+      }
     },
     {
       "id": "generate.render_video",
@@ -141,29 +204,53 @@
       "description": "Converts stage prompts + voice tracks into short avatar clips using ComfyUI + lip sync.",
       "version": "2025.02.0",
       "plane": "python",
-      "runtime": { "kind": "gpu", "timeoutSeconds": 900, "concurrency": 1 },
-      "handler": { "module": "worker.tasks", "method": "render_video" },
+      "runtime": {
+        "kind": "gpu",
+        "timeoutSeconds": 900,
+        "concurrency": 1
+      },
+      "handler": {
+        "module": "worker.tasks",
+        "method": "render_video"
+      },
       "io": {
         "input": {
           "type": "object",
-          "required": ["stagePrompt", "voiceArtifact"],
+          "required": [
+            "stagePrompt",
+            "voiceArtifact"
+          ],
           "properties": {
-            "stagePrompt": { "type": "string" },
+            "stagePrompt": {
+              "type": "string"
+            },
             "voiceArtifact": {
               "type": "object",
               "properties": {
-                "bucket": { "type": "string" },
-                "key": { "type": "string" }
+                "bucket": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                }
               }
             },
             "loraArtifact": {
               "type": "object",
               "properties": {
-                "bucket": { "type": "string" },
-                "key": { "type": "string" }
+                "bucket": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                }
               }
             },
-            "durationSeconds": { "type": "number", "minimum": 1, "maximum": 60 }
+            "durationSeconds": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 60
+            }
           }
         },
         "output": {
@@ -172,9 +259,15 @@
             "video": {
               "type": "object",
               "properties": {
-                "bucket": { "type": "string" },
-                "key": { "type": "string" },
-                "durationSeconds": { "type": "number" }
+                "bucket": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "durationSeconds": {
+                  "type": "number"
+                }
               }
             }
           }
@@ -186,25 +279,40 @@
           "type": "string",
           "description": "Output resolution preset.",
           "required": false,
-          "enum": ["576p", "720p", "1080p"],
+          "enum": [
+            "576p",
+            "720p",
+            "1080p"
+          ],
           "default": "720p"
         },
         {
           "name": "generator",
           "type": "string",
-          "description": "Pipeline choice (svd_wav2lip | sadtalker).",
+          "description": "Pipeline choice (svd_wav2lip | sadtalker | f5tts_infinitetalk).",
           "required": false,
-          "enum": ["svd_wav2lip", "sadtalker"],
+          "enum": [
+            "svd_wav2lip",
+            "sadtalker",
+            "f5tts_infinitetalk"
+          ],
           "default": "svd_wav2lip"
         }
       ],
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": ["worker_job_duration_seconds"]
+        "metrics": [
+          "worker_job_duration_seconds"
+        ]
       },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": false, "sideEffects": "artifact-write" }
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": false,
+        "sideEffects": "artifact-write"
+      }
     },
     {
       "id": "info.get_capabilities",
@@ -212,8 +320,15 @@
       "description": "Returns the current Python-plane capability manifest for planner agents.",
       "version": "2025.02.0",
       "plane": "python",
-      "runtime": { "kind": "gpu", "timeoutSeconds": 60, "concurrency": 2 },
-      "handler": { "module": "worker.tasks", "method": "get_capabilities" },
+      "runtime": {
+        "kind": "gpu",
+        "timeoutSeconds": 60,
+        "concurrency": 2
+      },
+      "handler": {
+        "module": "worker.tasks",
+        "method": "get_capabilities"
+      },
       "io": {
         "input": {
           "type": "object",
@@ -227,9 +342,19 @@
         "output": {
           "type": "object",
           "properties": {
-            "plane": { "type": "string" },
-            "generatedAt": { "type": "string", "format": "date-time" },
-            "capabilities": { "type": "array", "items": { "type": "object" } }
+            "plane": {
+              "type": "string"
+            },
+            "generatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
           }
         }
       },
@@ -237,10 +362,17 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": ["worker_job_duration_seconds"]
+        "metrics": [
+          "worker_job_duration_seconds"
+        ]
       },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": true, "sideEffects": "read-only" }
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": true,
+        "sideEffects": "read-only"
+      }
     }
   ]
 }

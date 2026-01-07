@@ -1,5 +1,5 @@
 {
-  "name": "🐍 MySpinBot GPU Worker",
+  "name": "🐍 MySpinBot GPU Torch-Powered Worker",
   "dockerComposeFile": [
     "../../docker-compose.yml",
     "../../docker-compose.dev.yml"
