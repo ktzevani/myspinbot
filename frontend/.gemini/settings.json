@@ -1,0 +1,13 @@
+{
+    "checkpointing": {
+        "enabled": false
+    },
+    "tools": {
+        "coreTools": [
+            "ReadFileTool",
+            "WriteFileTool",
+            "ListDirectoryTool",
+            "run_shell_command"
+        ]
+    }
+}

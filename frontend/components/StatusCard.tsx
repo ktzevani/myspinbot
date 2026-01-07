@@ -2,7 +2,7 @@
 import React from "react";
 import ProgressBar from "./ProgressBar";
 import type { Job } from "@/lib/api";
-import { JobStatus } from "@/lib/enums";
+import { JobStatus, JobType } from "@/lib/enums";
 
 function pillColor(status: Job["status"]) {
   switch (status) {
@@ -25,7 +25,7 @@ export default function StatusCard({ job }: { job: Job }) {
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium">
           #{job.jobId.slice(0, 8)} •{" "}
-          {job.type === "train" ? "Training" : "Generating"}
+          {job.type === JobType.TRAIN ? "Training" : "Generating"}
         </div>
         <span
           className={`text-xs px-2 py-1 rounded-full ${pillColor(job.status)}`}
@@ -44,7 +44,7 @@ export default function StatusCard({ job }: { job: Job }) {
 
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div>{Math.round((job.progress ?? 0) * 100)}%</div>
-        {job.resultUrl && job.status === "done" && (
+        {job.resultUrl && job.status === JobStatus.COMPLETED && (
           <a
             className="underline"
             href={job.resultUrl}

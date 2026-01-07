@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
 import UploadForm from "@/components/UploadForm";
 import StatusCard from "@/components/StatusCard";
 import type { Job } from "@/lib/api";

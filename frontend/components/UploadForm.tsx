@@ -2,10 +2,12 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { postTrain, type Job } from "@/lib/api";
+import { postGenerate, type Job } from "@/lib/api";
+import { JobType } from "@/lib/enums";
 
 export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const imgFileRef = useRef<HTMLInputElement | null>(null);
+  const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,68 +15,94 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const file = fileRef.current?.files?.[0];
-    if (!file) return setError("Please select an image.");
+    const imgFile = imgFileRef.current?.files?.[0];
+    const audioFile = audioFileRef.current?.files?.[0];
+    if (!imgFile) return setError("Please select an image.");
+    if (!audioFile) return setError("Please select an audio sample.");
     if (!prompt.trim()) return setError("Please enter a prompt.");
 
     setBusy(true);
     try {
-      const { type, jobId, progress, status } = await postTrain({
-        file,
+      const { type, jobId, progress, status } = await postGenerate({
+        imgFile,
+        audioFile,
         prompt,
       });
       onJob({
         jobId: jobId,
-        type: "train",
+        type: JobType.GENERATE,
         prompt,
         progress: progress,
         status: status,
         createdAt: Date.now(),
       });
       setPrompt("");
-      if (fileRef.current) fileRef.current.value = "";
+      if (imgFileRef.current) imgFileRef.current.value = "";
+      if (audioFileRef.current) audioFileRef.current.value = "";
     } catch (err: any) {
-      setError(err?.message ?? "Failed to start training.");
+      setError(err?.message ?? "Failed to start generation.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <label
-          className="block text-sm font-medium text-gray-700"
-          htmlFor="file-input"
-        >
-          Image
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="image-file"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Image
+          </label>
+          <input
+            id="image-file"
+            data-testid="image-file-input"
+            ref={imgFileRef}
+            type="file"
+            accept="image/*"
+            className="mt-1 w-full rounded-lg border bg-white px-3 py-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border file:bg-white file:px-3 file:py-2 file:hover:bg-gray-50"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="audio-file"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Voice Sample
+          </label>
+          <input
+            id="audio-file"
+            data-testid="audio-file-input"
+            ref={audioFileRef}
+            type="file"
+            accept="audio/*"
+            className="mt-1 w-full rounded-lg border bg-white px-3 py-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border file:bg-white file:px-3 file:py-2 file:hover:bg-gray-50"
+          />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="prompt" className="block text-sm font-medium text-gray-700">
+          Prompt
         </label>
-        <input
-          data-testid="file-input"
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border file:bg-white file:hover:bg-gray-50 file:cursor-pointer border rounded-lg px-3 py-2 w-full sm:w-auto"
-        />
-        <input
-          type="text"
-          placeholder="Enter prompt…"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          className="flex-1 border rounded-lg px-3 py-2"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-lg px-4 py-2 border shadow-sm hover:shadow disabled:opacity-50"
-        >
-          {busy ? "Submitting…" : "Train → Generate"}
-        </button>
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row">
+          <input
+            id="prompt"
+            type="text"
+            placeholder="Enter prompt…"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="flex-1 rounded-lg border px-3 py-2"
+          />
+          <button type="submit" disabled={busy} className="rounded-lg border bg-white px-4 py-2 shadow-sm hover:shadow disabled:opacity-50">
+            {busy ? "Submitting…" : "Generate"}
+          </button>
+        </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <p className="text-xs text-gray-500">
-        Phase 2: trains a LoRA from your image then generates a video (chained
-        jobs).
+        Phase 3: generates a video given then input audio and portrait image (chained jobs).
       </p>
     </form>
   );

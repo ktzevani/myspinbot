@@ -1,45 +1,49 @@
-// export type JobStatus = "queued" | "processing" | "done" | "failed";
-// export type JobType = "train" | "generate";
+import { JobStatus, JobType } from "./enums";
 
 export interface Job {
   jobId: string;
-  type: string;
+  type: JobType;
   prompt?: string;
   progress: number; // 0..1
-  status: string;
+  status: JobStatus;
   resultUrl?: string;
   createdAt: number;
   parentJobId?: string; // for generate linked to train
 }
 
-export interface TrainResponse {
-  type: string;
+export interface GenerateResponse {
+  type: JobType;
   jobId: string;
   progress: number;
-  status: string;
+  status: JobStatus;
 }
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "https://api.myspinbot.local";
 
-export async function postTrain(opts: {
-  file: File;
+export async function postGenerate(opts: {
+  imgFile: File;
+  audioFile: File;
   prompt: string;
-}): Promise<TrainResponse> {
-  const res = await fetch(`${API_BASE}/api/train`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      mode: "train_and_generate",
-      variant: "svd_wav2lip",
+}): Promise<GenerateResponse> {
+  const formData = new FormData();
+  formData.append("image_file", opts.imgFile);
+  formData.append("audio_file", opts.audioFile);
+  formData.append(
+    "data",
+    JSON.stringify({
+      mode: "generate",
+      variant: "f5tts_infinitetalk",
       prompt: opts.prompt,
       // placeholder for future options/profile; backend is tolerant
-    }),
+    })
+  );
+  const res = await fetch(`${API_BASE}/api/generate`, {
+    method: "POST",
+    body: formData,
   });
-  if (!res.ok) throw new Error(`Train failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
   return res.json();
 }
 

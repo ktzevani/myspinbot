@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import StatusCard from "@/components/StatusCard";
 import type { Job } from "@/lib/api";
+import { JobStatus, JobType } from "@/lib/enums";
 
 const jobBase: Job = {
   jobId: "abc12345",
-  type: "train",
-  status: "processing",
+  type: JobType.GENERATE,
+  status: JobStatus.RUNNING,
   createdAt: Date.now(),
   progress: 0.3,
 };
@@ -14,7 +15,7 @@ describe("StatusCard", () => {
   it("shows job id and status pill", () => {
     render(<StatusCard job={jobBase} />);
     expect(screen.getByText(/#abc12345/i)).toBeInTheDocument();
-    expect(screen.getByText("processing")).toBeInTheDocument();
+    expect(screen.getByText(JobStatus.RUNNING)).toBeInTheDocument();
   });
 
   it("renders prompt if provided", () => {
@@ -32,7 +33,7 @@ describe("StatusCard", () => {
       <StatusCard
         job={{
           ...jobBase,
-          status: "done",
+          status: JobStatus.COMPLETED,
           resultUrl: "https://example.com",
         }}
       />

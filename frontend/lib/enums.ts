@@ -7,6 +7,11 @@ export enum JobStatus {
   NOT_FOUND = "not_found",
 }
 
+export enum JobType {
+  TRAIN = "train",
+  GENERATE = "generate"
+}
+
 export enum WsAction {
   SUBSCRIBE = "subscribe",
   UNSUBSCRIBE = "unsubscribe",
