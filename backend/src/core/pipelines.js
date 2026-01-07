@@ -96,18 +96,6 @@ const VariantsRegistry = Object.freeze({
   },
 });
 
-function sanitizeOptions({ durationSeconds = {}, resolution = {} }) {
-  return {
-    durationSeconds: Number.isFinite(durationSeconds)
-      ? Math.max(1, Number(durationSeconds))
-      : {},
-    resolution:
-      typeof resolution === "string" && resolution.trim().length > 0
-        ? resolution.trim()
-        : {},
-  };
-}
-
 function normalizeRequest(incomingRequest) {
   let request = JSON.parse(JSON.stringify(incomingRequest));
   if (!request) throw new PipelineError("[Planner] Empty request");
@@ -142,16 +130,15 @@ function normalizeRequest(incomingRequest) {
         );
       break;
   }
-  if (request.mode != PipelineModes.PROCESS) {
-    request.options = sanitizeOptions(request.options || {});
-  }
   return request;
 }
 
-function addCommonParams(node, options) {
+function addCommonParams(node, additionalParams) {
   const clone = JSON.parse(JSON.stringify(node));
-  const params = { ...(clone.params || {}) };
-  if (options && Object.keys(options).length > 0) params.options = options;
+  let params = { ...(clone.params || {}) };
+  if (additionalParams && Object.keys(additionalParams).length > 0) {
+    params = { ...params, ...additionalParams };
+  }
 
   return {
     ...clone,
@@ -188,13 +175,28 @@ function buildScriptNode(prompt) {
   return addCommonParams(scriptNode);
 }
 
-function buildTrainAndGenerateGraph(variantConfig, { prompt, ...options }) {
+function buildTrainAndGenerateGraph(
+  variantConfig,
+  { prompt, trainParams, genParams, renderParams }
+) {
   const scriptNode = buildScriptNode(prompt);
-  const trainNodes =
-    variantConfig?.trainNodes.map((node) => addCommonParams(node)) || [];
-  const generateNodes =
-    variantConfig?.generateNodes.map((node) => addCommonParams(node)) || [];
-  const renderNode = addCommonParams(variantConfig.renderNode, options);
+  const trainNodes = [];
+  if (variantConfig?.trainNodes.length > 0) {
+    for (let i = 0; i < variantConfig.trainNodes.length; i++) {
+      trainNodes.push(
+        addCommonParams(variantConfig.trainNodes[i], trainParams[i])
+      );
+    }
+  }
+  const generateNodes = [];
+  if (variantConfig?.generateNodes.length > 0) {
+    for (let i = 0; i < variantConfig.generateNodes.length; i++) {
+      generateNodes.push(
+        addCommonParams(variantConfig.generateNodes[i], genParams[i])
+      );
+    }
+  }
+  const renderNode = addCommonParams(variantConfig.renderNode, renderParams);
   const nodes = [scriptNode, ...trainNodes, ...generateNodes, renderNode];
   const edges = [];
   let prevNode = scriptNode;
@@ -232,22 +234,25 @@ function buildTrainAndGenerateGraph(variantConfig, { prompt, ...options }) {
 
 function buildGenerateOnlyGraph(
   variantConfig,
-  { prompt, genParams, renderParams, ...options }
+  { prompt, genParams, renderParams }
 ) {
   const scriptNode = buildScriptNode(prompt);
-  const generateNodes =
-    variantConfig?.generateNodes.map((node) => addCommonParams(node)) || [];
-  const renderNode = addCommonParams(variantConfig.renderNode, options);
-  renderNode.params = { ...renderNode.params, ...renderParams };
+  const generateNodes = [];
+  if (variantConfig?.generateNodes.length > 0) {
+    for (let i = 0; i < variantConfig.generateNodes.length; i++) {
+      generateNodes.push(
+        addCommonParams(variantConfig.generateNodes[i], genParams[i])
+      );
+    }
+  }
+  const renderNode = addCommonParams(variantConfig.renderNode, renderParams);
   const nodes = [scriptNode, ...generateNodes, renderNode];
   const edges = [];
   let prevNode = scriptNode;
   if (generateNodes.length > 0) {
-    generateNodes[0].params = { ...generateNodes[0].params, ...genParams[0] };
     edges.push({ from: prevNode.id, to: generateNodes[0].id, kind: "normal" });
     prevNode = generateNodes[0];
     for (let i = 1; i < generateNodes.length; i++) {
-      generateNodes[i].params = { ...generateNodes[i].params, ...genParams[i] };
       edges.push({
         from: generateNodes[i].id,
         to: prevNode.id,
@@ -280,8 +285,9 @@ export function buildPipelineGraph(request) {
         VariantsRegistry[normalized.variant],
         {
           prompt: normalized.prompt,
-          // TODO: pass trainParams, genParams and renderParams here
-          ...normalized.options,
+          trainParams: normalized?.trainInput || [],
+          genParams: normalized?.genInput || [],
+          renderParams: normalized?.renderInput || {},
         }
       );
       break;
@@ -290,12 +296,12 @@ export function buildPipelineGraph(request) {
         prompt: normalized.prompt,
         genParams: normalized?.genInput || [],
         renderParams: normalized?.renderInput || {},
-        ...normalized.options,
       });
       break;
   }
 
-  const { prompt, options, ...pipelineMeta } = normalized;
+  const { prompt, trainInput, genInput, renderInput, ...pipelineMeta } =
+    normalized;
 
   return {
     ...template,
