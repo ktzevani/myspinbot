@@ -110,10 +110,9 @@ Use when the user selects an existing profile and only wants a new video.
 
 ```json
 {
-  "workflow_id": "generate_from_profile_v1",
+  "workflow_id": "generate_v1",
   "nodes": [
     { "id": "script", "task": "script.generateScript", "plane": "node" },
-    { "id": "profile", "task": "profiles.loadExisting", "plane": "node" },
     { "id": "render", "task": "render_video", "plane": "python" },
     { "id": "register", "task": "artifacts.registerOutputs", "plane": "node" }
   ]
@@ -136,9 +135,8 @@ This section defines the **expected contracts** for key tasks. Actual schemas li
 
 | Task                        | Inputs (context)                                                                 | Outputs (context additions)                                                  | Notes                                      |
 | --------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------ |
-| `script.generateScript`     | `topic`, `tone`, optional `profileId`, capabilities manifest                    | `script`: `{ stage: string, narrative: string }`                             | Runs Ollama; must return structured JSON.  |
+| `script.generateScript`     | `topic`, `tone`, capabilities manifest                    | `script`: `{ stage: string, narrative: string }`                             | Runs Ollama; must return structured JSON.  |
 | `profiles.resolveOrCreate`  | `userId`, upload metadata, partial profile params                               | `profile`: `{ id, loraId?, voiceId? }`                                       | Creates or reuses profile; writes to DB.   |
-| `profiles.loadExisting`     | `profileId`                                                                      | `profile`: `{ id, loraId?, voiceId? }`                                       | Validates profile existence.               |
 | `planner.selectPipeline`    | `requestedVariant`, capabilities, `profile`                                     | `pipeline`: `{ variant: "svd" \| "sadtalker", params: { … } }`               | Chooses variant and config.                |
 | `artifacts.registerOutputs` | `jobId`, `pipeline`, produced artifact URIs from data plane (`video`, `assets`) | `artifacts`: list of IDs and URIs; updates Postgres `artifacts` / `jobs` row | Centralizes artifact + job persistence.    |
 
@@ -252,16 +250,15 @@ Phase 3 introduces or formalizes API endpoints around the pipelines.
     - Backend planner builds the full graph and enqueues it to the control stream.
     - Job state flows as in Phase 2 (WebSocket + Redis), now with richer pipeline context.
 
-### 5.2 Generation From Existing Profile
+### 5.2 Generation (no LoRA training)
 
 - `POST /api/generate`
-  - **Purpose:** run `generate_from_profile_v1` without retraining.
+  - **Purpose:** run `generate_v1` without weight adaptation.
   - **Body (conceptual):**
 
     ```json
     {
-      "mode": "generate_from_profile",
-      "profileId": "p001",
+      "mode": "generate",
       "topic": "Daily market summary",
       "variant": "sadtalker",
       "options": { "durationSeconds": 30, "resolution": "576p" }

@@ -16,7 +16,7 @@
     "pipelines": {
       "PROCESS": "process_graph",
       "TRAIN_GENERATE": "train_and_generate",
-      "GENERATE": "generate_from_profile"
+      "GENERATE": "generate"
     }
   }
 }
