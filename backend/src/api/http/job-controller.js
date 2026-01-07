@@ -15,6 +15,16 @@ export async function submitTrainJob(requestBody = {}) {
   return await jobQueue.enqueueControlJob(jobId, graph);
 }
 
+export async function submitGenerationJob(requestBody = {}) {
+  const jobId = randomUUID();
+  const planner = new Planner();
+  const graph = planner.getJobGraph({
+    workflowId: jobId,
+    request: requestBody,
+  });
+  return await jobQueue.enqueueControlJob(jobId, graph);
+}
+
 export async function getJobStatus(id) {
   try {
     const state = await jobQueue.getJobState(id);

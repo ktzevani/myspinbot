@@ -13,14 +13,15 @@ export class PipelineError extends Error {
 }
 
 const PipelineModes = appConfig.bridge.planning.pipelines;
-const TrainVariants = Object.freeze({
+const PipelineVariants = Object.freeze({
   SVD_WAV2LIP: "svd_wav2lip",
   SADTALKER: "sadtalker",
+  F5_TTS_INFINITE_TALK: "f5tts_infinitetalk",
 });
 
 const VariantsRegistry = Object.freeze({
-  [TrainVariants.SVD_WAV2LIP]: {
-    id: TrainVariants.SVD_WAV2LIP,
+  [PipelineVariants.SVD_WAV2LIP]: {
+    id: PipelineVariants.SVD_WAV2LIP,
     label: "SVD + Wav2Lip",
     trainNodes: [
       {
@@ -29,7 +30,7 @@ const VariantsRegistry = Object.freeze({
         task: "train_lora",
         plane: "python",
         progressWeight: 0.3,
-        params: { preset: TrainVariants.SVD_WAV2LIP },
+        params: { preset: PipelineVariants.SVD_WAV2LIP },
       },
       {
         id: "train_voice",
@@ -37,7 +38,7 @@ const VariantsRegistry = Object.freeze({
         task: "train_voice",
         plane: "python",
         progressWeight: 0.1,
-        params: { preset: TrainVariants.SVD_WAV2LIP },
+        params: { preset: PipelineVariants.SVD_WAV2LIP },
       },
     ],
     renderNode: {
@@ -46,11 +47,11 @@ const VariantsRegistry = Object.freeze({
       task: "render_video",
       plane: "python",
       progressWeight: 0.4,
-      params: { preset: TrainVariants.SVD_WAV2LIP },
+      params: { preset: PipelineVariants.SVD_WAV2LIP },
     },
   },
-  [TrainVariants.SADTALKER]: {
-    id: TrainVariants.SADTALKER,
+  [PipelineVariants.SADTALKER]: {
+    id: PipelineVariants.SADTALKER,
     label: "SadTalker",
     trainNodes: [
       {
@@ -59,7 +60,7 @@ const VariantsRegistry = Object.freeze({
         task: "train_voice",
         plane: "python",
         progressWeight: 0.3,
-        params: { preset: TrainVariants.SADTALKER },
+        params: { preset: PipelineVariants.SADTALKER },
       },
     ],
     renderNode: {
@@ -68,7 +69,29 @@ const VariantsRegistry = Object.freeze({
       task: "render_video",
       plane: "python",
       progressWeight: 0.6,
-      params: { preset: TrainVariants.SADTALKER },
+      params: { preset: PipelineVariants.SADTALKER },
+    },
+  },
+  [PipelineVariants.F5_TTS_INFINITE_TALK]: {
+    id: PipelineVariants.F5_TTS_INFINITE_TALK,
+    label: "InfiniteTalk",
+    generateNodes: [
+      {
+        id: "f5_to_tts",
+        name: "Generate voice (F5-TTS)",
+        task: "f5_to_tts",
+        plane: "python",
+        progressWeight: 0.3,
+        params: { preset: PipelineVariants.F5_TTS_INFINITE_TALK },
+      },
+    ],
+    renderNode: {
+      id: "render_video_infinitetalk",
+      name: "Render video (WAN+InfiniteTalk)",
+      task: "render_video_infinitetalk",
+      plane: "python",
+      progressWeight: 0.5,
+      params: { preset: PipelineVariants.F5_TTS_INFINITE_TALK },
     },
   },
 });
@@ -107,15 +130,15 @@ function normalizeRequest(incomingRequest) {
         throw new PipelineError(
           "[Planner] Malformed request (are variant or prompt missing?)."
         );
-      if (!Object.values(TrainVariants).includes(request.variant))
+      if (!Object.values(PipelineVariants).includes(request.variant))
         throw new PipelineError(
           `[Planner] Invalid request, unknown mode variant (${request.variant})`
         );
       break;
     case PipelineModes.GENERATE:
-      if (!request.profileId || !request.prompt || !request.variant)
+      if (!request.prompt || !request.variant)
         throw new PipelineError(
-          "[Planner] Malformed request (are variant, profileId or prompt missing?)"
+          "[Planner] Malformed request (are variant or prompt missing?)"
         );
       break;
   }
@@ -167,35 +190,78 @@ function buildScriptNode(prompt) {
 
 function buildTrainAndGenerateGraph(variantConfig, { prompt, ...options }) {
   const scriptNode = buildScriptNode(prompt);
-  const trainNodes = variantConfig.trainNodes.map((node) =>
-    addCommonParams(node)
-  );
+  const trainNodes =
+    variantConfig?.trainNodes.map((node) => addCommonParams(node)) || [];
+  const generateNodes =
+    variantConfig?.generateNodes.map((node) => addCommonParams(node)) || [];
   const renderNode = addCommonParams(variantConfig.renderNode, options);
-  const nodes = [scriptNode, ...trainNodes, renderNode];
+  const nodes = [scriptNode, ...trainNodes, ...generateNodes, renderNode];
   const edges = [];
-  for (const node of trainNodes) {
-    edges.push({ from: scriptNode.id, to: node.id, kind: "normal" });
-    edges.push({ from: node.id, to: renderNode.id, kind: "normal" });
+  let prevNode = scriptNode;
+  if (trainNodes.length > 0) {
+    edges.push({ from: prevNode.id, to: trainNodes[0].id, kind: "normal" });
+    prevNode = trainNodes[0];
+    for (let i = 1; i < trainNodes.length; i++) {
+      edges.push({
+        from: trainNodes[i].id,
+        to: prevNode.id,
+        kind: "normal",
+      });
+      prevNode = trainNodes[i];
+    }
   }
+  if (generateNodes.length > 0) {
+    edges.push({ from: prevNode.id, to: generateNodes[0].id, kind: "normal" });
+    prevNode = generateNodes[0];
+    for (let i = 1; i < generateNodes.length; i++) {
+      edges.push({
+        from: generateNodes[i].id,
+        to: prevNode.id,
+        kind: "normal",
+      });
+      prevNode = generateNodes[i];
+    }
+  }
+  edges.push({
+    from: prevNode.id,
+    to: renderNode.id,
+    kind: "normal",
+  });
   return { nodes, edges };
 }
 
 function buildGenerateOnlyGraph(
   variantConfig,
-  { prompt, profileId, ...options }
+  { prompt, genParams, renderParams, ...options }
 ) {
   const scriptNode = buildScriptNode(prompt);
-  const renderNode = addCommonParams(
-    {
-      ...variantConfig.renderNode,
-      params: { ...variantConfig.renderNode.params, profileId },
-    },
-    options
-  );
-  return {
-    nodes: [scriptNode, renderNode],
-    edges: [{ from: scriptNode.id, to: renderNode.id, kind: "normal" }],
-  };
+  const generateNodes =
+    variantConfig?.generateNodes.map((node) => addCommonParams(node)) || [];
+  const renderNode = addCommonParams(variantConfig.renderNode, options);
+  renderNode.params = { ...renderNode.params, ...renderParams };
+  const nodes = [scriptNode, ...generateNodes, renderNode];
+  const edges = [];
+  let prevNode = scriptNode;
+  if (generateNodes.length > 0) {
+    generateNodes[0].params = { ...generateNodes[0].params, ...genParams[0] };
+    edges.push({ from: prevNode.id, to: generateNodes[0].id, kind: "normal" });
+    prevNode = generateNodes[0];
+    for (let i = 1; i < generateNodes.length; i++) {
+      generateNodes[i].params = { ...generateNodes[i].params, ...genParams[i] };
+      edges.push({
+        from: generateNodes[i].id,
+        to: prevNode.id,
+        kind: "normal",
+      });
+      prevNode = generateNodes[i];
+    }
+  }
+  edges.push({
+    from: prevNode.id,
+    to: renderNode.id,
+    kind: "normal",
+  });
+  return { nodes, edges };
 }
 
 // TODO: Revisit overall design of this module, its going to change as pipelines improve
@@ -214,6 +280,7 @@ export function buildPipelineGraph(request) {
         VariantsRegistry[normalized.variant],
         {
           prompt: normalized.prompt,
+          // TODO: pass trainParams, genParams and renderParams here
           ...normalized.options,
         }
       );
@@ -221,7 +288,8 @@ export function buildPipelineGraph(request) {
     case PipelineModes.GENERATE:
       template = buildGenerateOnlyGraph(VariantsRegistry[normalized.variant], {
         prompt: normalized.prompt,
-        profileId: normalized.profileId,
+        genParams: normalized?.genInput || [],
+        renderParams: normalized?.renderInput || {},
         ...normalized.options,
       });
       break;

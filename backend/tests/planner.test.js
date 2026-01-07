@@ -39,10 +39,9 @@ describe("Planner pipeline graph", () => {
   it("builds generate-only SadTalker graph with metadata", () => {
     const planner = new Planner();
     const req = {
-      mode: "generate_from_profile",
+      mode: "generate",
       variant: "sadtalker",
       prompt: "talking head",
-      profileId: "profile-1",
       options: { durationSeconds: 30, resolution: "576p" },
     };
     const graph = getGraph(planner, req);
@@ -55,9 +54,8 @@ describe("Planner pipeline graph", () => {
       resolution: "576p",
     });
     expect(graph.context?.pipeline).toMatchObject({
-      mode: "generate_from_profile",
-      variant: "sadtalker",
-      profileId: "profile-1",
+      mode: "generate",
+      variant: "sadtalker"
     });
   });
 });

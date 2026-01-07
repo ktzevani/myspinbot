@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { registerRoutes as registerHttpRoutes } from "./api/http/routes.js";
 import { registerRoutes as registerWsRoutes } from "./api/ws/routes.js";
 import _executor_singleton from "./core/executor.js";
@@ -15,6 +16,13 @@ await app.register(cors, {
   ],
   methods: ["GET", "POST", "OPTIONS"],
   credentials: true,
+});
+
+// --- Enable support for common media file types in POST reqs ---
+await app.register(multipart, {
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
 });
 
 // -- Enable WebSocket Server
