@@ -5,22 +5,22 @@ import { Planner } from "../../core/planner.js";
 
 const validateJobResponse = jobSchemaValidator.default;
 
-export async function submitTrainJob(requestBody = {}) {
+export async function submitTrainJob(input = {}) {
   const jobId = randomUUID();
   const planner = new Planner();
   const graph = planner.getJobGraph({
     workflowId: jobId,
-    request: requestBody,
+    input,
   });
   return await jobQueue.enqueueControlJob(jobId, graph);
 }
 
-export async function submitGenerationJob(requestBody = {}) {
+export async function submitGenerationJob(input = {}) {
   const jobId = randomUUID();
   const planner = new Planner();
   const graph = planner.getJobGraph({
     workflowId: jobId,
-    request: requestBody,
+    input,
   });
   return await jobQueue.enqueueControlJob(jobId, graph);
 }

@@ -11,8 +11,8 @@ export class Planner {
     this.configuration = configuration;
   }
 
-  #buildGraph(request = {}) {
-    return buildPipelineGraph(request);
+  #buildGraph(input = {}) {
+    return buildPipelineGraph(input);
   }
 
   #validateDAG(nodes = [], edges = []) {
@@ -94,8 +94,8 @@ export class Planner {
     return { nodeIds, indegree, outdegree, sources };
   }
 
-  getJobGraph({ workflowId, context = {}, metadata = {}, request = {} }) {
-    const partialGraph = this.#buildGraph(request);
+  getJobGraph({ workflowId, context = {}, metadata = {}, input = {} }) {
+    const partialGraph = this.#buildGraph(input);
 
     try {
       this.#validateDAG(partialGraph.nodes, partialGraph.edges);

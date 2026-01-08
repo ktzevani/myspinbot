@@ -96,41 +96,43 @@ const VariantsRegistry = Object.freeze({
   },
 });
 
-function normalizeRequest(incomingRequest) {
-  let request = JSON.parse(JSON.stringify(incomingRequest));
-  if (!request) throw new PipelineError("[Planner] Empty request");
-  if (!request.mode)
-    throw new PipelineError("[Planner] Malformed request (is mode missing?).");
-  if (!Object.values(PipelineModes).includes(request.mode))
+function normalizeInput(incomingInput) {
+  let input = JSON.parse(JSON.stringify(incomingInput));
+  if (!input) throw new PipelineError("[Planner] Empty request input");
+  if (!input.mode)
     throw new PipelineError(
-      `[Planner] Invalid request, unknown request mode (${request.mode})`
+      "[Planner] Malformed request input (is mode missing?)."
     );
-  switch (request.mode) {
+  if (!Object.values(PipelineModes).includes(input.mode))
+    throw new PipelineError(
+      `[Planner] Invalid request input, unknown input mode (${input.mode})`
+    );
+  switch (input.mode) {
     case PipelineModes.PROCESS:
-      if (!request.graph)
+      if (!input.graph)
         throw new PipelineError(
-          "[Planner] Malformed request (is graph missing?)."
+          "[Planner] Malformed request input (is graph missing?)."
         );
-      delete request.graph;
+      delete input.graph;
       break;
     case PipelineModes.TRAIN_GENERATE:
-      if (!request.variant || !request.prompt)
+      if (!input?.scriptInput?.prompt || !input.variant)
         throw new PipelineError(
-          "[Planner] Malformed request (are variant or prompt missing?)."
+          "[Planner] Malformed request input (are variant or prompt missing?)."
         );
-      if (!Object.values(PipelineVariants).includes(request.variant))
+      if (!Object.values(PipelineVariants).includes(input.variant))
         throw new PipelineError(
-          `[Planner] Invalid request, unknown mode variant (${request.variant})`
+          `[Planner] Invalid request input, unknown mode variant (${input.variant})`
         );
       break;
     case PipelineModes.GENERATE:
-      if (!request.prompt || !request.variant)
+      if (!input?.scriptInput?.prompt || !input.variant)
         throw new PipelineError(
-          "[Planner] Malformed request (are variant or prompt missing?)"
+          "[Planner] Malformed request input (are variant or prompt missing?)"
         );
       break;
   }
-  return request;
+  return input;
 }
 
 function addCommonParams(node, additionalParams) {
@@ -177,9 +179,9 @@ function buildScriptNode(prompt) {
 
 function buildTrainAndGenerateGraph(
   variantConfig,
-  { prompt, trainParams, genParams, renderParams }
+  { scriptParams, trainParams, genParams, renderParams }
 ) {
-  const scriptNode = buildScriptNode(prompt);
+  const scriptNode = buildScriptNode(scriptParams.prompt);
   const trainNodes = [];
   if (variantConfig?.trainNodes.length > 0) {
     for (let i = 0; i < variantConfig.trainNodes.length; i++) {
@@ -234,9 +236,9 @@ function buildTrainAndGenerateGraph(
 
 function buildGenerateOnlyGraph(
   variantConfig,
-  { prompt, genParams, renderParams }
+  { scriptParams, genParams, renderParams }
 ) {
-  const scriptNode = buildScriptNode(prompt);
+  const scriptNode = buildScriptNode(scriptParams.prompt);
   const generateNodes = [];
   if (variantConfig?.generateNodes.length > 0) {
     for (let i = 0; i < variantConfig.generateNodes.length; i++) {
@@ -271,20 +273,20 @@ function buildGenerateOnlyGraph(
 
 // TODO: Revisit overall design of this module, its going to change as pipelines improve
 
-export function buildPipelineGraph(request) {
-  const normalized = normalizeRequest(request);
+export function buildPipelineGraph(input) {
+  const normalized = normalizeInput(input);
 
   let template = null;
 
-  switch (request.mode) {
+  switch (input.mode) {
     case PipelineModes.PROCESS:
-      template = JSON.parse(request.graph);
+      template = JSON.parse(input.graph);
       break;
     case PipelineModes.TRAIN_GENERATE:
       template = buildTrainAndGenerateGraph(
         VariantsRegistry[normalized.variant],
         {
-          prompt: normalized.prompt,
+          scriptParams: normalized.scriptInput,
           trainParams: normalized?.trainInput || [],
           genParams: normalized?.genInput || [],
           renderParams: normalized?.renderInput || {},
@@ -293,14 +295,14 @@ export function buildPipelineGraph(request) {
       break;
     case PipelineModes.GENERATE:
       template = buildGenerateOnlyGraph(VariantsRegistry[normalized.variant], {
-        prompt: normalized.prompt,
+        scriptParams: normalized.scriptInput,
         genParams: normalized?.genInput || [],
         renderParams: normalized?.renderInput || {},
       });
       break;
   }
 
-  const { prompt, trainInput, genInput, renderInput, ...pipelineMeta } =
+  const { scriptInput, trainInput, genInput, renderInput, ...pipelineMeta } =
     normalized;
 
   return {

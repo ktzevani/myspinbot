@@ -26,6 +26,7 @@ export async function postGenerate(opts: {
   imgFile: File;
   audioFile: File;
   prompt: string;
+  refTxt: string;
 }): Promise<GenerateResponse> {
   const formData = new FormData();
   formData.append("image_file", opts.imgFile);
@@ -33,10 +34,14 @@ export async function postGenerate(opts: {
   formData.append(
     "data",
     JSON.stringify({
-      mode: "generate",
-      variant: "f5tts_infinitetalk",
-      prompt: opts.prompt,
-      // placeholder for future options/profile; backend is tolerant
+      pipeline: {
+        mode: "generate",
+        variant: "f5tts_infinitetalk",
+      },
+      params: {
+        prompt: opts.prompt,
+        refText: opts.refTxt,
+      }
     })
   );
   const res = await fetch(`${API_BASE}/api/generate`, {

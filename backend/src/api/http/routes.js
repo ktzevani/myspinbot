@@ -44,7 +44,7 @@ async function generateRoute(fastify) {
 
     let imagePath = null;
     let audioPath = null;
-    let metadata = null;
+    let input = null;
 
     for await (const part of parts) {
       if (part.type === "file") {
@@ -59,7 +59,7 @@ async function generateRoute(fastify) {
         // Handle the text fields (the 'data' field containing your JSON)
         if (part.fieldname === "data") {
           try {
-            metadata = JSON.parse(part.value);
+            input = JSON.parse(part.value);
           } catch (e) {
             return reply
               .status(400)
@@ -69,11 +69,15 @@ async function generateRoute(fastify) {
       }
     }
 
+    const prompt = input?.params?.prompt || "";
+    const refText = input?.params?.refText || "";
+
     return reply.send(
       await submitGenerationJob({
+        scriptInput: { prompt },
+        genInput: [{ audioPath, refText }],
         renderInput: { imagePath },
-        genInput: [{ audioPath }],
-        ...metadata,
+        ...input?.pipeline,
       })
     );
   });

@@ -398,6 +398,8 @@ services:
       - MINIO_BUCKETS=loras,voices,videos
       - MINIO_USE_SSL=false
     gpus: all
+    volumes:
+      - comfyui-data:/opt/comfyui:ro
 
   codegen:
     build:

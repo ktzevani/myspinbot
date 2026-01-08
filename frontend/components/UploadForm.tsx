@@ -9,6 +9,7 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
   const imgFileRef = useRef<HTMLInputElement | null>(null);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [prompt, setPrompt] = useState("");
+  const [refTxt, setRefTxt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
         imgFile,
         audioFile,
         prompt,
+        refTxt,
       });
       onJob({
         jobId: jobId,
@@ -37,6 +39,7 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
         createdAt: Date.now(),
       });
       setPrompt("");
+      setRefTxt("");
       if (imgFileRef.current) imgFileRef.current.value = "";
       if (audioFileRef.current) audioFileRef.current.value = "";
     } catch (err: any) {
@@ -79,6 +82,21 @@ export default function UploadForm({ onJob }: { onJob: (job: Job) => void }) {
             type="file"
             accept="audio/*"
             className="mt-1 w-full rounded-lg border bg-white px-3 py-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border file:bg-white file:px-3 file:py-2 file:hover:bg-gray-50"
+          />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="prompt" className="block text-sm font-medium text-gray-700">
+          Audio Sample Reference Text
+        </label>
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row">
+          <input
+            id="reference-text"
+            type="text"
+            placeholder="Enter text…"
+            value={refTxt}
+            onChange={(e) => setRefTxt(e.target.value)}
+            className="flex-1 rounded-lg border px-3 py-2"
           />
         </div>
       </div>
