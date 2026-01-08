@@ -398,6 +398,7 @@ services:
       - MINIO_BUCKETS=loras,voices,videos
       - MINIO_USE_SSL=false
     gpus: all
+    # Currently just for development purposes
     volumes:
       - comfyui-data:/opt/comfyui:ro
 
