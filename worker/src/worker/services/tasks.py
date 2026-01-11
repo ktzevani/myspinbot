@@ -5,6 +5,7 @@ import asyncio
 import io
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, TypeAlias, Dict, Any
 import uuid
@@ -251,38 +252,79 @@ async def render_video(params: Dict[str, Any], node_input: Dict[str, Any]):
 async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
     """Voice model training task honoring variant/options."""
 
-    from ..workflows.tts import TextToSpeech
-
-    tts_params = dict()
-    tts_params.update(
-        {
-            "model": "F5TTS_v1_Base",
-            "device": "cuda",
-            "temperature": 0.8,
-            "speed": 1,
-            "target_rms": 0.1,
-            "cross_fade_duration": 0.15,
-            "nfe_step": 32,
-            "cfg_strength": 2,
-            "narrator_voice": params.get("audioPath"),
-            "ref_text": params.get("refText"),
-            "seed": 290381,
-        }
-    )
-    tts = TextToSpeech(**tts_params)
-
-    audio_meta = tts.run(node_input["narration"])
-
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
-    await publish_progress_cb(progress_weight * 0.1)
+
+    class StreamAdapter:
+        def __init__(self, stream, cb):
+            self.stream = stream
+            self.cb = cb
+
+        def write(self, data):
+            self.stream.write(data)
+
+        def flush(self):
+            self.stream.flush()
+            self.cb()
+
+    prog_count = 0.0
+    total_steps = 30.0
+    step_count = 0
+    loop = asyncio.get_running_loop()
+
+    async def publish_decorator(val):
+        nonlocal step_count
+        await publish_progress_cb(val)
+        step_count += 1
+
+    def on_step():
+        nonlocal prog_count, total_steps
+        prog_count += progress_weight * (1.0 / total_steps)
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(
+                publish_decorator(progress_weight * (1.0 / total_steps))
+            )
+        )
+
+    try:
+        old_stderr = sys.stderr
+        old_stdout = sys.stdout
+        sys.stderr = StreamAdapter(old_stderr, on_step)
+        sys.stdout = StreamAdapter(old_stdout, on_step)
+
+        from ..workflows.tts import TextToSpeech
+
+        tts_params = dict()
+        tts_params.update(
+            {
+                "model": "F5TTS_v1_Base",
+                "device": "cuda",
+                "temperature": 0.8,
+                "speed": 1,
+                "target_rms": 0.1,
+                "cross_fade_duration": 0.15,
+                "nfe_step": 32,
+                "cfg_strength": 2,
+                "narrator_voice": params.get("audioPath"),
+                "ref_text": params.get("refText"),
+                "seed": 290381,
+            }
+        )
+        tts = TextToSpeech(**tts_params)
+        audio_meta = await asyncio.to_thread(tts.run, node_input["narration"])
+    finally:
+        sys.stderr = old_stderr
+        sys.stdout = old_stdout
+
     result = {"audioArtifact": audio_meta}
 
-    await publish_progress_cb(progress_weight * 0.7)
-    await asyncio.sleep(0.3)
-    await publish_progress_cb(progress_weight * 0.2)
+    if step_count < total_steps:
+        await publish_progress_cb(
+            progress_weight * (total_steps - step_count + 1) / total_steps
+        )
+
     print(f"[Worker] ✅ Voice model training completed: {result}")
     return result
 
