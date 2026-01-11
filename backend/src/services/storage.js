@@ -13,5 +13,5 @@ export async function uploadBuffer(buffer, originalFilename) {
   // Upload the buffer
   await client.putObject(bucketName, objectName, buffer);
 
-  return objectName;
+  return `${bucketName}/${objectName}`;
 }

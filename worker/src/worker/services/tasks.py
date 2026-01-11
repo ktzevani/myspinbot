@@ -251,42 +251,34 @@ async def render_video(params: Dict[str, Any], node_input: Dict[str, Any]):
 async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
     """Voice model training task honoring variant/options."""
 
+    from ..workflows.tts import TextToSpeech
+
+    tts_params = dict()
+    tts_params.update(
+        {
+            "model": "F5TTS_v1_Base",
+            "device": "cuda",
+            "temperature": 0.8,
+            "speed": 1,
+            "target_rms": 0.1,
+            "cross_fade_duration": 0.15,
+            "nfe_step": 32,
+            "cfg_strength": 2,
+            "narrator_voice": params.get("audioPath"),
+            "ref_text": params.get("refText"),
+            "seed": 290381,
+        }
+    )
+    tts = TextToSpeech(**tts_params)
+
+    audio_meta = tts.run(node_input["narration"])
+
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
-    preset = params.get("preset") or params.get("variant") or "default"
-    voice_id = str(uuid.uuid4())
     await publish_progress_cb(progress_weight * 0.1)
-
-    waveform = synthesize_wave_speech(
-        node_input.get("sample_text")
-        or params.get("sample_text")
-        or "Default voice line."
-    )
-    audio_artifact = upload_bytes(
-        "voices",
-        f"{voice_id}_{preset}.wav",
-        content=waveform,
-        content_type="audio/wav",
-    )
-    voice_manifest = {
-        "voiceId": voice_id,
-        "preset": preset,
-        "language": node_input.get("language") or params.get("language") or "en",
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-    }
-    voice_meta_artifact = upload_bytes(
-        "voices",
-        f"{voice_id}_{preset}.json",
-        json.dumps(voice_manifest, indent=2).encode("utf-8"),
-        content_type="application/json",
-    )
-    result = {
-        "voiceArtifact": audio_artifact.meta.model_dump(mode="json"),
-        "voiceMeta": voice_meta_artifact.meta.model_dump(mode="json"),
-    }
+    result = {"audioArtifact": audio_meta}
 
     await publish_progress_cb(progress_weight * 0.7)
     await asyncio.sleep(0.3)
