@@ -16,6 +16,10 @@ class ServerConfig(BaseModel):
     port: int = Field(..., description="TCP port to listen on")
 
 
+class ComfyConfig(BaseModel):
+    root_dir: str = Field(..., description="Absolute path to root directory")
+
+
 class StorageConfiguration(BaseModel):
     """Configuration for object storage."""
 
@@ -34,6 +38,8 @@ class WorkerConfiguration(BaseModel):
         ..., description="Application-specific redis streams configuration."
     )
     server: ServerConfig = Field(..., description="Unicorn server configuration")
+
+    comfy: ComfyConfig = Field(..., description="ComfyUI configuration")
 
     storage: StorageConfiguration = Field(
         ..., description="Configuration of object storage"

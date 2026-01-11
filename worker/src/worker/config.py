@@ -28,6 +28,9 @@ def get_config() -> WorkerConfiguration:
         app_config = json.loads(
             Path(_CONFIG_ROOT_DIR + "/config.json").read_text(encoding="utf-8")
         )
+        app_config.update(
+            {"comfy": {"root_dir": os.getenv("COMFYUI_ROOT_DIR", "/opt/comfyui")}}
+        )
         storage_config = {
             "storage": {
                 "url": os.getenv("MINIO_ENDPOINT", "http://minio:9000"),

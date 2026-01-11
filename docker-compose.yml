@@ -397,6 +397,7 @@ services:
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_BUCKETS=loras,voices,videos
       - MINIO_USE_SSL=false
+      - COMFYUI_ROOT_DIR=/opt/comfyui
     gpus: all
     # Currently just for development purposes
     volumes:

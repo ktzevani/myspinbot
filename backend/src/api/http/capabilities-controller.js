@@ -32,7 +32,7 @@ export async function getCapabilitiesManifest() {
   const planner = new Planner(appConfig);
   const graph = planner.getJobGraph({
     workflowId: jobId,
-    request: {
+    input: {
       mode: "process_graph",
       graph: JSON.stringify(capsGraph),
     },

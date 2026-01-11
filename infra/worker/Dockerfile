@@ -148,6 +148,7 @@ WORKDIR ${WORKER_HOME}
 RUN [ "$WORKER_MODE" = "comfyui" ] && git clone https://github.com/comfyanonymous/ComfyUI.git . && \
     git config --global --add safe.directory $WORKER_HOME && \
     git config --global --add safe.directory $WORKER_HOME/custom_nodes/comfyui-f5-tts || true
+RUN [ "$WORKER_MODE" = "app" ] && cd /opt && git clone https://github.com/comfyanonymous/ComfyUI.git . || true
 
 COPY ./worke[r] .
 COPY ./commo[n]/config ./config
@@ -165,6 +166,7 @@ RUN uv pip install \
 RUN echo "PyTorch Installed."
 
 RUN [ "$WORKER_MODE" = "comfyui" ] && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "app" ] && cd /opt/comfyui && uv pip install -r requirements.txt || true
 
 RUN uv pip install \
     audio_separator \
