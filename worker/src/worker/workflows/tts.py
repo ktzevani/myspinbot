@@ -1,4 +1,3 @@
-import sys
 import torchaudio
 from io import BytesIO
 import av
@@ -16,22 +15,15 @@ def _ensure_initialized():
         return
 
     import os
-    from ..config import get_config
     import importlib.util
-    import sys
+    from . import initialize_comfy_environment
 
-    worker_config = get_config()
-
-    norm_sys_paths = [os.path.normpath(p) for p in sys.path]
-    norm_root_path = os.path.normpath(worker_config.comfy.root_dir)
-
-    if norm_root_path not in norm_sys_paths:
-        sys.path.append(norm_root_path)
-
-    nodes_dir = os.path.join(
-        worker_config.comfy.root_dir, "custom_nodes", "tts_audio_suite", "nodes"
+    comfy_root_dir = initialize_comfy_environment()
+    tts_nodes_dir = os.path.join(
+        comfy_root_dir, "custom_nodes", "tts_audio_suite", "nodes"
     )
-    f5tts_node_path = os.path.join(nodes_dir, "f5tts", "f5tts_node.py")
+
+    f5tts_node_path = os.path.join(tts_nodes_dir, "f5tts", "f5tts_node.py")
     f5tts_spec = importlib.util.spec_from_file_location("f5tts_module", f5tts_node_path)
 
     if f5tts_spec is not None:

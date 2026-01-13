@@ -236,7 +236,7 @@ class Executor:
                     **(node.get("params") or {}),
                     "progress_weight": node.get("progressWeight") or 0,
                     "publish_progress_cb": lambda step: self.bridge.publish_progress(
-                        job_id, step, True
+                        job_id, step, False
                     ),
                     "publish_data_cb": lambda data: self.bridge.publish_data(
                         job_id, data

@@ -206,8 +206,6 @@ class RedisBridge:
         if stepping:
             curVal = float(await self.redis.get(f"job:{jobId}:progress"))
             updVal += curVal
-        # TODO: To be removed
-        await asyncio.sleep(0.2)
         await self._publish(
             channel,
             ProgressUpdate(

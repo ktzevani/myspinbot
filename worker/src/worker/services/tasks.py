@@ -257,6 +257,16 @@ async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
         params["publish_progress_cb"],
     )
 
+    await publish_progress_cb(node_input["currentProgress"] + progress_weight)
+
+    return {
+        "audioArtifact": {
+            "bucket": "audio",
+            "key": "e3118e963d254e8e97f07f4738dbe9b7.mp3",
+        },
+        "currentProgress": node_input["currentProgress"] + progress_weight,
+    }
+
     class StreamAdapter:
         def __init__(self, stream, cb):
             self.stream = stream
@@ -264,34 +274,26 @@ async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
 
         def write(self, data):
             self.stream.write(data)
+            self.cb()
 
         def flush(self):
             self.stream.flush()
             self.cb()
 
-    prog_count = 0.0
+    current_progress = node_input["currentProgress"]
     total_steps = 30.0
-    step_count = 0
+    step_weight = progress_weight / total_steps
     loop = asyncio.get_running_loop()
 
-    async def publish_decorator(val):
-        nonlocal step_count
-        await publish_progress_cb(val)
-        step_count += 1
-
     def on_step():
-        nonlocal prog_count, total_steps
-        prog_count += progress_weight * (1.0 / total_steps)
+        nonlocal current_progress, step_weight
+        current_progress += step_weight
         loop.call_soon_threadsafe(
-            lambda: loop.create_task(
-                publish_decorator(progress_weight * (1.0 / total_steps))
-            )
+            lambda: loop.create_task(publish_progress_cb(current_progress))
         )
 
     try:
-        old_stderr = sys.stderr
         old_stdout = sys.stdout
-        sys.stderr = StreamAdapter(old_stderr, on_step)
         sys.stdout = StreamAdapter(old_stdout, on_step)
 
         from ..workflows.tts import TextToSpeech
@@ -315,92 +317,262 @@ async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
         tts = TextToSpeech(**tts_params)
         audio_meta = await asyncio.to_thread(tts.run, node_input["narration"])
     finally:
-        sys.stderr = old_stderr
         sys.stdout = old_stdout
 
-    result = {"audioArtifact": audio_meta}
+    result = {
+        "audioArtifact": audio_meta,
+        "currentProgress": node_input["currentProgress"] + progress_weight,
+    }
 
-    if step_count < total_steps:
-        await publish_progress_cb(
-            progress_weight * (total_steps - step_count + 1) / total_steps
-        )
+    await publish_progress_cb(result["currentProgress"])
 
-    print(f"[Worker] ✅ Voice model training completed: {result}")
+    print(
+        f"[Worker] ✅ Voice generation completed (artifact in s3): {result["audioArtifact"]}"
+    )
     return result
 
 
-@task("render_video_infinitetalk")
-async def render_video_infinitetalk(params: Dict[str, Any], node_input: Dict[str, Any]):
-    """Hybrid video rendering task using ComfyUI + synthetic TTS with a structured manifest."""
+@task("infinite_talk")
+async def infinite_talk(params: Dict[str, Any], node_input: Dict[str, Any]):
 
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
-    variant = params.get("variant") or params.get("preset") or "default"
-    comfy_url = params.get("comfy_url") or os.getenv(
-        "COMFYUI_BASE_URL", "http://comfyui:8188"
-    )
-    # Gather upstream context
-    stage_prompt = (
-        node_input.get("stagePrompt")
-        or node_input.get("prompt")
-        or node_input.get("script", {}).get("stagePrompt")
-        or params.get("stagePrompt")
-        or "Untitled scene"
-    )
-    narration = (
-        node_input.get("narration")
-        or node_input.get("script", {}).get("narration")
-        or params.get("narration")
-        or "Narration not provided."
-    )
-    await publish_progress_cb(progress_weight * 0.1)
-    print(f"[Worker] 🎬 Starting video rendering (variant={variant})")
 
-    audio = synthesize_wave_speech(narration)
-    audio_artifact = upload_bytes(
-        "audio",
-        f"{uuid.uuid4()}_{variant}.wav",
-        content=audio,
-        content_type="audio/wav",
-    )
+    await publish_progress_cb(node_input["currentProgress"] + progress_weight)
 
-    image_bytes, render_meta = await _generate_visual(
-        stage_prompt, comfy_url if comfy_url else None
-    )
-    image_artifact = upload_bytes(
-        "renders",
-        f"{uuid.uuid4()}_{variant}.png",
-        content=image_bytes,
-        content_type="image/png",
-    )
-
-    video_manifest = {
-        "variant": variant,
-        "stagePrompt": stage_prompt,
-        "narration": narration,
-        "image": image_artifact.meta.model_dump(mode="json"),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
+    return {
+        "videoArtifact": {
+            "bucket": "videos",
+            "key": "ba136c2c684e42f9aaac59666a9ed308.mp4",
+        },
+        "currentProgress": node_input["currentProgress"] + progress_weight,
     }
-    manifest_artifact = upload_bytes(
-        "videos",
-        f"{uuid.uuid4()}_{variant}_manifest.json",
-        content=json.dumps(video_manifest, indent=2).encode("utf-8"),
-        content_type="application/json",
-    )
+
+    class StreamAdapter:
+        def __init__(self, stream, cb):
+            self.stream = stream
+            self.cb = cb
+
+        def write(self, data):
+            self.stream.write(data)
+            self.cb()
+
+        def flush(self):
+            self.stream.flush()
+            self.cb()
+
+    current_progress = node_input["currentProgress"]
+    total_steps = 1800.0
+    step_weight = progress_weight / total_steps
+    loop = asyncio.get_running_loop()
+
+    def on_step():
+        nonlocal current_progress, step_weight
+        current_progress += step_weight
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(publish_progress_cb(current_progress))
+        )
+
+    try:
+        old_stdout = sys.stdout
+        sys.stdout = StreamAdapter(old_stdout, on_step)
+
+        from ..workflows.infinitetalk import InfiniteTalk
+
+        infinitetalk_params = dict()
+        infinitetalk_params.update(
+            {
+                # Model Loading
+                "infinitetalk_model": "wanvideo/infinite_talk/Wan2_1-InfiniTetalk-Single_fp16.safetensors",
+                "vae_model": "wanvideo/Wan2_1_VAE_bf16.safetensors",
+                "t5_text_encoder_model": "umt5/umt5-xxl-enc-bf16.safetensors",
+                "t5_precision": "bf16",
+                "wav2vec_model": "TencentGameMate/chinese-wav2vec2-base",
+                "wav2vec_precision": "fp16",
+                "wav2vec_load_device": "main_device",
+                "lora_model": "wanvideo/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+                "lora_strength": 1,
+                "clip_vision_model": "wanvideo/clip_vision_h.safetensors",
+                "wan_video_model": "wanvideo/wan2.1_i2v_720p_14B_bf16.safetensors",
+                "wan_video_precision": "bf16",
+                "wan_video_quantization": "disabled",
+                "wan_video_load_device": "offload_device",
+                # Memory & Performance
+                "blocks_to_swap": 40,
+                "offload_img_emb": True,
+                "offload_txt_emb": True,
+                "compile_backend": "inductor",
+                "compile_fullgraph": False,
+                "compile_mode": "default",
+                "compile_dynamic": False,
+                "compile_cache_size_limit": 64,
+                "compile_transformer_blocks_only": True,
+                # Resolution & Resizing
+                "resolution_mode": "Manual",
+                "width": 256,  # 960,
+                "height": 256,  # 576,
+                "upscale_method": "lanczos",
+                "keep_proportion": "crop",
+                "pad_color": "0, 0, 0",
+                "crop_position": "center",
+                "divisible_by": 16,
+                # Sampling & Generation
+                "fps": 15,
+                "positive_prompt": params.get(
+                    "positive_prompt",
+                    "a man is talking, professional speaker, dramatic, intelligent, subtle head movement, high-resolution, cinematic lighting\n",
+                ),
+                "negative_prompt": params.get(
+                    "negative_prompt",
+                    "blurry, distorted, static, text, watermark, exaggerated movement, bad lip sync, bad hands, low quality",
+                ),
+                "sampling_steps": 6,
+                "sampling_cfg": 1.0,
+                "sampling_shift": 11,
+                "sampling_seed": params.get("seed", 290381),
+                "sampling_force_offload": True,
+                "sampling_scheduler": "dpm++_sde",
+                "riflex_freq_index": 0,
+                "frame_window_size": 81,
+                "motion_frame": 15,
+                "infinitetalk_force_offload": True,
+                "colormatch": "disabled",
+                # Audio Processing
+                "audio_start_time": "0:00",
+                "audio_end_time": "0:04",
+                "normalize_loudness": True,
+                "audio_scale": 1.6,
+                "audio_cfg_scale": 1,
+                "multi_audio_type": "add",
+                # VAE Tiling
+                "encode_vae_tiling": True,
+                "encode_tile_x": 384,
+                "encode_tile_y": 384,
+                "encode_tile_stride_x": 256,
+                "encode_tile_stride_y": 256,
+                "decode_vae_tiling": True,
+                "decode_tile_x": 128,
+                "decode_tile_y": 128,
+                "decode_tile_stride_x": 96,
+                "decode_tile_stride_y": 96,
+                # Output
+                "video_loop_count": 0,
+                "video_format": "video/h264-mp4",
+                "video_pingpong": False,
+                "video_save_output": True,
+                # CLIP Vision Specifics
+                "clip_vision_strength_1": 1,
+                "clip_vision_strength_2": 1,
+                "clip_vision_crop": "center",
+                "clip_vision_combine_embeds": "average",
+                "clip_vision_force_offload": True,
+            }
+        )
+
+        infitalk = InfiniteTalk(**infinitetalk_params)
+        video_meta = await asyncio.to_thread(
+            infitalk.run,
+            params.get("imagePath"),
+            f"{node_input.get('audioArtifact')['bucket']}/{node_input.get('audioArtifact')['key']}",
+        )
+    finally:
+        sys.stdout = old_stdout
 
     result = {
-        "video": manifest_artifact.meta.model_dump(mode="json"),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-        "image": image_artifact.meta.model_dump(mode="json"),
-        "render_meta": render_meta,
+        "videoArtifact": video_meta,
+        "currentProgress": node_input["currentProgress"] + progress_weight,
     }
 
-    await publish_progress_cb(progress_weight * 0.9)
-    await asyncio.sleep(0.3)
-    print(f"[Worker] ✅ Video rendering completed: {result.get('video')}")
+    await publish_progress_cb(result["currentProgress"])
+    print(
+        f"[Worker] ✅ Infinite talk speech video generated (artifact in s3): {result["videoArtifact"]}"
+    )
+    return result
+
+
+@task("render_video_infinitetalk")
+async def render_video_infinitetalk(params: Dict[str, Any], node_input: Dict[str, Any]):
+    progress_weight, publish_progress_cb = (
+        params.get("progress_weight", 0),
+        params["publish_progress_cb"],
+    )
+
+    class StreamAdapter:
+        def __init__(self, stream, cb):
+            self.stream = stream
+            self.cb = cb
+
+        def write(self, data):
+            self.stream.write(data)
+            self.cb()
+
+        def flush(self):
+            self.stream.flush()
+            self.cb()
+
+    current_progress = node_input["currentProgress"]
+    total_steps = 100.0
+    step_weight = progress_weight / total_steps
+    loop = asyncio.get_running_loop()
+
+    def on_step():
+        nonlocal current_progress, step_weight
+        current_progress += step_weight
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(publish_progress_cb(current_progress))
+        )
+
+    try:
+        old_stdout = sys.stdout
+        sys.stdout = StreamAdapter(old_stdout, on_step)
+
+        from ..workflows.upscaler import AIUpscaler
+
+        upscaler_params = dict()
+        upscaler_params.update(
+            {
+                "model_name_0": "4x_NMKD-Siax_200k.pth",
+                "fps_multiplier": 2,
+                "model_name_1": "codeformer.pth",
+                "force_rate": 0,
+                "custom_width": 0,
+                "custom_height": 0,
+                "frame_load_cap": 0,
+                "skip_first_frames": 0,
+                "select_every_nth": 1,
+                "facedetection": "retinaface_resnet50",
+                "codeformer_fidelity": 1,
+                "ckpt_name": "rife47.pth",
+                "clear_cache_after_n_frames": 100,
+                "fast_mode": False,
+                "ensemble": True,
+                "scale_factor": 1,
+                "loop_count": 0,
+                "format": "video/h264-mp4",
+                "pingpong": False,
+                "save_output": True,
+            }
+        )
+
+        upscaler = AIUpscaler(**upscaler_params)
+        video_meta = await asyncio.to_thread(
+            upscaler.run,
+            f"{node_input.get('videoArtifact')['bucket']}/{node_input.get('videoArtifact')['key']}",
+        )
+    finally:
+        sys.stdout = old_stdout
+
+    result = {
+        "videoArtifact": video_meta,
+        "currentProgress": node_input["currentProgress"] + progress_weight,
+    }
+
+    await publish_progress_cb(result["currentProgress"])
+    print(
+        f"[Worker] ✅ Video rendering completed (artifact in s3): {result["videoArtifact"]}"
+    )
     return result
 
 
