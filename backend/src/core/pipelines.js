@@ -81,7 +81,15 @@ const VariantsRegistry = Object.freeze({
         name: "Generate voice (F5-TTS)",
         task: "f5_to_tts",
         plane: "python",
-        progressWeight: 0.3,
+        progressWeight: 0.15,
+        params: { preset: PipelineVariants.F5_TTS_INFINITE_TALK },
+      },
+      {
+        id: "infinite_talk",
+        name: "Generate speech video",
+        task: "infinite_talk",
+        plane: "python",
+        progressWeight: 0.55,
         params: { preset: PipelineVariants.F5_TTS_INFINITE_TALK },
       },
     ],
@@ -90,7 +98,7 @@ const VariantsRegistry = Object.freeze({
       name: "Render video (WAN+InfiniteTalk)",
       task: "render_video_infinitetalk",
       plane: "python",
-      progressWeight: 0.5,
+      progressWeight: 0.2,
       params: { preset: PipelineVariants.F5_TTS_INFINITE_TALK },
     },
   },
@@ -159,7 +167,7 @@ function buildScriptNode(prompt) {
     task: "script.generateScript",
     plane: "node",
     status: "pending",
-    progressWeight: 0.2,
+    progressWeight: 0.1,
     params: {
       tone: defaultLlm.tone || "casual",
       length: defaultLlm.lengthSeconds || 20,
@@ -256,8 +264,8 @@ function buildGenerateOnlyGraph(
     prevNode = generateNodes[0];
     for (let i = 1; i < generateNodes.length; i++) {
       edges.push({
-        from: generateNodes[i].id,
-        to: prevNode.id,
+        from: prevNode.id,
+        to: generateNodes[i].id,
         kind: "normal",
       });
       prevNode = generateNodes[i];

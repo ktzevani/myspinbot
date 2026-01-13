@@ -41,9 +41,11 @@ export async function generateScript(params, input) {
     typeof progressWeight === "number" && progressWeight > 0
       ? progressWeight / steps
       : 0;
+  let currentProgress = 0;
   const bump = async () => {
     if (stepWeight > 0) {
-      await publishProgressCb(stepWeight);
+      currentProgress += stepWeight;
+      await publishProgressCb(currentProgress);
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
   };
@@ -117,9 +119,10 @@ export async function generateScript(params, input) {
     model,
     temperature,
     provider: "ollama",
+    currentProgress,
   };
 
   await bump();
-
+  result.currentProgress = currentProgress;
   return result;
 }

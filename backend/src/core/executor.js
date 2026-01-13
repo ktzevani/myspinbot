@@ -195,7 +195,7 @@ class Executor {
             ...(node.params || {}),
             progressWeight: node?.progressWeight || 0,
             publishProgressCb: (step) => {
-              jobQueue.publishProgress(jobId, step, true);
+              jobQueue.publishProgress(jobId, step, false);
             },
             publishDataCb: (data) => {
               jobQueue.publishData(jobId, data);

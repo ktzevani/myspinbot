@@ -75,8 +75,7 @@ async function generateRoute(fastify) {
     return reply.send(
       await submitGenerationJob({
         scriptInput: { prompt },
-        genInput: [{ audioPath, refText }],
-        renderInput: { imagePath },
+        genInput: [{ audioPath, refText }, { imagePath }],
         ...input?.pipeline,
       })
     );
