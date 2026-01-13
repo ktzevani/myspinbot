@@ -57,3 +57,20 @@ export function wsUrl(): string {
   const base = API_BASE.replace(/^http/, "ws");
   return `${base}/ws`;
 }
+
+export async function getJobResult(jobId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/jobs/${jobId}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch job result: ${res.status}`);
+  }
+  const result = await res.json();
+  if (result && result?.job?.lastGraph?.nodes) {
+    const renderNode = result?.job?.lastGraph?.nodes.find(
+      (node: any) => node.id === "render_video_infinitetalk"
+    );
+    if (renderNode && renderNode.output) {
+      return renderNode.output;
+    }
+  }
+  return null;
+}

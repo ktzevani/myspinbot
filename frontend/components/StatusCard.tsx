@@ -1,7 +1,7 @@
 // components/StatusCard.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ProgressBar from "./ProgressBar";
-import type { Job } from "@/lib/api";
+import { getJobResult, type Job } from "@/lib/api";
 import { JobStatus, JobType } from "@/lib/enums";
 
 function pillColor(status: Job["status"]) {
@@ -20,6 +20,20 @@ function pillColor(status: Job["status"]) {
 }
 
 export default function StatusCard({ job }: { job: Job }) {
+  const [jobResult, setJobResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (job.status === JobStatus.COMPLETED) {
+      getJobResult(job.jobId)
+        .then((result) => {
+          setJobResult(result);
+        })
+        .catch((error) => {
+          console.error("Failed to get job result:", error);
+        });
+    }
+  }, [job.status, job.jobId]);
+
   return (
     <div className="rounded-2xl border p-4 shadow-sm space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -44,15 +58,14 @@ export default function StatusCard({ job }: { job: Job }) {
 
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div>{Math.round((job.progress ?? 0) * 100)}%</div>
-        {job.resultUrl && job.status === JobStatus.COMPLETED && (
-          <a
-            className="underline"
-            href={job.resultUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            View result
-          </a>
+        {job.status === JobStatus.COMPLETED && jobResult && (
+          <div>
+            <video
+              src={`https://storage.myspinbot.local/${jobResult.videoArtifact.bucket}/${jobResult.videoArtifact.key}`}
+              controls
+              className="w-full"
+            />
+          </div>
         )}
       </div>
     </div>
