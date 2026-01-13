@@ -155,6 +155,10 @@ class Executor {
         ? "completed"
         : "handoff";
 
+    if (isGraphCompleted) {
+      await jobQueue.setJobPayload(jobId, graph);
+    }
+
     return { status, ...ret };
   }
 

@@ -216,7 +216,7 @@ class Executor:
         if is_graph_failed:
             return "failed"
         elif is_graph_completed:
-            return "completed"
+            return "handoff"
 
         return "handoff"
 
