@@ -57,17 +57,17 @@ export default function StatusCard({ job }: { job: Job }) {
       <ProgressBar value={job.progress} />
 
       <div className="flex items-center justify-between text-xs text-gray-500">
-        <div>{Math.round((job.progress ?? 0) * 100)}%</div>
-        {job.status === JobStatus.COMPLETED && jobResult && (
-          <div>
-            <video
-              src={`https://storage.myspinbot.local/${jobResult.videoArtifact.bucket}/${jobResult.videoArtifact.key}`}
-              controls
-              className="w-full"
-            />
-          </div>
-        )}
+      <div>{Math.round((job.progress ?? 0) * 100)}%</div>
       </div>
+      {job.status === JobStatus.COMPLETED && jobResult && (
+        <div>
+          <video
+            src={`https://s3.myspinbot.local/api/v1/buckets/${jobResult.videoArtifact.bucket}/objects/download?preview=true&prefix=${jobResult.videoArtifact.key}`}
+            controls
+            className="w-full"
+          />
+        </div>
+      )}
     </div>
   );
 }
