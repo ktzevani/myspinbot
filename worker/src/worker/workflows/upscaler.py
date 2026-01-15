@@ -89,9 +89,6 @@ def _ensure_initialized():
     )
     facerestore_cf_module = importlib.import_module("custom_nodes.facerestore_cf")
     comfyui_kjnodes_module = importlib.import_module("custom_nodes.comfyui-kjnodes")
-    comfyui_frame_interpolation_module = importlib.import_module(
-        "custom_nodes.comfyui-frame-interpolation"
-    )
     video_helpers_module = importlib.import_module(
         "custom_nodes.comfyui-videohelpersuite"
     )
@@ -101,7 +98,6 @@ def _ensure_initialized():
     _DEPS.update(video_helpers_module.NODE_CLASS_MAPPINGS)
     _DEPS.update(facerestore_cf_module.NODE_CLASS_MAPPINGS)
     _DEPS.update(comfyui_kjnodes_module.NODE_CLASS_MAPPINGS)
-    _DEPS.update(comfyui_frame_interpolation_module.NODE_CLASS_MAPPINGS)
 
     if len(_DEPS) == 0:
         raise RuntimeError(f"{__name__}: Failed to import dependencies.")
@@ -115,15 +111,12 @@ class AIUpscaler:
         self.image_upscale_with_model = _DEPS["ImageUpscaleWithModel"]()
         self.face_restore_model_loader = _DEPS["FaceRestoreModelLoader"]()
         self.face_restore_cf_with_model = _DEPS["FaceRestoreCFWithModel"]()
-        self.rife_vfi = _DEPS["RIFE VFI"]()
         self.vhs_load_video = _DEPS["VHS_LoadVideo"]()
         self.vhs_video_combine = _DEPS["VHS_VideoCombine"]()
 
-    def run(self, videoStorageRef: str):
-        import torch
-        from ..config import get_config
-        from ..services.tasks import upload_bytes
+    def estimate_progress_steps(self, videoStorageRef: str, batch_size: int):
         import folder_paths
+        from ..config import get_config
         import math
 
         worker_config = get_config()
@@ -134,7 +127,47 @@ class AIUpscaler:
             secure=worker_config.storage.url.startswith("https://"),
         )
 
-        batch_size = 30
+        bucket, key = videoStorageRef.split("/", 1)
+        input_dir = folder_paths.get_input_directory()
+        os.makedirs(input_dir, exist_ok=True)
+
+        local_filename = f"{uuid.uuid4().hex}_{os.path.basename(key)}"
+        local_path = os.path.join(input_dir, local_filename)
+        client.fget_object(bucket, key, local_path)
+
+        vhsloadvideo = self.vhs_load_video.load_video(
+            video=local_filename,
+            force_rate=self.params.force_rate,
+            custom_width=self.params.custom_width,
+            custom_height=self.params.custom_height,
+            frame_load_cap=self.params.frame_load_cap,
+            skip_first_frames=self.params.skip_first_frames,
+            select_every_nth=self.params.select_every_nth,
+            format="AnimateDiff",
+        )
+
+        # this derived empirically
+        steps = math.ceil(vhsloadvideo[1] / batch_size) * 11 + 10
+        del vhsloadvideo
+
+        return steps
+
+    def run(self, videoStorageRef: str):
+        import torch
+        from ..config import get_config
+        from ..services.tasks import upload_bytes
+        import folder_paths
+        import math
+        import gc
+
+        worker_config = get_config()
+        client = Minio(
+            worker_config.storage.url.replace("http://", "").replace("https://", ""),
+            worker_config.storage.username,
+            worker_config.storage.password,
+            secure=worker_config.storage.url.startswith("https://"),
+        )
+
         video_chunks = []
 
         with torch.inference_mode():
@@ -184,10 +217,12 @@ class AIUpscaler:
                 audio_file_path.name,
             )
 
-            for i in range(math.ceil(vhsloadvideo[0].shape[0] / batch_size)):
+            for i in range(
+                math.ceil(vhsloadvideo[0].shape[0] / self.params.batch_size)
+            ):
 
                 print(
-                    f"\tBatch {i+1}/{math.ceil(vhsloadvideo[0].shape[0] / batch_size)} is being processed..."
+                    f"\tBatch {i+1}/{math.ceil(vhsloadvideo[0].shape[0] / self.params.batch_size)} is being processed..."
                 )
                 sys.stdout.flush()
                 sys.stdout.write("\t\tUpscaling...\r")
@@ -195,9 +230,14 @@ class AIUpscaler:
                 imageupscalewithmodel = (
                     self.image_upscale_with_model.EXECUTE_NORMALIZED(
                         upscale_model=upscalemodelloader[0],
-                        image=vhsloadvideo[0][i * batch_size : (i + 1) * batch_size],
+                        image=vhsloadvideo[0][
+                            i
+                            * self.params.batch_size : (i + 1)
+                            * self.params.batch_size
+                        ],
                     )
                 )
+
                 sys.stdout.write("\t\tRestoring face...\r")
                 sys.stdout.flush()
                 facerestorecfwithmodel = self.face_restore_cf_with_model.restore_face(
@@ -206,38 +246,31 @@ class AIUpscaler:
                     facerestore_model=facerestoremodelloader[0],
                     image=imageupscalewithmodel[0],
                 )
-                sys.stdout.write("\t\tInterpolating frames...\r")
-                sys.stdout.flush()
-                rifevfi = self.rife_vfi.vfi(
-                    ckpt_name=self.params.ckpt_name,
-                    clear_cache_after_n_frames=self.params.clear_cache_after_n_frames,
-                    multiplier=self.params.fps_multiplier,
-                    fast_mode=self.params.fast_mode,
-                    ensemble=self.params.ensemble,
-                    scale_factor=self.params.scale_factor,
-                    frames=facerestorecfwithmodel[0],
-                )
                 sys.stdout.write("\t\tSaving chunk...\r")
                 sys.stdout.flush()
                 video_out = self.vhs_video_combine.combine_video(
-                    frame_rate=vhsloadvideo[3]["source_fps"]
-                    * self.params.fps_multiplier,
-                    loop_count=self.params.loop_count,
+                    frame_rate=vhsloadvideo[3]["source_fps"],
+                    loop_count=0,
                     filename_prefix=f"video/{key.split('.')[0]}-chunk",
-                    format=self.params.format,
+                    format="video/h264-mp4",
                     pix_fmt="yuv420p",
                     crf=19,
                     save_metadata=True,
                     trim_to_audio=False,
-                    pingpong=self.params.pingpong,
-                    save_output=self.params.save_output,
-                    images=rifevfi[0],
+                    pingpong=False,
+                    save_output=True,
+                    images=facerestorecfwithmodel[0],
                 )
                 video_chunks.append(video_out["ui"]["gifs"][0]["fullpath"])
+                del imageupscalewithmodel
+                del facerestorecfwithmodel
+                torch.cuda.empty_cache()
+                gc.collect()
 
         print("\tVideo is processed, combining chunks to object storage...")
         sys.stdout.flush()
 
+        video_chunks.append(video_out["ui"]["gifs"][0]["fullpath"])
         video_file_path = tempfile.NamedTemporaryFile(
             mode="w", delete=False, suffix=".mp4"
         )
@@ -251,7 +284,7 @@ class AIUpscaler:
             video_data = f.read()
 
         artifact = upload_bytes(
-            bucket="videos",
+            bucket="output",
             name=f"{uuid.uuid4().hex}.mp4",
             content=video_data,
             content_type="video/mp4",

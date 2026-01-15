@@ -1,6 +1,4 @@
-import torchaudio
 from io import BytesIO
-import av
 import uuid
 from minio import Minio
 from ..models.worker.workflows_schema import TextToSpeechParams
@@ -42,10 +40,20 @@ class TextToSpeech:
         self.engine_instance = _DEPS["F5TTSNode"]()
         setattr(self.engine_instance, "device", self.params.device)
 
+    def estimate_progress_steps(self, text: str, tokens_per_iteration: int = 60):
+        import math
+
+        steps = 14 + 3 * math.floor(len(text.split(" ")) / tokens_per_iteration)
+        return steps
+
     def run(self, text: str):
         """Execute TTS generation using MinIO for inputs and outputs."""
         from ..config import get_config
         from ..services.tasks import upload_bytes
+        import torchaudio.transforms as T
+        import scipy.io.wavfile as wavfile
+        import torchaudio
+        import torch
 
         worker_config = get_config()
         client = Minio(
@@ -55,7 +63,6 @@ class TextToSpeech:
             secure=worker_config.storage.url.startswith("https://"),
         )
 
-        # Download reference audio from MinIO (expected format: "bucket/key")
         bucket, key = self.params.narrator_voice.split("/", 1)
         response = client.get_object(bucket, key)
         try:
@@ -91,29 +98,39 @@ class TextToSpeech:
         )
 
         out_waveform, out_sample_rate = list(result[0].values())
-        layout = "mono"
-        output_buffer = BytesIO()
-        with av.open(output_buffer, mode="w", format="mp3") as output_container:
-            out_stream = output_container.add_stream(
-                "libmp3lame", rate=out_sample_rate, layout=layout
-            )
-            out_stream.codec_context.qscale = 1
-            frame = av.AudioFrame.from_ndarray(
-                out_waveform.movedim(0, 1).reshape(1, -1).float().numpy(),
-                format="flt",
-                layout=layout,
-            )
-            frame.sample_rate = out_sample_rate
-            frame.pts = 0
-            output_container.mux(out_stream.encode(frame))
-            output_container.mux(out_stream.encode(None))
 
-        # Upload result to MinIO and return metadata
+        out_waveform = out_waveform.to(torch.float32)
+        if out_waveform.ndim == 1:
+            out_waveform = out_waveform.unsqueeze(0)
+
+        target_sample_rate = 16000
+        if out_sample_rate != target_sample_rate:
+            resampler = (
+                T.Resample(orig_freq=out_sample_rate, new_freq=target_sample_rate)
+                .to(out_waveform.device)
+                .to(out_waveform.dtype)
+            )
+
+            out_waveform = resampler(out_waveform)
+            out_sample_rate = target_sample_rate
+
+        audio_tensor = out_waveform.cpu()
+
+        if audio_tensor.abs().max() > 0:  # Avoid division by zero for silent audio
+            if audio_tensor.abs().max() > 1.0:
+                audio_tensor = audio_tensor / audio_tensor.abs().max()
+
+        audio_tensor = torch.clamp(audio_tensor, -1.0, 1.0)
+        audio_data = audio_tensor.mean(dim=0).numpy().astype("float32")
+
+        output_buffer = BytesIO()
+        wavfile.write(output_buffer, out_sample_rate, audio_data.T)
+
         artifact = upload_bytes(
-            bucket="audio",
-            name=f"{uuid.uuid4().hex}.mp3",
+            bucket="speech",
+            name=f"{uuid.uuid4().hex}.wav",
             content=output_buffer.getvalue(),
-            content_type="audio/mpeg",
+            content_type="audio/wav",
         )
         return artifact.meta.model_dump(mode="json")
 

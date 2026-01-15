@@ -77,6 +77,34 @@ class InfiniteTalk:
         self.wan_video_torch_compile_settings = _DEPS["WanVideoTorchCompileSettings"]()
         self.wan_video_vae_loader = _DEPS["WanVideoVAELoader"]()
 
+    def estimate_progress_steps(self, audioStorageRef: str, fps: int, window_size: int):
+        from ..config import get_config
+        import torchaudio
+        import math
+
+        worker_config = get_config()
+        client = Minio(
+            worker_config.storage.url.replace("http://", "").replace("https://", ""),
+            worker_config.storage.username,
+            worker_config.storage.password,
+            secure=worker_config.storage.url.startswith("https://"),
+        )
+
+        a_bucket, a_key = audioStorageRef.split("/", 1)
+        a_response = client.get_object(a_bucket, a_key)
+        try:
+            waveform, sample_rate = torchaudio.load(BytesIO(a_response.read()))
+        finally:
+            a_response.close()
+            a_response.release_conn()
+
+        audio_duration_sec = math.ceil(waveform.shape[1] / sample_rate)
+        if audio_duration_sec > 60:
+            audio_duration_sec = 60
+        steps = 8 + math.ceil(audio_duration_sec * fps / window_size) * 23
+
+        return steps
+
     def run(self, imageStorageRef: str, audioStorageRef: str):
         from ..config import get_config
         from ..services.tasks import upload_bytes
@@ -289,7 +317,7 @@ class InfiniteTalk:
                 force_offload=self.params.sampling_force_offload,
                 scheduler=self.params.sampling_scheduler,
                 riflex_freq_index=self.params.riflex_freq_index,
-                denoise_strength=0.98,
+                denoise_strength=0.98,  # 1
                 batched_cfg=False,
                 rope_function="comfy",
                 start_step=0,
@@ -340,7 +368,7 @@ class InfiniteTalk:
                 video_data = f.read()
 
             artifact = upload_bytes(
-                bucket="videos",
+                bucket="output",
                 name=f"{uuid.uuid4().hex}.mp4",
                 content=video_data,
                 content_type="video/mp4",

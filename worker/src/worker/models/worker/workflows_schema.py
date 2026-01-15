@@ -234,13 +234,13 @@ class AIUpscalerParams(BaseModel):
         ...,
         description="Name of the upscale model to load (e.g., '4x_NMKD-Siax_200k.pth'). Used by the 'Load Upscale Model' node.",
     )
-    fps_multiplier: int = Field(
-        ...,
-        description="Multiplier for the video frame rate during interpolation. Used by the 'FPS Multiplier' node to increase temporal smoothness.",
-    )
     model_name_1: str = Field(
         ...,
         description="Name of the face restoration model to load (e.g., 'codeformer.pth'). Used by the 'FaceRestoreModelLoader' node.",
+    )
+    batch_size: int = Field(
+        ...,
+        description="Number of frames to process in batch.",
     )
     force_rate: int = Field(
         ...,
@@ -273,40 +273,4 @@ class AIUpscalerParams(BaseModel):
     codeformer_fidelity: float = Field(
         ...,
         description="Fidelity weight for CodeFormer face restoration. Typical range is 0.0 to 1.0. Used by the 'FaceRestoreCFWithModel' node.",
-    )
-    ckpt_name: str = Field(
-        ...,
-        description="Checkpoint name for the RIFE VFI model (e.g., 'rife47.pth'). Used by the 'RIFE VFI' node for frame interpolation.",
-    )
-    clear_cache_after_n_frames: int = Field(
-        ...,
-        description="Frequency of cache clearing during frame interpolation to manage memory usage. Used by the 'RIFE VFI' node.",
-    )
-    fast_mode: bool = Field(
-        ...,
-        description="Enable fast mode for RIFE VFI to speed up processing at the cost of some quality. Used by the 'RIFE VFI' node.",
-    )
-    ensemble: bool = Field(
-        ...,
-        description="Enable ensemble mode for RIFE VFI for better quality. Used by the 'RIFE VFI' node.",
-    )
-    scale_factor: int = Field(
-        ...,
-        description="Scale factor for the RIFE VFI interpolation process. Used by the 'RIFE VFI' node.",
-    )
-    loop_count: int = Field(
-        ...,
-        description="Number of times the output video should loop (0 for infinite). Used by the 'Video Combine' node.",
-    )
-    format: str = Field(
-        ...,
-        description="Container and codec format for the output video (e.g., 'video/h264-mp4'). Used by the 'Video Combine' node.",
-    )
-    pingpong: bool = Field(
-        ...,
-        description="Whether to apply a ping-pong (reverse) effect to the output video. Used by the 'Video Combine' node.",
-    )
-    save_output: bool = Field(
-        ...,
-        description="Whether to save the final upscaled video to storage. Used by the 'Video Combine' node.",
     )
