@@ -36,6 +36,7 @@ if [ ! -f /data/.initialized ]; then
   for bucket in $MINIO_BUCKETS; do
     echo "  -> Ensuring bucket '$bucket' exists..."
     mc mb --ignore-existing local/"$bucket" || true
+    mc anonymous set download local/"$bucket" || true
   done
   touch /data/.initialized
 echo "✅ Bucket bootstrap complete."
