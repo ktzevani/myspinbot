@@ -83,17 +83,18 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./infra/comfyui/.vscode:/opt/comfyui/.vscode
+      - ./infra/worker/.vscode:/opt/comfyui/.vscode
+    profiles: ["ai"]
 
   sandbox:
     image: myspinbot/sandbox:dev
     build:
       context: .
-      dockerfile: sandbox/Dockerfile
+      dockerfile: infra/sandbox/Dockerfile
     container_name: myspinbot-sandbox
     entrypoint: ["bash", "-l"]
     stdin_open: true
     tty: true
     volumes:
       - .:/workspace
-    profiles: ["dev-master"]
+    profiles: ["monorepo"]

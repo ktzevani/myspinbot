@@ -237,7 +237,6 @@ services:
               capabilities: [gpu]
     labels:
       - "traefik.enable=false"
-    profiles: ["ai"]
 
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
@@ -262,7 +261,7 @@ services:
 
   comfyui:
     build:
-      context: infra/comfyui
+      context: infra/worker
       dockerfile: infra/worker/Dockerfile
       args:
         WORKER_ENVIRONMENT: production
@@ -399,19 +398,18 @@ services:
       - MINIO_USE_SSL=false
       - COMFYUI_ROOT_DIR=/opt/comfyui
     gpus: all
-    # Currently just for development purposes
     volumes:
       - comfyui-data:/opt/comfyui:ro
 
   codegen:
     build:
-      context: ./codegen
+      context: ./infra/codegen
       dockerfile: Dockerfile
     image: myspinbot/codegen:prod
     container_name: myspinbot-codegen
     volumes:
       - .:/work
-    entrypoint: ["codegen/gen-all.sh"]
+    entrypoint: ["infra/codegen/gen-all.sh"]
     profiles: ["generate-data-models"]
 
 networks:
