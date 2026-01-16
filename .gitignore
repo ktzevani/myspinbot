@@ -108,3 +108,4 @@ backend/config/redis.bridge.json
 backend/config/schemas
 backend/docs
 backend/shared
+worker/config/redis.bridge.json
