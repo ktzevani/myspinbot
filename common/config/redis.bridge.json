@@ -15,8 +15,7 @@
   "planning": {
     "pipelines": {
       "PROCESS": "process_graph",
-      "TRAIN_GENERATE": "train_and_generate",
-      "GENERATE": "generate"
+      "FIXED": "fixed_graph"
     }
   }
 }

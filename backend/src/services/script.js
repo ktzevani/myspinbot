@@ -1,4 +1,4 @@
-export async function generateScript(params, input) {
+export async function generateScript(params, _) {
   const {
     tone,
     length,
@@ -9,8 +9,8 @@ export async function generateScript(params, input) {
     timeoutMs,
     progressWeight,
     publishProgressCb,
+    prompt,
   } = params;
-  const { prompt } = input;
 
   if (!prompt) throw new Error("Missing prompt for script generation");
   if (!endpoint) throw new Error("LLM endpoint is required");

@@ -3,24 +3,15 @@ from __future__ import annotations
 
 import asyncio
 import io
-import json
-import os
 import sys
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, TypeAlias, Dict, Any
-import uuid
 
 from minio import Minio
 from minio.error import S3Error
 
 from ..models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
 from ..config import get_config, get_capabilities as get_worker_capabilities
-from .media import (
-    ComfyUIError,
-    build_placeholder_png,
-    maybe_render_comfyui,
-    synthesize_wave_speech,
-)
 
 WorkerTask: TypeAlias = Callable[[Dict[str, Any], Dict[str, Any]], Awaitable[None]]
 
@@ -94,177 +85,58 @@ def upload_bytes(
         raise RuntimeError(f"Failed to upload {name}: {exc}") from exc
 
 
-async def _generate_visual(
-    stage_prompt: str, comfy_url: str | None
-) -> tuple[bytes, Dict[str, Any]]:
-    if comfy_url:
-        try:
-            return await maybe_render_comfyui(stage_prompt, comfy_url)
-        except ComfyUIError:
-            pass
-    return build_placeholder_png(stage_prompt), {"source": "placeholder"}
-
-
-@task("train_lora")
-async def train_lora(params: Dict[str, Any], node_input: Dict[str, Any]):
-    """LoRA training task honoring pipeline variant/options."""
+@task("dummy_task")
+async def dummy_task(params: Dict[str, Any], node_input: Dict[str, Any]):
+    """Showcases the logic of a worker task. Intercepts stdout logs to bump progress"""
 
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
         params["publish_progress_cb"],
     )
-    preset = params.get("preset") or params.get("variant") or "default"
-    train_id = str(uuid.uuid4())
-    await publish_progress_cb(progress_weight * 0.1)
 
-    manifest = {
-        "trainId": train_id,
-        "preset": preset,
-        "dataset": node_input.get("dataset") or params.get("dataset") or {},
-        "hyperparameters": params.get("hyperparameters") or {},
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-    artifact = upload_bytes(
-        "loras",
-        f"{train_id}_{preset}.json",
-        content=json.dumps(manifest, indent=2).encode("utf-8"),
-        content_type="application/json",
-    )
-    result = {"loraArtifact": artifact.meta.model_dump(mode="json")}
+    current_progress = node_input["currentProgress"]
+    total_progress = node_input["currentProgress"] + progress_weight
+    if total_progress > 1.0:
+        total_progress = 1.0
+    step_weight = 0
+    loop = asyncio.get_running_loop()
 
-    await publish_progress_cb(progress_weight * 0.6)
-    await asyncio.sleep(0.3)
-    await publish_progress_cb(progress_weight * 0.3)
-    print(f"[Worker] ✅ LoRA training completed: {result}")
-    return result
+    def on_step():
+        nonlocal current_progress, step_weight
+        current_progress += step_weight
+        if current_progress > total_progress:
+            current_progress = total_progress
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(publish_progress_cb(current_progress))
+        )
 
+    try:
+        old_stdout = sys.stdout
+        sys.stdout = StreamAdapter(old_stdout, on_step)
 
-@task("train_voice")
-async def train_voice(params: Dict[str, Any], node_input: Dict[str, Any]):
-    """Voice model training task honoring variant/options."""
+        # Import task here
+        # Parse params - Configure task
 
-    progress_weight, publish_progress_cb = (
-        params.get("progress_weight", 0),
-        params["publish_progress_cb"],
-    )
-    preset = params.get("preset") or params.get("variant") or "default"
-    voice_id = str(uuid.uuid4())
-    await publish_progress_cb(progress_weight * 0.1)
+        # Invoke actual task here
+        # task_result = await asyncio.to_thread(task.run, params)
+    finally:
+        sys.stdout = old_stdout
 
-    waveform = synthesize_wave_speech(
-        node_input.get("sample_text")
-        or params.get("sample_text")
-        or "Default voice line."
-    )
-    audio_artifact = upload_bytes(
-        "speech",
-        f"{voice_id}_{preset}.wav",
-        content=waveform,
-        content_type="audio/wav",
-    )
-    voice_manifest = {
-        "voiceId": voice_id,
-        "preset": preset,
-        "language": node_input.get("language") or params.get("language") or "en",
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-    }
-    voice_meta_artifact = upload_bytes(
-        "speech",
-        f"{voice_id}_{preset}.json",
-        json.dumps(voice_manifest, indent=2).encode("utf-8"),
-        content_type="application/json",
-    )
+    # compose returned result here
     result = {
-        "voiceArtifact": audio_artifact.meta.model_dump(mode="json"),
-        "voiceMeta": voice_meta_artifact.meta.model_dump(mode="json"),
+        # any other output here (e.g. task_result.value1)
+        "currentProgress": node_input["currentProgress"]
+        + progress_weight,
     }
 
-    await publish_progress_cb(progress_weight * 0.7)
-    await asyncio.sleep(0.3)
-    await publish_progress_cb(progress_weight * 0.2)
-    print(f"[Worker] ✅ Voice model training completed: {result}")
-    return result
+    await publish_progress_cb(result["currentProgress"])
 
-
-@task("render_video")
-async def render_video(params: Dict[str, Any], node_input: Dict[str, Any]):
-    """Hybrid video rendering task using ComfyUI + synthetic TTS with a structured manifest."""
-
-    progress_weight, publish_progress_cb = (
-        params.get("progress_weight", 0),
-        params["publish_progress_cb"],
-    )
-    variant = params.get("variant") or params.get("preset") or "default"
-    comfy_url = params.get("comfy_url") or os.getenv(
-        "COMFYUI_BASE_URL", "http://comfyui:8188"
-    )
-    # Gather upstream context
-    stage_prompt = (
-        node_input.get("stagePrompt")
-        or node_input.get("prompt")
-        or node_input.get("script", {}).get("stagePrompt")
-        or params.get("stagePrompt")
-        or "Untitled scene"
-    )
-    narration = (
-        node_input.get("narration")
-        or node_input.get("script", {}).get("narration")
-        or params.get("narration")
-        or "Narration not provided."
-    )
-    await publish_progress_cb(progress_weight * 0.1)
-    print(f"[Worker] 🎬 Starting video rendering (variant={variant})")
-
-    audio = synthesize_wave_speech(narration)
-    audio_artifact = upload_bytes(
-        "output",
-        f"{uuid.uuid4()}_{variant}.wav",
-        content=audio,
-        content_type="audio/wav",
-    )
-
-    image_bytes, render_meta = await _generate_visual(
-        stage_prompt, comfy_url if comfy_url else None
-    )
-    image_artifact = upload_bytes(
-        "output",
-        f"{uuid.uuid4()}_{variant}.png",
-        content=image_bytes,
-        content_type="image/png",
-    )
-
-    video_manifest = {
-        "variant": variant,
-        "stagePrompt": stage_prompt,
-        "narration": narration,
-        "image": image_artifact.meta.model_dump(mode="json"),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-    manifest_artifact = upload_bytes(
-        "output",
-        f"{uuid.uuid4()}_{variant}_manifest.json",
-        content=json.dumps(video_manifest, indent=2).encode("utf-8"),
-        content_type="application/json",
-    )
-
-    result = {
-        "video": manifest_artifact.meta.model_dump(mode="json"),
-        "audio": audio_artifact.meta.model_dump(mode="json"),
-        "image": image_artifact.meta.model_dump(mode="json"),
-        "render_meta": render_meta,
-    }
-
-    await publish_progress_cb(progress_weight * 0.9)
-
-    print(f"[Worker] ✅ Video rendering completed: {result.get('video')}")
+    print("[Worker] ✅ Dummy task finished.")
     return result
 
 
 @task("f5_to_tts")
 async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
-    """Voice model training task honoring variant/options."""
 
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
@@ -479,8 +351,8 @@ async def infinite_talk(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
-@task("render_video_infinitetalk")
-async def render_video_infinitetalk(params: Dict[str, Any], node_input: Dict[str, Any]):
+@task("upscale_video")
+async def upscale_video(params: Dict[str, Any], node_input: Dict[str, Any]):
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
         params["publish_progress_cb"],

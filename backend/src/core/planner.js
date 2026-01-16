@@ -1,6 +1,6 @@
 import { getConfiguration } from "../config.js";
 import validateGraphSchema from "../validators/langgraph/graph.schema-validator.cjs";
-import { buildPipelineGraph } from "./pipelines.js";
+import { generateGraph } from "./pipelines.js";
 
 const LANGGRAPH_SCHEMA_VERSION = "langgraph.v1";
 
@@ -9,10 +9,6 @@ const validator = validateGraphSchema.default;
 export class Planner {
   constructor(configuration = getConfiguration()) {
     this.configuration = configuration;
-  }
-
-  #buildGraph(input = {}) {
-    return buildPipelineGraph(input);
   }
 
   #validateDAG(nodes = [], edges = []) {
@@ -95,7 +91,7 @@ export class Planner {
   }
 
   getJobGraph({ workflowId, context = {}, metadata = {}, input = {} }) {
-    const partialGraph = this.#buildGraph(input);
+    const partialGraph = generateGraph(input);
 
     try {
       this.#validateDAG(partialGraph.nodes, partialGraph.edges);

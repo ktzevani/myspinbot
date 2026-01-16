@@ -1,0 +1,173 @@
+{
+  "f5tts_infinitetalk": {
+    "nodes": [
+      {
+        "id": "script",
+        "name": "Generate script",
+        "task": "script.generateScript",
+        "plane": "node",
+        "progressWeight": 0.05
+      },
+      {
+        "id": "f5_to_tts",
+        "name": "Generate voice (F5-TTS)",
+        "task": "f5_to_tts",
+        "plane": "python",
+        "progressWeight": 0.1
+      },
+      {
+        "id": "infinite_talk",
+        "name": "Generate speech video",
+        "task": "infinite_talk",
+        "plane": "python",
+        "progressWeight": 0.45
+      },
+      {
+        "id": "upscale_video",
+        "name": "Upscale video with AI",
+        "task": "upscale_video",
+        "plane": "python",
+        "progressWeight": 0.4
+      }
+    ],
+    "edges": [
+      {
+        "from": "script",
+        "to": "f5_to_tts",
+        "kind": "normal"
+      },
+      {
+        "from": "f5_to_tts",
+        "to": "infinite_talk",
+        "kind": "normal"
+      },
+      {
+        "from": "infinite_talk",
+        "to": "upscale_video",
+        "kind": "normal"
+      }
+    ]
+  },
+  "sadtalker": {
+    "nodes": [
+      {
+        "id": "script",
+        "name": "Generate script",
+        "task": "script.generateScript",
+        "plane": "node",
+        "progressWeight": 0.05
+      },
+      {
+        "id": "train_voice",
+        "name": "Train voice",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.25,
+        "params": { "preset": "sadtalker" }
+      },
+      {
+        "id": "generate_video",
+        "name": "Generate video",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.4,
+        "params": { "preset": "sadtalker" }
+      },
+      {
+        "id": "postprocess_video",
+        "name": "Postprocess video",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.3,
+        "params": { "preset": "sadtalker" }
+      }
+    ],
+    "edges": [
+      {
+        "from": "script",
+        "to": "train_voice",
+        "kind": "normal"
+      },
+      {
+        "from": "train_voice",
+        "to": "generate_video",
+        "kind": "normal"
+      },
+      {
+        "from": "generate_video",
+        "to": "postprocess_video",
+        "kind": "normal"
+      }
+    ]
+  },
+  "svd_wav2lip": {
+    "nodes": [
+      {
+        "id": "script",
+        "name": "Generate script",
+        "task": "script.generateScript",
+        "plane": "node",
+        "progressWeight": 0.05
+      },
+      {
+        "id": "train_voice",
+        "name": "Train voice",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.25,
+        "params": { "preset": "svd_wav2lip" }
+      },
+      {
+        "id": "train_lora",
+        "name": "Train LoRA",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.5,
+        "params": { "preset": "svd_wav2lip" }
+      },
+      {
+        "id": "generate_video",
+        "name": "Generate video",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.4,
+        "params": { "preset": "svd_wav2lip" }
+      },
+      {
+        "id": "postprocess_video",
+        "name": "Postprocess video",
+        "task": "dummy_task",
+        "plane": "python",
+        "progressWeight": 0.3,
+        "params": { "preset": "svd_wav2lip" }
+      }
+    ],
+    "edges": [
+      {
+        "from": "script",
+        "to": "train_voice",
+        "kind": "normal"
+      },
+      {
+        "from": "script",
+        "to": "train_lora",
+        "kind": "normal"
+      },
+      {
+        "from": "train_voice",
+        "to": "generate_video",
+        "kind": "normal"
+      },
+      {
+        "from": "train_lora",
+        "to": "generate_video",
+        "kind": "normal"
+      },
+      {
+        "from": "generate_video",
+        "to": "postprocess_video",
+        "kind": "normal"
+      }
+    ]
+  }
+}

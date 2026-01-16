@@ -4,12 +4,7 @@
   "title": "Redis Configuration",
   "type": "object",
   "description": "Configuration for Redis connection, stream names, pub/sub channels, and job management.",
-  "required": [
-    "url",
-    "streams",
-    "channels",
-    "jobs"
-  ],
+  "required": ["url", "streams", "channels", "jobs"],
   "properties": {
     "url": {
       "type": "string",
@@ -19,10 +14,7 @@
     "streams": {
       "type": "object",
       "description": "List of Redis streams used by the bridge.",
-      "required": [
-        "control",
-        "data"
-      ],
+      "required": ["control", "data"],
       "properties": {
         "control": {
           "type": "string",
@@ -38,11 +30,7 @@
     "channels": {
       "type": "object",
       "description": "List of pub/sub channels used by the bridge.",
-      "required": [
-        "progress",
-        "status",
-        "data"
-      ],
+      "required": ["progress", "status", "data"],
       "properties": {
         "progress": {
           "type": "string",
@@ -62,9 +50,7 @@
     "jobs": {
       "type": "object",
       "description": "Configuration for jobs.",
-      "required": [
-        "ttl"
-      ],
+      "required": ["ttl"],
       "properties": {
         "ttl": {
           "type": "integer",
@@ -77,30 +63,20 @@
     "planning": {
       "type": "object",
       "description": "Configuration for planner.",
-      "required": [
-        "pipelines"
-      ],
+      "required": ["pipelines"],
       "properties": {
         "pipelines": {
           "type": "object",
           "description": "List of mappings of available jobs supported by the Redis bridge, to worker tasks.",
-          "required": [
-            "PROCESS",
-            "TRAIN_GENERATE",
-            "GENERATE"
-          ],
+          "required": ["PROCESS", "FIXED"],
           "properties": {
             "PROCESS": {
               "type": "string",
               "description": "Planner request type for creating execution pipelines for generic graphs."
             },
-            "TRAIN_GENERATE": {
+            "FIXED": {
               "type": "string",
-              "description": "Planner request type for creating execution pipelines combining training and generation."
-            },
-            "GENERATE": {
-              "type": "string",
-              "description": "Planner request type for creating execution pipelines for generation."
+              "description": "Planner request type for creating execution pipelines from workflows registry."
             }
           }
         }

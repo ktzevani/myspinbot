@@ -3,7 +3,7 @@ import Fastify from "fastify";
 import { registerRoutes } from "../src/api/http/routes.js";
 import { JobStatus } from "../src/model/defs.js";
 
-describe("POST /api/train", () => {
+describe("POST /api/infinitetalk", () => {
   let fastify;
 
   beforeAll(async () => {
@@ -16,14 +16,15 @@ describe("POST /api/train", () => {
     await fastify.close();
   });
 
-  it("enqueues a train job and returns a jobId", async () => {
+  it("enqueues a video generation (with Infinitetalk) job and returns a jobId", async () => {
     const res = await fastify.inject({
       method: "POST",
-      url: "/api/train",
+      url: "/api/infinitetalk",
       payload: {
-        mode: "train_and_generate",
-        prompt: "Testing prompt",
-        variant: "svd_wav2lip",
+        prompt:
+          "You are taking the role of Carl Jung and you are giving a speech related to a random psychology issue. Speech need to be at least a page long.",
+        refText:
+          "Is quite alright as long as you know that you are not identical with the way in which you appear. But, if you are unconsious of this fact",
       },
     });
 

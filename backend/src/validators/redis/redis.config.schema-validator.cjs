@@ -1,7 +1,7 @@
 "use strict";
 module.exports = validate30;
 module.exports.default = validate30;
-var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redis.config.schema.json","title":"Redis Configuration","type":"object","description":"Configuration for Redis connection, stream names, pub/sub channels, and job management.","required":["url","streams","channels","jobs"],"properties":{"url":{"type":"string","description":"Redis connection string (e.g. 'redis://redis:6379').","pattern":"^redis://.+"},"streams":{"type":"object","description":"List of Redis streams used by the bridge.","required":["control","data"],"properties":{"control":{"type":"string","description":"Stream for advertising jobs at control plane."},"data":{"type":"string","description":"Stream for advertising jobs at data plane."}},"additionalProperties":false},"channels":{"type":"object","description":"List of pub/sub channels used by the bridge.","required":["progress","status","data"],"properties":{"progress":{"type":"string","description":"Channel onto which jobs publish their progress (e.g. 'channel:progress')."},"status":{"type":"string","description":"Channel onto which jobs publish their status (e.g. 'channel:status')."},"data":{"type":"string","description":"Channel onto which jobs publish intermediate generic data (e.g. 'channel:data')."}},"additionalProperties":false},"jobs":{"type":"object","description":"Configuration for jobs.","required":["ttl"],"properties":{"ttl":{"type":"integer","minimum":1,"description":"Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."}},"additionalProperties":false},"planning":{"type":"object","description":"Configuration for planner.","required":["pipelines"],"properties":{"pipelines":{"type":"object","description":"List of mappings of available jobs supported by the Redis bridge, to worker tasks.","required":["PROCESS","TRAIN_GENERATE","GENERATE"],"properties":{"PROCESS":{"type":"string","description":"Planner request type for creating execution pipelines for generic graphs."},"TRAIN_GENERATE":{"type":"string","description":"Planner request type for creating execution pipelines combining training and generation."},"GENERATE":{"type":"string","description":"Planner request type for creating execution pipelines for generation."}}}},"additionalProperties":false}},"additionalProperties":false};
+var schema42 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redis.config.schema.json","title":"Redis Configuration","type":"object","description":"Configuration for Redis connection, stream names, pub/sub channels, and job management.","required":["url","streams","channels","jobs"],"properties":{"url":{"type":"string","description":"Redis connection string (e.g. 'redis://redis:6379').","pattern":"^redis://.+"},"streams":{"type":"object","description":"List of Redis streams used by the bridge.","required":["control","data"],"properties":{"control":{"type":"string","description":"Stream for advertising jobs at control plane."},"data":{"type":"string","description":"Stream for advertising jobs at data plane."}},"additionalProperties":false},"channels":{"type":"object","description":"List of pub/sub channels used by the bridge.","required":["progress","status","data"],"properties":{"progress":{"type":"string","description":"Channel onto which jobs publish their progress (e.g. 'channel:progress')."},"status":{"type":"string","description":"Channel onto which jobs publish their status (e.g. 'channel:status')."},"data":{"type":"string","description":"Channel onto which jobs publish intermediate generic data (e.g. 'channel:data')."}},"additionalProperties":false},"jobs":{"type":"object","description":"Configuration for jobs.","required":["ttl"],"properties":{"ttl":{"type":"integer","minimum":1,"description":"Job keys TTL in Redis, in seconds (e.g. 43200 for 12 hours)."}},"additionalProperties":false},"planning":{"type":"object","description":"Configuration for planner.","required":["pipelines"],"properties":{"pipelines":{"type":"object","description":"List of mappings of available jobs supported by the Redis bridge, to worker tasks.","required":["PROCESS","FIXED"],"properties":{"PROCESS":{"type":"string","description":"Planner request type for creating execution pipelines for generic graphs."},"FIXED":{"type":"string","description":"Planner request type for creating execution pipelines from workflows registry."}}}},"additionalProperties":false}},"additionalProperties":false};
 var pattern4 = new RegExp("^redis://.+", "u");
 
 function validate30(data, valCxt){
@@ -272,7 +272,7 @@ var _errs28 = errors;
 if(errors === _errs28){
 if(data11 && typeof data11 == "object" && !Array.isArray(data11)){
 var missing5;
-if((((data11.PROCESS === undefined) && (missing5 = "PROCESS")) || ((data11.TRAIN_GENERATE === undefined) && (missing5 = "TRAIN_GENERATE"))) || ((data11.GENERATE === undefined) && (missing5 = "GENERATE"))){
+if(((data11.PROCESS === undefined) && (missing5 = "PROCESS")) || ((data11.FIXED === undefined) && (missing5 = "FIXED"))){
 validate30.errors = [{instancePath:instancePath+"/planning/pipelines",schemaPath:"#/properties/planning/properties/pipelines/required",keyword:"required",params:{missingProperty: missing5},message:"must have required property '"+missing5+"'"}];
 return false;
 }
@@ -289,29 +289,16 @@ else {
 var valid5 = true;
 }
 if(valid5){
-if(data11.TRAIN_GENERATE !== undefined){
+if(data11.FIXED !== undefined){
 var _errs32 = errors;
-if(typeof data11.TRAIN_GENERATE !== "string"){
-validate30.errors = [{instancePath:instancePath+"/planning/pipelines/TRAIN_GENERATE",schemaPath:"#/properties/planning/properties/pipelines/properties/TRAIN_GENERATE/type",keyword:"type",params:{type: "string"},message:"must be string"}];
+if(typeof data11.FIXED !== "string"){
+validate30.errors = [{instancePath:instancePath+"/planning/pipelines/FIXED",schemaPath:"#/properties/planning/properties/pipelines/properties/FIXED/type",keyword:"type",params:{type: "string"},message:"must be string"}];
 return false;
 }
 var valid5 = _errs32 === errors;
 }
 else {
 var valid5 = true;
-}
-if(valid5){
-if(data11.GENERATE !== undefined){
-var _errs34 = errors;
-if(typeof data11.GENERATE !== "string"){
-validate30.errors = [{instancePath:instancePath+"/planning/pipelines/GENERATE",schemaPath:"#/properties/planning/properties/pipelines/properties/GENERATE/type",keyword:"type",params:{type: "string"},message:"must be string"}];
-return false;
-}
-var valid5 = _errs34 === errors;
-}
-else {
-var valid5 = true;
-}
 }
 }
 }

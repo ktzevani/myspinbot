@@ -34,17 +34,11 @@ export async function postGenerate(opts: {
   formData.append(
     "data",
     JSON.stringify({
-      pipeline: {
-        mode: "generate",
-        variant: "f5tts_infinitetalk",
-      },
-      params: {
-        prompt: opts.prompt,
-        refText: opts.refTxt,
-      }
+      prompt: opts.prompt,
+      refText: opts.refTxt,
     })
   );
-  const res = await fetch(`${API_BASE}/api/generate`, {
+  const res = await fetch(`${API_BASE}/api/infinitetalk`, {
     method: "POST",
     body: formData,
   });
@@ -66,7 +60,7 @@ export async function getJobResult(jobId: string): Promise<any> {
   const result = await res.json();
   if (result && result?.job?.lastGraph?.nodes) {
     const renderNode = result?.job?.lastGraph?.nodes.find(
-      (node: any) => node.id === "render_video_infinitetalk"
+      (node: any) => node.id === "upscale_video"
     );
     if (renderNode && renderNode.output) {
       return renderNode.output;

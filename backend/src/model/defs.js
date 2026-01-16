@@ -1,4 +1,4 @@
-import schema from "../../config/schemas/jobs/job-messaging.schema.json" assert { type: "json" };
+import schema from "../../config/schemas/jobs/job-messaging.schema.json" with { type: "json" };
 
 function enumFromSchema(schema, path) {
   let current = schema;
