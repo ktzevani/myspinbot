@@ -410,7 +410,7 @@ services:
     volumes:
       - .:/work
     entrypoint: ["infra/codegen/gen-all.sh"]
-    profiles: ["generate-data-models"]
+    profiles: ["schemas"]
 
 networks:
   internal-network:
