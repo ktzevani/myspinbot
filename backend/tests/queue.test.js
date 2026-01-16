@@ -7,6 +7,7 @@ import { WebSocket } from "ws";
 import { registerRoutes } from "../src/api/ws/routes.js";
 import { getConfiguration } from "../src/config.js";
 import { randomUUID } from "node:crypto";
+import { Planner } from "../src/core/planner.js";
 
 let fastify = null;
 let port = null;
@@ -35,7 +36,7 @@ async function submitTestJob() {
         name: "Test Node 1",
         task: "worker.test1",
         plane: "python",
-        status: "pending",
+        status: "completed",
         progressWeight: 0.5,
       },
       {
@@ -43,13 +44,22 @@ async function submitTestJob() {
         name: "Test Node 2",
         task: "control.test1",
         plane: "node",
-        status: "pending",
+        status: "completed",
         progressWeight: 0.5,
       },
     ],
     edges: [{ from: "worker.node", to: "control.node", kind: "normal" }],
   };
-  await jobQueue.enqueueControlJob(jobId, JSON.stringify(graph));
+  const planner = new Planner(AppConfiguration);
+  const jobGraph = planner.getJobGraph({
+    workflowId: jobId,
+    input: {
+      mode: "process_graph",
+      graph: JSON.stringify(graph),
+    },
+  });
+
+  await jobQueue.enqueueControlJob(jobId, jobGraph);
   return jobId;
 }
 
