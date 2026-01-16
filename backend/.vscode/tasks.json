@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "npm ci",
+			"label": "npm: install",
+			"detail": "Install backend dependencies using clean install"
+		}
+	]
+}

@@ -10,18 +10,16 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./docs:/app/docs
-      - ./common/shared:/app/shared
-      - ./backend/.vscode:/app/.vscode
-      - ./backend/src:/app/src
-      - ./backend/tests:/app/tests
-      - ./backend/package-lock.json:/app/package-lock.json
-      - ./backend/package.json:/app/package.json
-      - ./backend/vitest.config.ts:/app/vitest.config.ts
-      - ./backend/config:/app/config
-      - ./backend/AGENT.md:/app/AGENT.md
-      - ./common/config/schemas:/app/config/schemas
-      - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
+      - ./backend:/home/dev
+      - ./docs:/home/dev/docs
+      - ./common/shared:/home/dev/shared
+      - ./common/config/schemas:/home/dev/config/schemas
+      - ./common/config/redis.bridge.json:/home/dev/config/redis.bridge.json
+      - /home/dev/node_modules
+      - ./backend/.devcontainer:/home/dev/.devcontainer:ro
+      - ./backend/Dockerfile:/home/dev/Dockerfile:ro
+      - ./backend/docker-entrypoint.sh:/home/dev/docker-entrypoint.sh:ro
+    working_dir: /home/dev
 
   ui:
     image: myspinbot/frontend:dev

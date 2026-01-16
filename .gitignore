@@ -102,3 +102,9 @@ infra/postgres/pgadmin/servers.json
 # ── VS Code workspace file ───────────────────────────
 # The shared workspace definition is safe to commit
 !myspinbot.code-workspace
+
+# ── Ignore symlinks created for dev purposes ──
+backend/config/redis.bridge.json
+backend/config/schemas
+backend/docs
+backend/shared
