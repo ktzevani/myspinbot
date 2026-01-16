@@ -19,7 +19,7 @@ services:
       - ./backend/package.json:/app/package.json
       - ./backend/vitest.config.ts:/app/vitest.config.ts
       - ./backend/config:/app/config
-      - ./backend/GEMINI.md:/app/GEMINI.md
+      - ./backend/AGENT.md:/app/AGENT.md
       - ./common/config/schemas:/app/config/schemas
       - ./common/config/redis.bridge.json:/app/config/redis.bridge.json
 
@@ -49,7 +49,7 @@ services:
       - ./frontend/tailwind.config.ts:/app/tailwind.config.ts
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/vitest.config.ts:/app/vitest.config.ts
-      - ./frontend/GEMINI.md:/app/GEMINI.md
+      - ./frontend/AGENT.md:/app/AGENT.md
 
   worker:
     image: myspinbot/worker:dev
@@ -67,7 +67,7 @@ services:
       - ./worker/.vscode:/opt/app/.vscode
       - ./worker/src:/opt/app/src
       - ./worker/pyproject.toml:/opt/app/pyproject.toml
-      - ./worker/GEMINI.md:/opt/app/GEMINI.md
+      - ./worker/AGENT.md:/opt/app/AGENT.md
       - ./worker/config:/opt/app/config
       - ./common/config/schemas:/opt/app/config/schemas
       - ./common/config/redis.bridge.json:/opt/app/config/redis.bridge.json
