@@ -26,7 +26,7 @@
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}/src/worker",
-          "remoteRoot": "/opt/app/src/worker"
+          "remoteRoot": "/home/dev/src/worker"
         }
       ],
       "justMyCode": false

@@ -7,7 +7,7 @@ from copy import deepcopy
 from .models.capabilities.plane_manifest_schema import PlaneCapabilityManifest
 from .models.worker.config_schema import WorkerConfiguration
 
-_CONFIG_ROOT_DIR = "/opt/app/config"
+_CONFIG_ROOT_DIR = os.getenv("WORKER_HOME", "/opt/app") + "/config"
 _cached_configuration = None
 _cached_capabilities = None
 

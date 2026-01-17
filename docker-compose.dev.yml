@@ -56,19 +56,19 @@ services:
         WORKER_ENVIRONMENT: development
     ports:
       - "5678:5678"
-    entrypoint: ["/bin/bash", "-l"]
     stdin_open: true
     tty: true
+    environment:
+      - WORKER_HOME=/home/dev
     volumes:
-      - ./docs:/opt/app/docs
-      - ./common/shared:/opt/app/shared
-      - ./worker/.vscode:/opt/app/.vscode
-      - ./worker/src:/opt/app/src
-      - ./worker/pyproject.toml:/opt/app/pyproject.toml
-      - ./worker/AGENT.md:/opt/app/AGENT.md
-      - ./worker/config:/opt/app/config
-      - ./common/config/schemas:/opt/app/config/schemas
-      - ./common/config/redis.bridge.json:/opt/app/config/redis.bridge.json
+      - ./worker:/home/dev
+      - ./docs:/home/dev/docs
+      - ./common/shared:/home/dev/shared
+      - ./common/config/schemas:/home/dev/config/schemas
+      - ./common/config/redis.bridge.json:/home/dev/config/redis.bridge.json
+      - ./worker/.devcontainer:/home/dev/.devcontainer:ro
+      - ./worker/docker-entrypoint.sh:/home/dev/docker-entrypoint.sh:ro
+    working_dir: /home/dev
 
   comfyui:
     image: myspinbot/comfyui:dev

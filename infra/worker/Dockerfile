@@ -221,7 +221,7 @@ RUN uv pip install --no-build-isolation \
     sounddevice
 RUN echo "ComfyUI Dependencies 3/3 Installed"
 
-RUN [ "$WORKER_MODE" = "app" ] && uv pip install --no-cache-dir -e .[dev,test] || true
-RUN [ "$WORKER_MODE" = "app" ] && echo "Python worker dependencies installed" || true
+RUN [ "$WORKER_MODE" = "app" && "$WORKER_ENVIRONMENT" = "production" ] && uv pip install --no-cache-dir -e .[dev,test] || true
+RUN [ "$WORKER_MODE" = "app" && "$WORKER_ENVIRONMENT" = "production" ] && echo "Python worker dependencies installed" || true
 
 ENTRYPOINT ["docker-entrypoint.sh"]

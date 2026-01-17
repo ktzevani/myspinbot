@@ -5,7 +5,7 @@
     "../../docker-compose.dev.yml"
   ],
   "service": "worker",
-  "workspaceFolder": "/opt/app",
+  "workspaceFolder": "/home/dev",
   "runServices": [
     "worker"
   ],
