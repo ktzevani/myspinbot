@@ -5,6 +5,7 @@ if [ "$WORKER_ENVIRONMENT" = "development" ]; then
       echo "Proceeding to container initial configuration…"
       cd "$WORKER_HOME" || exit
       uv pip install -e .[dev]
+      touch "$MARKER"
   else
       echo "Container is initialized - skipping."
   fi

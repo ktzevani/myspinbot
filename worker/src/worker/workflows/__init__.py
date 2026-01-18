@@ -71,6 +71,7 @@ def initialize_comfy_environment():
                                 {"add_static": lambda *a, **k: lambda f: f},
                             )(),
                             "add_routes": lambda *a, **k: lambda f: f,
+                            "frozen": None,
                         },
                     )(),
                 },

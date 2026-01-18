@@ -372,9 +372,12 @@ services:
     networks:
       - internal-network
     depends_on:
-      - redis
-      - minio
-      - comfyui
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      downloader:
+        condition: service_completed_successfully
     security_opt:
       - "apparmor:unconfined"
     cap_add:
@@ -399,7 +402,7 @@ services:
       - COMFYUI_ROOT_DIR=/opt/comfyui
     gpus: all
     volumes:
-      - comfyui-data:/opt/comfyui:ro
+      - comfyui-data:/opt/comfyui
 
   codegen:
     build:
@@ -411,6 +414,22 @@ services:
       - .:/work
     entrypoint: ["infra/codegen/gen-all.sh"]
     profiles: ["schemas"]
+
+  downloader:
+    build:
+      context: ./infra/downloader
+      dockerfile: Dockerfile
+    image: myspinbot/downloader
+    container_name: myspinbot-downloader
+    volumes:
+      - ollama-data:/ollama
+      - comfyui-data:/comfyui
+      - ./infra/downloader/fetch_models.sh:/fetch_models.sh
+    networks:
+      - internal-network
+    depends_on:
+      - comfyui
+      - ollama
 
 networks:
   internal-network:
