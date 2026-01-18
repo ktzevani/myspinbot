@@ -82,7 +82,6 @@ services:
     tty: true
     volumes:
       - ./infra/worker/.vscode:/opt/comfyui/.vscode
-    profiles: ["ai"]
 
   sandbox:
     image: myspinbot/sandbox:dev

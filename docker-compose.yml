@@ -257,12 +257,12 @@ services:
       - "traefik.http.routers.openwebui.entrypoints=websecure"
       - "traefik.http.routers.openwebui.tls=true"
       - "traefik.http.services.openwebui.loadbalancer.server.port=8080"
-    profiles: ["ai"]
+    profiles: ["chatbot"]
 
   comfyui:
     build:
-      context: infra/worker
-      dockerfile: infra/worker/Dockerfile
+      context: infra/worker/
+      dockerfile: Dockerfile
       args:
         WORKER_ENVIRONMENT: production
         WORKER_MODE: comfyui
@@ -296,7 +296,6 @@ services:
       - "traefik.http.routers.comfyui.tls=true"
       - "traefik.http.services.comfyui.loadbalancer.server.port=8188"
       - "traefik.http.routers.comfyui.middlewares=dashboard-auth@file"
-    profiles: ["ai"]
 
   api:
     image: myspinbot/backend:prod
@@ -375,6 +374,7 @@ services:
     depends_on:
       - redis
       - minio
+      - comfyui
     security_opt:
       - "apparmor:unconfined"
     cap_add:

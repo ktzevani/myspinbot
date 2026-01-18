@@ -1,9 +1,10 @@
-FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu22.04
-# FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+# ==========================================
+# STAGE 1: Heavy System Setup
+# ==========================================
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu22.04 AS base-system
 
-ARG PYTHON_VERSION WORKER_ENVIRONMENT WORKER_MODE
-ENV WORKER_MODE=${WORKER_MODE}
-ENV WORKER_ENVIRONMENT=${WORKER_ENVIRONMENT}
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 # ---- System Deps ----
 
@@ -139,34 +140,16 @@ RUN mkdir -p /tmp/src && \
     patch -p1 < cu13.patch && \
     uv pip install -v --no-cache-dir --no-build-isolation .
 
-# ---- Setup working directory ----
-
-ENV WORKER_HOME=/opt/${WORKER_MODE}
-RUN mkdir -p ${WORKER_HOME} 
-WORKDIR ${WORKER_HOME}
-
-RUN [ "$WORKER_MODE" = "comfyui" ] && git clone https://github.com/comfyanonymous/ComfyUI.git . && \
-    git config --global --add safe.directory $WORKER_HOME && \
-    git config --global --add safe.directory $WORKER_HOME/custom_nodes/comfyui-f5-tts || true
-RUN [ "$WORKER_MODE" = "app" ] && cd /opt && git clone https://github.com/comfyanonymous/ComfyUI.git . || true
-
-COPY ./worke[r] .
-COPY ./commo[n]/config ./config
-COPY ./docker-entrypoint.s[h] ./docker-entrypoint.sh
-
-RUN mv $WORKER_HOME/docker-entrypoint.sh /usr/local/bin
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# ==========================================
+# STAGE 2: Dependencies setup
+# ==========================================
+FROM base-system AS dependencies
 
 RUN uv pip install \
     torch torchvision torchaudio  \
     --index-url https://download.pytorch.org/whl/cu130 \
     --extra-index-url https://pypi.nvidia.com
-# --index-url https://download.pytorch.org/whl/cu128 \
-
 RUN echo "PyTorch Installed."
-
-RUN [ "$WORKER_MODE" = "comfyui" ] && uv pip install -r requirements.txt || true
-RUN [ "$WORKER_MODE" = "app" ] && cd /opt/comfyui && uv pip install -r requirements.txt || true
 
 RUN uv pip install \
     audio_separator \
@@ -193,15 +176,7 @@ RUN uv pip install \
     pyright \
     s3tokenizer \
     ultralytics 
-
 RUN echo "ComfyUI Dependencies 1/3 Installed"
-
-ENV MAX_JOBS=6 \
-    NVCC_THREADS=3 \
-    CMAKE_BUILD_PARALLEL_LEVEL=6
-
-RUN uv pip install --no-build-isolation git+https://github.com/Dao-AILab/flash-attention.git
-RUN echo "Flash Attention is built"
 
 RUN uv pip install --no-build-isolation \
     faiss-cpu \
@@ -221,7 +196,66 @@ RUN uv pip install --no-build-isolation \
     sounddevice
 RUN echo "ComfyUI Dependencies 3/3 Installed"
 
-RUN [ "$WORKER_MODE" = "app" && "$WORKER_ENVIRONMENT" = "production" ] && uv pip install --no-cache-dir -e .[dev,test] || true
-RUN [ "$WORKER_MODE" = "app" && "$WORKER_ENVIRONMENT" = "production" ] && echo "Python worker dependencies installed" || true
+ENV MAX_JOBS=6 \
+    NVCC_THREADS=3 \
+    CMAKE_BUILD_PARALLEL_LEVEL=6
+
+RUN uv pip install --no-build-isolation git+https://github.com/Dao-AILab/flash-attention.git
+RUN echo "Flash Attention is built"
+
+RUN uv pip install --no-build-isolation git+https://github.com/thu-ml/SageAttention.git
+RUN echo "Sage Attention is built"
+
+# ==========================================
+# STAGE 3: ComfyUI setup
+# ==========================================
+FROM dependencies AS comfyui-system
+
+ARG WORKER_MODE
+ENV WORKER_MODE=${WORKER_MODE}
+ENV WORKER_HOME=/opt/${WORKER_MODE}
+
+# ---- Setup working directory ----
+
+WORKDIR ${WORKER_HOME}
+
+RUN [ "$WORKER_MODE" = "comfyui" ] && git clone https://github.com/comfyanonymous/ComfyUI.git . && \
+    cd $WORKER_HOME/custom_nodes && git clone https://github.com/ltdrdata/ComfyUI-Manager.git comfyui-manager && \
+    git clone https://github.com/diodiogod/TTS-Audio-Suite.git tts_audio_suite && \
+    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git ComfyUI-WanVideoWrapper && \
+    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git comfyui-videohelpersuite && \
+    git clone https://github.com/christian-byrne/audio-separation-nodes-comfyui.git audio-separation-nodes-comfyui && \
+    git clone https://github.com/melMass/comfy_mtb.git comfy-mtb && \
+    git clone https://github.com/kijai/ComfyUI-KJNodes.git comfyui-kjnodes && \
+    git clone https://github.com/mav-rik/facerestore_cf facerestore_cf || true
+
+RUN [ "$WORKER_MODE" = "comfyui" ] && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/comfyui-manager && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/tts_audio_suite && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/ComfyUI-WanVideoWrapper && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/comfyui-videohelpersuite && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/audio-separation-nodes-comfyui && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/comfy-mtb && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/comfyui-kjnodes && uv pip install -r requirements.txt || true
+RUN [ "$WORKER_MODE" = "comfyui" ] && cd $WORKER_HOME/custom_nodes/facerestore_cf && uv pip install -r requirements.txt || true
+
+# ==========================================
+# STAGE 4: MySpinBot setup
+# ==========================================
+FROM comfyui-system AS worker
+
+ARG WORKER_ENVIRONMENT
+ENV WORKER_ENVIRONMENT=${WORKER_ENVIRONMENT}
+
+COPY ./worke[r] .
+COPY ./commo[n]/config ./config
+COPY ./docker-entrypoint.s[h] ./docker-entrypoint.sh
+
+RUN [ "$WORKER_MODE" = "app" ] && [ "$WORKER_ENVIRONMENT" = "production" ] && \
+    uv pip install --no-cache-dir -e .[dev,test] && \
+    echo "Python worker dependencies installed" || true
+
+RUN mv $WORKER_HOME/docker-entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
