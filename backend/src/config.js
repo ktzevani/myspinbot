@@ -38,7 +38,7 @@ export function getConfiguration() {
     partialConfig.storage = {
       url: process.env.MINIO_ENDPOINT || "",
       useSSL: process.env.MINIO_USE_SSL || "",
-      bucket: process.env?.MINIO_BUCKETS?.split(",")[0] || [],
+      buckets: process.env?.MINIO_BUCKETS?.split(",") || [],
       accessKey: process.env.MINIO_ACCESS_KEY,
       secretKey: process.env.MINIO_SECRET_KEY,
     };

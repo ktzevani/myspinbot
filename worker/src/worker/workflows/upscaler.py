@@ -1,6 +1,5 @@
 import os
 import uuid
-from minio import Minio
 from ..models.worker.workflows_schema import AIUpscalerParams
 import tempfile
 import subprocess
@@ -116,24 +115,12 @@ class AIUpscaler:
 
     def estimate_progress_steps(self, videoStorageRef: str, batch_size: int):
         import folder_paths
-        from ..config import get_config
         import math
+        from ..services.storage import download_to_local_path
 
-        worker_config = get_config()
-        client = Minio(
-            worker_config.storage.url.replace("http://", "").replace("https://", ""),
-            worker_config.storage.username,
-            worker_config.storage.password,
-            secure=worker_config.storage.url.startswith("https://"),
+        local_filename = os.path.basename(
+            download_to_local_path(videoStorageRef, folder_paths.get_input_directory())
         )
-
-        bucket, key = videoStorageRef.split("/", 1)
-        input_dir = folder_paths.get_input_directory()
-        os.makedirs(input_dir, exist_ok=True)
-
-        local_filename = f"{uuid.uuid4().hex}_{os.path.basename(key)}"
-        local_path = os.path.join(input_dir, local_filename)
-        client.fget_object(bucket, key, local_path)
 
         vhsloadvideo = self.vhs_load_video.load_video(
             video=local_filename,
@@ -154,19 +141,10 @@ class AIUpscaler:
 
     def run(self, videoStorageRef: str):
         import torch
-        from ..config import get_config
-        from ..services.tasks import upload_bytes
+        from ..services.storage import download_to_local_path, upload_bytes
         import folder_paths
         import math
         import gc
-
-        worker_config = get_config()
-        client = Minio(
-            worker_config.storage.url.replace("http://", "").replace("https://", ""),
-            worker_config.storage.username,
-            worker_config.storage.password,
-            secure=worker_config.storage.url.startswith("https://"),
-        )
 
         video_chunks = []
 
@@ -182,14 +160,11 @@ class AIUpscaler:
                 model_name=self.params.model_name_1
             )
 
-            # Load video from MinIO object storage
-            bucket, key = videoStorageRef.split("/", 1)
-            input_dir = folder_paths.get_input_directory()
-            os.makedirs(input_dir, exist_ok=True)
-
-            local_filename = f"{uuid.uuid4().hex}_{os.path.basename(key)}"
-            local_path = os.path.join(input_dir, local_filename)
-            client.fget_object(bucket, key, local_path)
+            local_filename = os.path.basename(
+                download_to_local_path(
+                    videoStorageRef, folder_paths.get_input_directory()
+                )
+            )
 
             vhsloadvideo = self.vhs_load_video.load_video(
                 video=local_filename,
@@ -216,6 +191,8 @@ class AIUpscaler:
                 vhsloadvideo[2]["sample_rate"],
                 audio_file_path.name,
             )
+
+            chunk_key = local_filename.split(".")[0]
 
             for i in range(
                 math.ceil(vhsloadvideo[0].shape[0] / self.params.batch_size)
@@ -251,7 +228,7 @@ class AIUpscaler:
                 video_out = self.vhs_video_combine.combine_video(
                     frame_rate=vhsloadvideo[3]["source_fps"],
                     loop_count=0,
-                    filename_prefix=f"video/{key.split('.')[0]}-chunk",
+                    filename_prefix=f"video/{chunk_key}-chunk",
                     format="video/h264-mp4",
                     pix_fmt="yuv420p",
                     crf=19,
@@ -270,7 +247,6 @@ class AIUpscaler:
         print("\tVideo is processed, combining chunks to object storage...")
         sys.stdout.flush()
 
-        video_chunks.append(video_out["ui"]["gifs"][0]["fullpath"])
         video_file_path = tempfile.NamedTemporaryFile(
             mode="w", delete=False, suffix=".mp4"
         )
@@ -285,7 +261,7 @@ class AIUpscaler:
 
         artifact = upload_bytes(
             bucket="output",
-            name=f"{uuid.uuid4().hex}.mp4",
+            name=f"videos/{uuid.uuid4().hex}.mp4",
             content=video_data,
             content_type="video/mp4",
         )

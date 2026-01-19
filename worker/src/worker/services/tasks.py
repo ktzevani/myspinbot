@@ -2,21 +2,23 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import sys
-from datetime import datetime, timezone
 from typing import Awaitable, Callable, TypeAlias, Dict, Any
-
-from minio import Minio
-from minio.error import S3Error
-
-from ..models.storage.artifact_schema import ArtifactMeta, ArtifactUploadResult
-from ..config import get_config, get_capabilities as get_worker_capabilities
+from ..config import get_capabilities as get_worker_capabilities
 
 WorkerTask: TypeAlias = Callable[[Dict[str, Any], Dict[str, Any]], Awaitable[None]]
 
-_worker_config = get_config()
 _TASK_MAP: dict[str, WorkerTask] = {}
+
+
+def task(name: str):
+    """Decorator to register async task functions by name."""
+
+    def wrapper(func):
+        _TASK_MAP[name] = func
+        return func
+
+    return wrapper
 
 
 class StreamAdapter:
@@ -31,58 +33,6 @@ class StreamAdapter:
     def flush(self):
         self.stream.flush()
         self.cb()
-
-
-def task(name: str):
-    """Decorator to register async task functions by name."""
-
-    def wrapper(func):
-        _TASK_MAP[name] = func
-        return func
-
-    return wrapper
-
-
-def _connect_minio() -> Minio:
-    """Return a configured MinIO client using env variables."""
-    return Minio(
-        _worker_config.storage.url.replace("http://", "").replace("https://", ""),
-        _worker_config.storage.username,
-        _worker_config.storage.password,
-        secure=_worker_config.storage.url.startswith("https://"),
-    )
-
-
-def upload_bytes(
-    bucket: str,
-    name: str,
-    content: bytes,
-    content_type: str = "application/octet-stream",
-) -> ArtifactUploadResult:
-    """Upload bytes to MinIO and return typed metadata."""
-    client = _connect_minio()
-    try:
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
-        buffer = io.BytesIO(content)
-        size = len(content)
-        client.put_object(
-            bucket_name=bucket,
-            object_name=name,
-            data=buffer,
-            length=size,
-            content_type=content_type,
-        )
-        meta = ArtifactMeta(
-            bucket=bucket,
-            key=name,
-            size_bytes=size,
-            created_at=datetime.now(timezone.utc),
-            content_type=content_type,
-        )
-        return ArtifactUploadResult(ok=True, meta=meta)
-    except S3Error as exc:  # pragma: no cover - network error path
-        raise RuntimeError(f"Failed to upload {name}: {exc}") from exc
 
 
 @task("dummy_task")
@@ -110,8 +60,8 @@ async def dummy_task(params: Dict[str, Any], node_input: Dict[str, Any]):
             lambda: loop.create_task(publish_progress_cb(current_progress))
         )
 
+    old_stdout = sys.stdout
     try:
-        old_stdout = sys.stdout
         sys.stdout = StreamAdapter(old_stdout, on_step)
 
         # Import task here
@@ -159,8 +109,8 @@ async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
             lambda: loop.create_task(publish_progress_cb(current_progress))
         )
 
+    old_stdout = sys.stdout
     try:
-        old_stdout = sys.stdout
         sys.stdout = StreamAdapter(old_stdout, on_step)
 
         from ..workflows.tts import TextToSpeech
@@ -226,8 +176,8 @@ async def infinite_talk(params: Dict[str, Any], node_input: Dict[str, Any]):
             lambda: loop.create_task(publish_progress_cb(current_progress))
         )
 
+    old_stdout = sys.stdout
     try:
-        old_stdout = sys.stdout
         sys.stdout = StreamAdapter(old_stdout, on_step)
 
         from ..workflows.infinitetalk import InfiniteTalk
@@ -374,8 +324,8 @@ async def upscale_video(params: Dict[str, Any], node_input: Dict[str, Any]):
             lambda: loop.create_task(publish_progress_cb(current_progress))
         )
 
+    old_stdout = sys.stdout
     try:
-        old_stdout = sys.stdout
         sys.stdout = StreamAdapter(old_stdout, on_step)
 
         from ..workflows.upscaler import AIUpscaler

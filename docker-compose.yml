@@ -311,7 +311,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_BUCKETS=input
+      - MINIO_BUCKETS=input,staged,output
       - MINIO_USE_SSL=false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://api:3000/health"]
@@ -397,7 +397,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_BUCKETS=loras,voices,videos
+      - MINIO_BUCKETS=input,staged,output
       - MINIO_USE_SSL=false
       - COMFYUI_ROOT_DIR=/opt/comfyui
     gpus: all

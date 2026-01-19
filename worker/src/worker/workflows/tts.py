@@ -1,6 +1,5 @@
 from io import BytesIO
 import uuid
-from minio import Minio
 from ..models.worker.workflows_schema import TextToSpeechParams
 
 _DEPS = dict()
@@ -48,29 +47,12 @@ class TextToSpeech:
 
     def run(self, text: str):
         """Execute TTS generation using MinIO for inputs and outputs."""
-        from ..config import get_config
-        from ..services.tasks import upload_bytes
+        from ..services.storage import upload_bytes, fetch_torch_audio
         import torchaudio.transforms as T
         import scipy.io.wavfile as wavfile
-        import torchaudio
         import torch
 
-        worker_config = get_config()
-        client = Minio(
-            worker_config.storage.url.replace("http://", "").replace("https://", ""),
-            worker_config.storage.username,
-            worker_config.storage.password,
-            secure=worker_config.storage.url.startswith("https://"),
-        )
-
-        bucket, key = self.params.narrator_voice.split("/", 1)
-        response = client.get_object(bucket, key)
-        try:
-            ref_audio_data = BytesIO(response.read())
-            waveform, sample_rate = torchaudio.load(ref_audio_data)
-        finally:
-            response.close()
-            response.release_conn()
+        waveform, sample_rate = fetch_torch_audio(self.params.narrator_voice)
 
         result = self.engine_instance.generate_speech(
             reference_audio_file="none",
@@ -127,8 +109,8 @@ class TextToSpeech:
         wavfile.write(output_buffer, out_sample_rate, audio_data.T)
 
         artifact = upload_bytes(
-            bucket="speech",
-            name=f"{uuid.uuid4().hex}.wav",
+            bucket="staged",
+            name=f"audio/{uuid.uuid4().hex}.wav",
             content=output_buffer.getvalue(),
             content_type="audio/wav",
         )

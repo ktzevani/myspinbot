@@ -61,4 +61,3 @@ if [ ! -f "$COMFYUI_FLAG" ]; then
 else
     echo "ComfyUI models are there - skipping."
 fi
-tail -f /dev/null

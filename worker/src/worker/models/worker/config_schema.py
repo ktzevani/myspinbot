@@ -26,8 +26,12 @@ class StorageConfiguration(BaseModel):
     url: constr(pattern=r"^http://.+") = Field(
         ..., description="Minio connection string (e.g. 'http://minio:9000')."
     )
-    username: str = Field(..., description="Object storage access key")
-    password: str = Field(..., description="Object storage access secret")
+    use_ssl: bool = Field(..., description="Endpoint uses SSL encryption")
+    buckets: list[str] = Field(
+        ..., description="List of bucket names supporting anonymous access"
+    )
+    access_key: str = Field(..., description="Object storage access key")
+    secret_key: str = Field(..., description="Object storage access secret")
 
 
 class WorkerConfiguration(BaseModel):

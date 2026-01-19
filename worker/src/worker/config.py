@@ -34,8 +34,14 @@ def get_config() -> WorkerConfiguration:
         storage_config = {
             "storage": {
                 "url": os.getenv("MINIO_ENDPOINT", "http://minio:9000"),
-                "username": os.getenv("MINIO_ACCESS_KEY", "admin"),
-                "password": os.getenv("MINIO_SECRET_KEY", "password"),
+                "use_ssl": os.getenv("MINIO_USE_SLL", "false").lower() == "true",
+                "buckets": [
+                    entry.strip()
+                    for entry in os.getenv("MINIO_BUCKETS", "").split(",")
+                    if entry.strip()
+                ],
+                "access_key": os.getenv("MINIO_ACCESS_KEY", "admin"),
+                "secret_key": os.getenv("MINIO_SECRET_KEY", "password"),
             }
         }
         bridge_config = {

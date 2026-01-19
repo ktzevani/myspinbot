@@ -1,9 +1,5 @@
 import os
 import uuid
-from io import BytesIO
-import numpy as np
-from PIL import Image
-from minio import Minio
 from ..models.worker.workflows_schema import InfiniteTalkParams
 
 _DEPS = dict()
@@ -78,25 +74,10 @@ class InfiniteTalk:
         self.wan_video_vae_loader = _DEPS["WanVideoVAELoader"]()
 
     def estimate_progress_steps(self, audioStorageRef: str, fps: int, window_size: int):
-        from ..config import get_config
-        import torchaudio
         import math
+        from ..services.storage import fetch_torch_audio
 
-        worker_config = get_config()
-        client = Minio(
-            worker_config.storage.url.replace("http://", "").replace("https://", ""),
-            worker_config.storage.username,
-            worker_config.storage.password,
-            secure=worker_config.storage.url.startswith("https://"),
-        )
-
-        a_bucket, a_key = audioStorageRef.split("/", 1)
-        a_response = client.get_object(a_bucket, a_key)
-        try:
-            waveform, sample_rate = torchaudio.load(BytesIO(a_response.read()))
-        finally:
-            a_response.close()
-            a_response.release_conn()
+        waveform, sample_rate = fetch_torch_audio(audioStorageRef)
 
         audio_duration_sec = math.ceil(waveform.shape[1] / sample_rate)
         if audio_duration_sec > 60:
@@ -106,18 +87,12 @@ class InfiniteTalk:
         return steps
 
     def run(self, imageStorageRef: str, audioStorageRef: str):
-        from ..config import get_config
-        from ..services.tasks import upload_bytes
         import folder_paths
         import torch
-        import torchaudio
-
-        worker_config = get_config()
-        client = Minio(
-            worker_config.storage.url.replace("http://", "").replace("https://", ""),
-            worker_config.storage.username,
-            worker_config.storage.password,
-            secure=worker_config.storage.url.startswith("https://"),
+        from ..services.storage import (
+            upload_bytes,
+            fetch_torch_audio,
+            fetch_torch_image,
         )
 
         with torch.inference_mode():
@@ -125,20 +100,13 @@ class InfiniteTalk:
                 model=self.params.infinitetalk_model
             )
 
-            # Load Audio from MinIO
-            a_bucket, a_key = audioStorageRef.split("/", 1)
-            a_response = client.get_object(a_bucket, a_key)
-            try:
-                waveform, sample_rate = torchaudio.load(BytesIO(a_response.read()))
-                loadaudio = (
-                    {
-                        "waveform": waveform.unsqueeze(0),
-                        "sample_rate": sample_rate,
-                    },
-                )
-            finally:
-                a_response.close()
-                a_response.release_conn()
+            waveform, sample_rate = fetch_torch_audio(audioStorageRef)
+            loadaudio = (
+                {
+                    "waveform": waveform.unsqueeze(0),
+                    "sample_rate": sample_rate,
+                },
+            )
 
             wanvideovaeloader = self.wan_video_vae_loader.loadmodel(
                 model_name=self.params.vae_model,
@@ -183,17 +151,7 @@ class InfiniteTalk:
                 clip_name=self.params.clip_vision_model
             )
 
-            # Load Image from MinIO
-            i_bucket, i_key = imageStorageRef.split("/", 1)
-            i_response = client.get_object(i_bucket, i_key)
-            try:
-                img = Image.open(BytesIO(i_response.read())).convert("RGB")
-                img_np = np.array(img).astype(np.float32) / 255.0
-                image_tensor = torch.from_numpy(img_np)[None,]
-                loadimage = (image_tensor,)
-            finally:
-                i_response.close()
-                i_response.release_conn()
+            loadimage = fetch_torch_image(imageStorageRef)
 
             wanvideotorchcompilesettings = self.wan_video_torch_compile_settings.set_args(
                 backend=self.params.compile_backend,
@@ -368,8 +326,8 @@ class InfiniteTalk:
                 video_data = f.read()
 
             artifact = upload_bytes(
-                bucket="output",
-                name=f"{uuid.uuid4().hex}.mp4",
+                bucket="staged",
+                name=f"videos/{uuid.uuid4().hex}.mp4",
                 content=video_data,
                 content_type="video/mp4",
             )

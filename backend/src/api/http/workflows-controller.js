@@ -13,9 +13,9 @@ export async function submitInfiniteTalkWorkflow(req) {
     if (part.type === "file") {
       const buffer = await part.toBuffer();
       if (part.fieldname === "image_file") {
-        imagePath = await uploadBuffer(buffer, part.filename);
+        imagePath = await uploadBuffer("input", buffer, part.filename, "images");
       } else if (part.fieldname === "audio_file") {
-        audioPath = await uploadBuffer(buffer, part.filename);
+        audioPath = await uploadBuffer("input", buffer, part.filename, "audio");
       }
     } else {
       if (part.fieldname === "data") {

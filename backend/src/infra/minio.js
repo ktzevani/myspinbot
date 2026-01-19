@@ -1,8 +1,6 @@
 import { Client } from "minio";
-import { createRequire } from "module";
 import { getConfiguration } from "../config.js";
 
-const require = createRequire(import.meta.url);
 const appConfig = getConfiguration();
 
 let minioClient;
@@ -20,4 +18,6 @@ export function getMinioClient() {
   return minioClient;
 }
 
-export const bucketName = appConfig.storage.bucket;
+export function isBucketValid(bucket) {
+  return appConfig.storage.buckets.includes(bucket);
+}
