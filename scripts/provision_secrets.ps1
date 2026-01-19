@@ -271,6 +271,8 @@ if (($FORCE -eq 'true') -or -not (Test-Path $ApiDir)) {
         # Same credentials as Traefik BasicAuth
         $content = @()
         $content += "POSTGRES_URL=postgres://${AUTH_USER}:$AUTH_PASS@postgres:5432/$DB_NAME"
+        $content += "MINIO_ACCESS_KEY=$AUTH_USER"
+        $content += "MINIO_SECRET_KEY=$AUTH_PASS"
         Set-Content -Path $ApiEnv -Value $content -Encoding Ascii
         Write-Host ("   Created Backend root.env: {0}" -f $ApiEnv)
     }

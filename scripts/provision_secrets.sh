@@ -167,6 +167,8 @@ if [[ "$FORCE" == "true" || ! -f "$API_ENV_FILE" ]]; then
   echo "→ Generating Backend root.env (synchronized with Traefik BasicAuth)..."
   {
     echo "POSTGRES_URL=postgres://${AUTH_USER}:${AUTH_PASS}@postgres:5432/${DB_NAME}"
+    echo "MINIO_ACCESS_KEY=${AUTH_USER}"
+    echo "MINIO_SECRET_KEY=${AUTH_PASS}"
   } >"$API_ENV_FILE"
   chmod 600 "$API_ENV_FILE"
   echo "   Created Backend root.env: $API_ENV_FILE"
