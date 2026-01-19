@@ -125,7 +125,7 @@ catch {
 
 $RootEnv = Join-Path $RootDir '.env'
 
-if (($FORCE -eq 'true') -or -not (Test-Path $RootDir)) {
+if (($FORCE -eq 'true') -or -not (Test-Path $RootEnv)) {
     Write-Host '-> Generating root .env ...'
     try {
         $content = @()
@@ -148,7 +148,7 @@ $GrafanaURL = "grafana.$DOMAIN"
 
 New-Item -ItemType Directory -Force -Path $GrafanaDir | Out-Null
 
-if (($FORCE -eq 'true') -or -not (Test-Path $GrafanaDir)) {
+if (($FORCE -eq 'true') -or -not (Test-Path $GrafanaEnv)) {
     Write-Host '-> Generating Grafana root.env (synchronized with Traefik BasicAuth)...'
     try {
         # Same credentials as Traefik BasicAuth
@@ -231,7 +231,7 @@ $PgAdminDir = Join-Path $InfraDir 'postgres\pgadmin'
 $PgAdminServersTemplateFile = Join-Path $PgAdminDir 'servers.json.template'
 $PgAdminServersFile = Join-Path $PgAdminDir 'servers.json'
 
-if (($FORCE -eq 'true') -or -not (Test-Path $PgAdminServersTemplateFile)) {
+if (($FORCE -eq 'true') -or -not (Test-Path $PgAdminServersFile)) {
     Write-Host '-> Generating PgAdmin servers.json ...'
     try {
         $template = Get-Content -Raw -Path $PgAdminServersTemplateFile
@@ -265,7 +265,7 @@ $ApiURL = "api.$DOMAIN"
 
 New-Item -ItemType Directory -Force -Path $ApiDir | Out-Null
 
-if (($FORCE -eq 'true') -or -not (Test-Path $ApiDir)) {
+if (($FORCE -eq 'true') -or -not (Test-Path $ApiEnv)) {
     Write-Host '-> Generating Backend root.env (synchronized with Traefik BasicAuth)...'
     try {
         # Same credentials as Traefik BasicAuth

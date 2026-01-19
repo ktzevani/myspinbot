@@ -152,7 +152,7 @@ fi
 PGADMIN_TEMPLATE="$INFRA_DIR/postgres/pgadmin/servers.json.template"
 PGADMIN_OUTPUT="$INFRA_DIR/postgres/pgadmin/servers.json"
 
-if [[ "$FORCE" == "true" || ! -f "$PGADMIN_TEMPLATE" ]]; then
+if [[ "$FORCE" == "true" || ! -f "$PGADMIN_OUTPUT" ]]; then
   echo "→ Generating PgAdmin servers.json ..."
   expand_template "$PGADMIN_TEMPLATE" "$PGADMIN_OUTPUT"
   echo " Created PgAdmin servers.json: $PGADMIN_OUTPUT"
