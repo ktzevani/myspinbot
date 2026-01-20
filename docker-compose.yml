@@ -35,7 +35,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.0.0
-    container_name: prometheus
+    container_name: myspinbot-prometheus
     restart: unless-stopped
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -52,7 +52,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.2.0
-    container_name: grafana
+    container_name: myspinbot-grafana
     restart: unless-stopped
     user: "472"
     env_file:
@@ -76,7 +76,7 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.51.0
-    container_name: cadvisor
+    container_name: myspinbot-cadvisor
     restart: unless-stopped
     command:
       - "--docker_only=true"
@@ -90,7 +90,7 @@ services:
 
   dcgm-exporter:
     image: nvidia/dcgm-exporter:4.4.0-4.5.0-ubuntu22.04
-    container_name: dcgm-exporter
+    container_name: myspinbot-dcgm-exporter
     restart: unless-stopped
     runtime: nvidia
     networks: [internal-network]

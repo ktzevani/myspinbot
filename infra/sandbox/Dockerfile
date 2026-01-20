@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM node:20-alpine
 
 # Install Linux essentials + git
 RUN apk add --no-cache \

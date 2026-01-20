@@ -1,0 +1,22 @@
+{
+    "name": "⚙️ MySpinBot Sandbox",
+    "dockerComposeFile": [
+        "../docker-compose.yml",
+        "../docker-compose.dev.yml"
+    ],
+    "service": "sandbox",
+    "workspaceFolder": "/workspace",
+    "runServices": [
+        "sandbox"
+    ],
+    "shutdownAction": "none",
+    "postCreateCommand": "npm install -g @google/gemini-cli",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Google.geminicodeassist",
+                "Google.gemini-cli-vscode-ide-companion"
+            ]
+        }
+    }
+}
