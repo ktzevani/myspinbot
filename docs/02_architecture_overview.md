@@ -19,7 +19,7 @@ The platform's architecture is a microservices-oriented approach, where speciali
 The `docker-compose.yml` defines the core production-ready services.
 
 ```mermaid
-graph TD
+graph LR
     subgraph Traefik["Ingress & Edge (Traefik)"]
         T[Traefik Proxy & TLS]
     end
@@ -99,7 +99,7 @@ graph TD
 The `docker-compose.dev.yml` overlays `docker-compose.yml` to enable a developer-friendly environment. It replaces production application images with development-specific images that mount local source code, expose debugging ports, and provide interactive shells.
 
 ```mermaid
-graph TD
+graph RL
     subgraph Base Infra
         T[Traefik]
         REDIS[(Redis)]
@@ -152,86 +152,6 @@ Docker Compose profiles are used to conditionally start groups of services, opti
 *   **`chatbot`:** Activates Open WebUI facility for managing llm models and providing prompting facilities.
 *   **`schemas`:** Activates the `codegen` service for generating validation schemas and data models.
 *   **`monorepo`:** Activates the `sandbox` container in development mode, providing a general-purpose environment with the entire monorepo mounted.
-
-**System Map**
-
-```mermaid
-flowchart LR
-    %% Ingress & UI
-    subgraph Ingress["Traefik Ingress"]
-        T{{TLS & Routing}}
-    end
-
-    subgraph Frontend["Experience Layer (frontend/)"]
-        UI[Next.js Web App]
-    end
-
-    subgraph ControlPlane["Control Plane — backend/ (Node.js)"]
-        API[Fastify API + WebSocket]
-        PLNR["Planner (LangGraph.js)"]
-        EXEC["Control Executor"]
-        JQ["JobQueue (Redis Streams + Pub/Sub)"]
-    end
-
-    subgraph DataPlane["Data Plane — worker/ (Python)"]
-        WAPI[FastAPI /health + /metrics]
-        WBR["Redis Bridge (Streams + Pub/Sub)"]
-        WEXEC["Worker Executor (LangGraph.py)"]
-        TASKS["Task Registry (train_lora, train_voice, render_video, get_capabilities)"]
-    end
-
-    subgraph Data["State & Storage"]
-        R[(Redis — Streams + Pub/Sub)]
-        S3[(MinIO / S3)]
-        CONF[(Shared JSON Schemas + Config)]
-    end
-
-    subgraph Observability["Observability"]
-        PR[Prometheus]
-        GF[Grafana]
-        CA[cAdvisor]
-        NV[NVIDIA DCGM Exporter]
-    end
-
-    %% Planned external AI services
-    subgraph AI_Plan["Planned AI Services"]
-        CU[(ComfyUI Pipelines)]
-        OL[(Ollama LLM)]
-        TTS[(F5-TTS / GPT-SoVITS)]
-        W2L[(Wav2Lip / SadTalker)]
-    end
-
-    %% Connections
-    T --> UI
-    T --> API
-    UI <--> API
-
-    API --> PLNR
-    PLNR --> JQ
-    API <--> JQ
-
-    JQ <--> R
-    R <--> WBR
-    WBR <--> WEXEC
-    WEXEC --> TASKS
-    WEXEC --> WAPI
-
-    TASKS --> S3
-
-    PR --> GF
-    PR <--> API
-    PR <--> WAPI
-    PR <--> CA
-    PR <--> NV
-
-    %% Planned integrations (not fully wired yet)
-    PLNR -. future .-> OL
-    WEXEC -. future .-> CU
-    WEXEC -. future .-> TTS
-    WEXEC -. future .-> W2L
-    CU -. artifacts .-> S3
-    TTS -. models .-> S3
-```
 
 ## 2) Dual‑Plane LangGraph Execution
 

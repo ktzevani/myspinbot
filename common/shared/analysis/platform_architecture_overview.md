@@ -15,7 +15,7 @@ The platform's architecture is a microservices-oriented approach, where speciali
 The `docker-compose.yml` defines the core production-ready services.
 
 ```mermaid
-graph TD
+graph LR
     subgraph Traefik["Ingress & Edge (Traefik)"]
         T[Traefik Proxy & TLS]
     end
@@ -95,7 +95,7 @@ graph TD
 The `docker-compose.dev.yml` overlays `docker-compose.yml` to enable a developer-friendly environment. It replaces production application images with development-specific images that mount local source code, expose debugging ports, and provide interactive shells.
 
 ```mermaid
-graph TD
+graph LR
     subgraph Base Infra
         T[Traefik]
         REDIS[(Redis)]
