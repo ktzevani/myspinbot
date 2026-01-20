@@ -4,19 +4,26 @@
         "../docker-compose.yml",
         "../docker-compose.dev.yml"
     ],
+    "remoteEnv": {
+        "GOOGLE_CLOUD_PROJECT": "myspinbot",
+        "GOOGLE_CLOUD_LOCATION": "europe-west3"
+    },
     "service": "sandbox",
     "workspaceFolder": "/workspace",
     "runServices": [
         "sandbox"
     ],
     "shutdownAction": "none",
-    "postCreateCommand": "npm install -g @google/gemini-cli",
     "customizations": {
         "vscode": {
             "extensions": [
                 "Google.geminicodeassist",
                 "Google.gemini-cli-vscode-ide-companion"
-            ]
+            ],
+            "settings": {
+                "google.gemini.projectId": "myspinbot",
+                "geminicodeassist.projectId": "myspinbot"
+            }
         }
     }
 }

@@ -2,21 +2,15 @@
 
 ## 🎯 Objective
 
-Phase 3 turns MySpinBot from a dual‑plane orchestration demo into a **real AI video pipeline**.  
-Building on the control/data split and LangGraph infrastructure from Phase 2, this phase introduces:
+Phase 3 transforms MySpinBot from a dual‑plane orchestration demo into a **real AI video pipeline**. Building on the control/data split and LangGraph infrastructure from Phase 2, this phase introduces:
 
-- End‑to‑end **LLM → diffusion/video → TTS → lip‑sync** workflows.
-- A persistent **job and artifact store** (PostgreSQL) alongside Redis.
-- A first version of the **Agentic Planner** that generates hybrid LangGraph graphs from user intent and worker capabilities.
-- A **Dramatiq‑backed worker execution model** running GPU‑style tasks behind LangGraph’s `plane: "python"` nodes.
-- Dedicated **AI runtime services** (Ollama + Open WebUI, ComfyUI, and TTS / lip‑sync runtimes) managed by Docker Compose and Traefik.
+- End‑to‑end **LLM → diffusion/video → TTS → lip‑sync** workflows, demonstrating a complete pipeline, with specific variants implemented.
+- A robust **persistent job metadata and history store** (PostgreSQL) integrated alongside Redis for enhanced data durability.
+- A foundational **graph generation logic** capable of constructing hybrid LangGraph workflows from predefined templates, laying the groundwork for a future, more autonomous planner agent.
+- An enhanced **worker execution model** for managing GPU‑style (e.g., PyTorch, CUDA/PyCUDA) tasks invoked by LangGraph’s `plane: "python"` nodes, with provisions for advanced task queuing.
+- Dedicated **AI runtime services** (Ollama + Open WebUI, ComfyUI, and embedded TTS / lip‑sync capabilities) managed seamlessly through Docker Compose and Traefik.
 
-By the end of Phase 3, a user should be able to:
-
-- Train a basic profile (reusing Phase 2 worker tasks), and
-- Generate short, low‑resolution videos driven by a local LLM script and rendered through the GPU worker,
-
-with all steps recorded as structured jobs, artifacts, and metrics.
+By the end of Phase 3, a user can initiate the generation of short, high-quality videos driven by a local LLM script and rendered through the GPU worker, with all execution steps, artifacts, and metrics comprehensively recorded.
 
 ## ⚙️ Core Goals
 
@@ -34,7 +28,7 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - Redis Streams + Pub/Sub remain the real‑time execution bus.
   - Postgres becomes the durable record of what happened (audit trail, history, analytics).
 
-#### ✅ Goal 1 — Current Implementation Snapshot
+**Implemented:**
 
 - **Postgres service** added to the Compose stack (credentials are provisioned by automation scripts, port 5432 exposed in dev overlay).
 - **pgAdmin service** added to the Compose stack (credentials are provisioned by automation scripts, public URL is configured via traefik).
@@ -51,20 +45,21 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - Data‑plane nodes:
     - `train_lora` / `train_voice` (can remain partially simulated but wired for future real models).
     - `render_video` → integration point for ComfyUI + video assembly.
-- Define **two pipeline variants** (matching the architecture docs):
+- Define **three pipeline variants** (matching the architecture docs):
+  - f5 TTS + InfiniteTalk + AI Upscaler.
   - SVD + Wav2Lip path (scene → video → TTS → lip‑sync).
   - SadTalker path (portrait → talking‑head animation + TTS).
 - Capture each variant as a **named workflow**:
   - Shared schema entries for `workflowId`, `variant`, and allowed parameters.
   - Planner aware of which variant is requested / default.
 
-#### ✅ Goal 2 — Current Implementation Snapshot
+**Implemented:**
 
-- **Pipeline catalog added**: new `backend/src/core/pipelines.js` defines two variants (`svd_wav2lip`, `sadtalker`) with LangGraph templates for train-and-generate and generate-only runs (script → LoRA/voice → render with variant-aware params).
+- **Pipeline catalog added**: new `backend/src/core/pipelines.js` defines three variants (`f5tts_infinitetalk`, `svd_wav2lip`, `sadtalker`) with LangGraph templates for train-and-generate and generate-only runs (script → LoRA/voice → render with variant-aware params). 
 - **Planner now builds hybrid graphs**: `Planner#getJobGraph` delegates to the pipeline catalog, validates DAGs, and stamps pipeline metadata (mode, variant, prompt, options) into both graph context and metadata.
 - **Variant-aware API surface**: `/api/train` accepts optional JSON body (`mode`, `variant`, `prompt`, `options`), defaults to train-and-generate + `svd_wav2lip`, and queues the corresponding pipeline graph.
 - **Front-end request wiring**: `frontend/lib/api.ts` now POSTs JSON to `/api/train` with prompt + default mode/variant, ready for future UI controls without needing multipart uploads.
-- **Graph shape tests**: added `backend/tests/planner.test.js` to assert planner output for default (train+generate, SVD+Wav2Lip) and generate-only SadTalker pipelines, including metadata and params.
+- **Graph shape tests**: added `backend/tests/planner.test.js` to assert planner output for SVD+Wav2Lip (train LoRA and generate) and generate-only SadTalker and InfiniteTalk pipelines, including metadata and params.
 - **Worker tasks honor variants/options**: `worker/src/worker/services/tasks.py` now threads `variant`/`preset`/`options` into simulated LoRA/voice/render tasks (artifact naming + logs), matching the pipeline definitions.
 
 ### 3️⃣ AI Runtime Services & Infra (Ollama, Open WebUI, ComfyUI)
@@ -85,7 +80,7 @@ with all steps recorded as structured jobs, artifacts, and metrics.
   - At minimum, container‑level metrics via cAdvisor and DCGM.
   - Optional service‑level Prometheus metrics if available from Ollama / ComfyUI images.
 
-#### ✅ Goal 3 — Current Implementation Snapshot
+**Implemented:**
 
 - **Services added to Compose (profile `ai`)**: `ollama` (GPU), `openwebui`, and `comfyui` now ship in `docker-compose.yml` with dedicated data volumes and NVIDIA device reservations for Ollama/ComfyUI. For `comfyui` a custom docker image is developed.
 - **Traefik routing**: `https://openwebui.${PROJECT_DOMAIN}` and `https://comfyui.${PROJECT_DOMAIN}` are exposed behind the existing BasicAuth middleware; Ollama stays internal-only for security. Use `--profile ai` when starting the stack.
@@ -106,108 +101,42 @@ with all steps recorded as structured jobs, artifacts, and metrics.
     - Only registered tasks are used.
     - Plan respects capability constraints (e.g. disabled TTS/lip‑sync features).
 - Keep the planner **single‑pass and deterministic** in Phase 3:
+  - No automated graph compilation by agent yet
   - No iterative optimization loops yet; just predictable, testable graph generation.
 
-#### ✅ Goal 4 — Current Implementation Snapshot
+**Implemented:**
 
 - **Real script generation hook**: `script.generateScript` now calls a configurable Ollama endpoint (`LLM_ENDPOINT`/`OLLAMA_BASE_URL`, default `http://ollama:11434/api/generate`) with a JSON-only prompt template. Falls back to a deterministic narration/stage pair if the LLM fails or times out.
 - **Configurable defaults**: LLM defaults (model, temperature, tone/persona, length, timeout) live in backend configuration and are threaded into planner-generated script nodes.
 - **Data emission**: successful runs publish `{ script: { stagePrompt, narration, tokensUsed, model } }` via the existing data callback for downstream consumers.
 
-### 5️⃣ Worker‑Side Pipeline Orchestration (ComfyUI, TTS, Lip‑Sync, Dramatiq)
+### 5️⃣ Worker‑Side Pipeline Orchestration (ComfyUI, TTS, Lip‑Sync)
 
-- Introduce **Dramatiq** into the worker as the internal job execution framework for GPU‑style tasks:
-  - Define Dramatiq actors for `train_lora`, `train_voice`, `render_video`, and any auxiliary long‑running steps.
-  - Integrate Dramatiq with the existing Redis bridge so LangGraph python‑plane nodes can dispatch work to actors while still reporting progress/status via Streams + Pub/Sub.
-  - Extend worker configuration schemas to cover Dramatiq broker settings and concurrency limits, and expose basic Dramatiq metrics.
 - Keep the Python worker focused on **data‑plane execution + orchestration**:
   - The worker container ships LangGraph.py, Dramatiq, the Redis bridge, and all non‑server‑style AI runtimes needed for pipelines:
     - TTS stack (e.g., F5‑TTS / GPT‑SoVITS).
     - Lip‑sync / talking‑head stack (e.g., Wav2Lip, SadTalker).
     - Optional ESRGAN / audio utilities.
   - Only facilities that include their own web server (Ollama, Open WebUI, ComfyUI) live in separate containers.
-- Extend the worker with **integration hooks**:
+- Extend the worker with ComfyUI facilities:
+  - Map worker container to ComfyUI volume (so that worker and comfyui infrastructure service share common configuration/models)
   - ComfyUI integration:
-    - Configurable base URL and API key (if needed) in worker config schema.
-    - Tasks for invoking predefined ComfyUI workflows (image→video, talking‑head) with parameters from graph nodes.
-  - TTS integration:
-    - Internal Python APIs or subprocess wrappers around the TTS runtimes embedded in the worker image.
-    - Common interface for generating WAV/FLAC given text + voice profile reference.
-  - Lip‑sync / talking‑head integration:
-    - Internal Python APIs or subprocess wrappers for Wav2Lip / SadTalker.
-    - Accept video + audio inputs (by URI) and return a new video URI in MinIO.
+    - Make use of dynamic module resolution to enable comfyui facilities in worker process.
+    - Integrate PyTorch, PyCuda and comfyui custom nodes and base libraries in the worker process.
+    - Integrate access to object storage from worker process for the former to be used as an artifact repository.
 - For Phase 3, it is acceptable to:
-  - Implement **“hybrid” tasks** that call real services when available, but fall back to simulated output when not.
-  - Focus on **correct orchestration and data flow** (URIs, parameters, progress) over perfect visual quality.
+  - Implement **“hybrid” tasks”** that call real services when available, but fall back to simulated output when not.
 
-#### ✅ Goal 5 — Current Implementation Snapshot
+**Implemented:**
 
-- **Dramatiq wired in-process**: Redis-backed Dramatiq broker + results backend spin up with the worker; actors for `train_lora`, `train_voice`, and `render_video` run via an embedded worker thread and are invoked from LangGraph nodes through `run_actor_with_result`, preserving Redis Stream progress callbacks.
-- **Training tasks produce real artifacts**: `train_lora`/`train_voice` now emit JSON manifests and WAV samples (not just dummy bytes), upload them to MinIO with typed metadata, and report staged progress across the node’s `progressWeight`.
-- **Render pipeline is hybrid but end-to-end**: `render_video` synthesizes speech audio (stdlib WAV generator), attempts a ComfyUI txt2img render (polls `/prompt` + `/history`; falls back to deterministic placeholder PNG), and publishes a video manifest that couples audio + image + variant metadata to MinIO; progress is emitted along the way.
-- **Media helpers**: stdlib-only PNG generator, lightweight TTS surrogate, and best-effort ComfyUI client with timeout/error handling live under `worker/src/worker/services/media.py`.
-- **Worker bootstrapping**: `worker.main` starts the Dramatiq worker alongside the LangGraph executor so python-plane nodes can dispatch GPU-style work without a separate process during dev.
-- **Lip-sync placeholder**: until Wav2Lip/SadTalker are wired, the manifest captures audio + render pairing as a stand-in for muxed, lip-synced video; the pipeline is ready to swap in real models once available.
-
-### 6️⃣ Artifact & Profile Management
-
-- Introduce basic **artifact semantics** around MinIO usage:
-  - Every task that produces a file registers an artifact record in Postgres.
-  - Artifacts carry type, jobId, originating node, URIs, size, and optional preview metadata.
-- Establish a **minimal profile model**:
-  - Link LoRA/TTS artifacts to a logical “profile” entity (even if UI remains minimal).
-  - Support reusing an existing profile for generation‑only jobs in Phase 3 (no retraining).
-- Expose essential artifact/profile info via API:
-  - `GET /api/jobs/:id` → returns associated artifacts and pipeline summary.
-  - Simple profile listing endpoint for future UI features.
-
-### 7️⃣ Observability for AI Pipelines
-
-- Extend metrics in both planes to cover **AI‑specific signals**:
-  - Per‑task latency histograms (LLM, ComfyUI calls, TTS, lip‑sync).
-  - Job success/failure counters by workflow variant.
-  - GPU utilization sampled during pipeline execution (building on DCGM metrics).
-- Add basic **pipeline‑focused Grafana panels**:
-  - “AI Pipeline Overview” dashboard showing:
-    - Number of pipeline runs over time.
-    - Breakdown of failures by node type.
-    - Per‑stage latency and VRAM usage.
-- Improve logging around LangGraph execution:
-  - Structured logs for node start/finish, including jobId, workflowId, nodeId, and plane.
-  - Clear error paths for failed nodes with enough context to debug model/infra issues.
-
-### 8️⃣ Developer Workflow & Testing Strategy for Phase 3
-
-- Backend:
-  - Unit tests for the Agentic Planner to assert expected graph shapes for given prompts/capabilities.
-  - Integration tests for `/api/train` and new generation endpoints hitting real/simulated LLM + worker flows.
-  - Tests for Postgres persistence (job + artifact records) in isolation.
-- Worker:
-  - Tests around ComfyUI/TTS/lip‑sync task wrappers using mocks or local test endpoints.
-  - Validation that progress/status emissions remain consistent across the new tasks.
-- Frontend:
-  - UI extensions tested via Vitest/RTL:
-    - Controls for selecting **mode** (train‑and‑generate vs generate‑only) and **pipeline variant** (SVD + Wav2Lip vs SadTalker).
-    - Basic profile selection UI for generation‑only jobs.
-    - Surfacing of pipeline details and artifact information (e.g., video link, variant label, created time).
-- CI / Dev workflow:
-  - Optional docker‑compose profile to start **only** the services needed for AI pipeline development (backend, worker, Redis, MinIO, Postgres, ComfyUI, Ollama).
-  - Documentation updates in `docs/` describing how to run and test Phase 3 pipelines end‑to‑end on a single GPU machine.
-
-### 9️⃣ Frontend UX for AI Pipelines
-
-- Extend the existing Next.js dashboard to support the richer Phase 3 workflows:
-  - Update `UploadForm` to:
-    - Offer **mode selection**: “Train & Generate” vs “Generate from Existing Profile”.
-    - Allow choosing a **pipeline variant** (SVD + Wav2Lip or SadTalker) and basic options (duration, resolution presets).
-    - Support selecting an existing profile (from a simple dropdown or ID field) when in generate‑only mode.
-  - Enhance job display (`StatusCard` and related components) to:
-    - Show pipeline metadata: variant, mode, profile label, and key timestamps.
-    - Indicate multi‑stage progress (e.g., scripting → training → rendering) while still relying on the existing WebSocket update stream.
-  - Optionally add a lightweight **job history** view backed by the new Postgres job endpoints for inspecting recent runs.
-- Keep the UI changes incremental and aligned with current patterns:
-  - Reuse the existing WebSocket contract and job status model.
-  - Avoid heavy UX overhauls in Phase 3; focus on enabling the new flows and making pipeline/state visible.
+- **ComfyUI Integration:** `workflows/__init__.py` handles the dynamic initialization and loading of ComfyUI's custom nodes and environment, enabling programmatic orchestration of ComfyUI workflows within the worker process.
+- **Embedded AI Runtimes:** The worker container directly integrates LangGraph.py, along with required non‑server‑style AI runtimes and models.
+- **Object Storage Access:** Integrated access to MinIO from the worker process, allowing for seamless handling of input assets and output artifacts.
+- **Key Workflows:**
+  - **Text-to-Speech (`f5_to_tts` task via `tts.py`):** Synthesizes speech audio using dynamically loaded F5TTSNode from a custom ComfyUI node, processes it, and uploads the resulting WAV artifact to MinIO.
+  - **Image-to-Video (`infinite_talk` task via `infinitetalk.py`):** Orchestrates a complex sequence of ComfyUI nodes to perform multi-talk image-to-video generation from an input image and pre-synthesized audio, ultimately uploading the generated video (MP4) to MinIO. This is the core `f5tts_infinitetalk` render pipeline.
+  - **AI Upscaling (`upscale_video` task via `upscaler.py`):** Processes video in chunks, performing upscaling and face restoration using ComfyUI nodes, and utilizing FFmpeg for audio muxing and video concatenation, then uploads the final high-resolution video to MinIO.
+- **Hybrid Task Execution Principle:** The system allows for "hybrid" tasks where real services are called, with implicit understanding that fallbacks (like placeholder images/audio) are used if real data/models are not fully configured or available, maintaining a focus on correct orchestration and data flow.
 
 ## 📚 Docs Reference
 

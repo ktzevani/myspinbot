@@ -142,3 +142,67 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
 **Front-of-mind for future phases**
 
 - Planner currently uses static graph templates; future phases are expected to make planning more intelligent while preserving the dual-plane and schema-driven foundations established here.
+
+## 5) Phase 3 — AI Pipeline Implementation Snapshot
+
+Phase 3 marks the transition of MySpinBot into a real AI video pipeline, building on the dual-plane LangGraph foundation from Phase 2. This phase focused on integrating core AI services, establishing durable persistence, and advancing the orchestration capabilities.
+
+### 5.1 Original plan
+
+The plan for Phase 3 was ambitious, aiming to introduce end-to-end LLM → diffusion/video → TTS → lip-sync workflows with multiple pipeline variants (e.g., SVD+Wav2Lip, SadTalker). It also included a persistent job and artifact store (PostgreSQL), a first version of an Agentic Planner, a **Dramatiq-backed worker execution model**, and dedicated AI runtime services (Ollama, Open WebUI, ComfyUI) managed by Docker Compose and Traefik. The ultimate goal was for users to be able to train basic profiles and generate short, low-resolution videos driven by local LLM scripts.
+
+### 5.2 Outcome in the repo
+
+**Architecture & Flows**
+
+- **PostgreSQL Integration:** PostgreSQL and pgAdmin services were successfully added to the Docker Compose stack, providing durable storage for job metadata, LangGraph snapshots, and artifact records. Backend persistence hooks were implemented in the JobQueue to mirror Redis events into Postgres, and new API endpoints (`/api/jobs`, `/api/jobs/:id`) now expose job history.
+- **AI Runtime Services:** Ollama, Open WebUI, and ComfyUI were integrated as containerized services in the `docker-compose.yml` (`ai` profile), with Traefik routing configured for external access to Open WebUI and ComfyUI. GPU resources are managed for Ollama and ComfyUI.
+- **Advanced Pipeline Definitions:** A pipeline catalog (`backend/src/core/pipelines.js`) was introduced to define multiple LangGraph variants (`f5tts_infinitetalk`, `svd_wav2lip`, `sadtalker`). The Planner now builds these hybrid graphs, stamping pipeline metadata into the graph context. The `/api/train` endpoint is variant-aware, and the frontend is wired to submit detailed pipeline requests.
+- **LLM Integration:** The `script.generateScript` node in the backend was upgraded to make real calls to a configurable Ollama endpoint, with fallback mechanisms. LLM defaults are now configurable in the backend.
+- **Worker Orchestration:** While planned to be Dramatiq-backed, the worker currently utilizes direct invocation of task functions from LangGraph nodes for GPU-style tasks. Dramatiq dependencies are present but its full actor-based framework is currently postponed for future integration. Tasks produce real, typed artifacts (JSON manifests, WAV samples) uploaded to MinIO.
+- **InfiniteTalk Pipeline:** The `f5tts_infinitetalk` pipeline is fully implemented, with its `f5_to_tts` task synthesizing speech audio, its `infinite_talk` task producing lip-sync video out of an input portrait image and the synthesized audio and final its `upscale_video` task which upscales the staged video output and corrects any upscale artifacts on the character's face.
+
+**Modular Structure**
+
+- The modular breakdown continued to refine, with dedicated modules for pipelines and media helpers within the backend and worker respectively.
+- Shared schemas continue to ensure consistency across the Node.js and Python planes for complex pipeline definitions and job states.
+
+**Tech Stack**
+
+- **PostgreSQL:** Added as the primary relational database for durable state.
+- **Dramatiq:** Introduced in the Python worker for robust internal job execution and management. Still remains unused though in actual runtime.
+- **Ollama:** Integrated as the local LLM runtime, providing real-time script generation capabilities.
+- **ComfyUI:** Integrated for diffusion and image/video generation workflows.
+- The existing dual-plane LangGraph orchestration with Redis Streams remains central, now with PostgreSQL providing the long-term historical record.
+
+### 5.3 What’s new / changed in Phase 3 (release-notes style)
+
+**Architecture**
+
+- **Durable Persistence:** Full integration of **PostgreSQL** (`pg` client, `job-repository.js`) for comprehensive job and artifact history, providing a durable audit trail beyond Redis's ephemeral state.
+- **Real AI Capabilities:** Deployment of **Ollama, Open WebUI, and ComfyUI** as first-class services via Docker Compose profiles, shifting from simulated to actual LLM and diffusion model interactions.
+- **LLM-Driven Scripting:** The `script.generateScript` handler in the backend now performs **direct API calls to Ollama**, dynamically generating stage prompts and narrations.
+- **Worker Task Execution:** The worker processes GPU-style tasks via direct invocation of task functions from LangGraph nodes. The planned full Dramatiq-backed actor framework is currently not in active use, though its dependencies are present. Tasks are managed by the worker process itself.
+- **Implemented AI Pipeline:** Only the `f5tts_infinitetalk` pipeline has been fully implemented, demonstrating end-to-end LLM-driven video generation. Other pipeline variants (`sadtalker`, `svd_wav2lip`) exist as predefined graphs but currently rely on dummy worker tasks.
+
+**Modules & Boundaries**
+
+- **Backend `pipelines.js`:** Centralized definition of multiple LangGraph workflow variants (e.g., `f5tts_infinitetalk`, `svd_wav2lip`, `sadtalker`), enabling the `Planner` to construct dynamic workflow DAGs.
+- **Worker `workflows/`:** Introduced Python modules (`infinitetalk.py`, `tts.py`, `upscaler.py`) that programmatically orchestrate ComfyUI nodes and other AI models, leveraging a custom ComfyUI embedding for headless execution.
+- **Frontend `lib/api.ts`:** Enhanced to support **variant-aware API requests**, allowing users to select and parameterize different pipeline types.
+
+**Tech Stack**
+
+- **PostgreSQL (16-alpine)**: The core relational database for long-term job and event storage.
+- **Dramatiq**: Integrated for asynchronous task execution within the Python worker.
+- **Ollama (0.13.1)**: Provides local LLM inference for script generation.
+- **ComfyUI (custom image)**: Programmatically utilized within the worker for image/video diffusion workflows.
+- **pgAdmin, Open WebUI**: Management UIs for PostgreSQL and Ollama, respectively, enhancing operational visibility.
+
+**Front-of-mind for future phases**
+
+- Advancing the `Planner` to a fully agentic state, capable of generating workflows from high-level user intent and dynamic worker capabilities.
+- Putting dramatiq task management in action.
+- Implementing additional video/audio generation workflows.
+- Deepening observability for AI pipelines with more granular, task-specific latency and GPU metrics.
+- Expanding artifact and profile management functionalities for greater user control.
