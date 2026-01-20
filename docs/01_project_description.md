@@ -2,14 +2,14 @@
 
 ## Purpose
 
-This project aims to deliver a fully local, end‑to‑end platform that generates short, personalized videos of custom “bots” (human‑like or stylized avatars) from minimal user data: a small image set and a few seconds of audio. It must run on a single consumer GPU (e.g. RTX 5070 Ti) and rely strictly on open‑source components—models, code, and tooling—to ensure privacy, reproducibility, and longevity. Beyond a working product, the project actual goal is **primarily educational**, i.e. to showcase a modern, modular AI stack that cleanly integrates React UI layer, Node.js  orchestration, LangGraph distributed workflows on both Node.js and Python runtimes, ComfyUI diffusion pipelines, Ollama‑hosted local LLMs, Python‑based training jobs (LoRA, TTS, lip‑sync) managed by Dramatiq workers, and full observability (Prometheus/Grafana) within one coherent system.
+This project aims to deliver a fully local, end‑to‑end platform that generates short, personalized videos of custom “bots” (human‑like or stylized avatars) from minimal user data: a small image set and a few seconds of audio. It must run on a single consumer GPU (e.g. RTX 5070 Ti) and rely strictly on open‑source components—models, code, and tooling—to ensure privacy, reproducibility, and longevity. Beyond a working prototype, the project actual goal is **primarily educational**, i.e. to showcase a modern, modular AI stack that cleanly integrates React UI layer, Node.js  orchestration, LangGraph distributed workflows on both Node.js and Python runtimes, ComfyUI diffusion pipelines, Ollama‑hosted local LLMs, Python‑based training jobs (LoRA, TTS, lip‑sync) managed by Dramatiq workers, and full observability (Prometheus/Grafana) within one coherent system.
 
 ## What we will enable
 
-- **One‑off profile training**: Users upload ~20–60 images and ~10–60 s of audio to train a lightweight LoRA for identity/style and a few‑shot TTS voice profile. Artifacts are stored locally and reusable across sessions.
-- **On‑demand video generation**: From a textual topic, a local LLM (via Ollama) produces a two‑part script—(A) scene “stage” description and (B) the narrative to speak. ComfyUI converts the stage into an image, animates it into a short clip (image→video or talking‑head), upscales frames, then we synthesize speech with the trained TTS and align lips. The result is an MP4 with synchronized audio.
+- **One‑off profile training**: Users upload a number of images and ~10 s of audio samples to train a lightweight LoRA for identity/style and a few‑shot TTS voice profile. Artifacts are stored locally and are reusable across sessions.
+- **On‑demand video generation**: From a textual topic, a local LLM (via Ollama) produces a two‑part script—(A) scene “stage” description and (B) the narrative to speak. Custom diffusion pipelines convert the stage into an image, synthesize speech with the trained TTS, animate it into a short clip (I2V or talking‑head) with aligned lips and upscale/post-process frame to increase output quality. The result is an MP4 with synchronized audio.
 - **Dual operation modes**: (1) **Guided**—the LLM crafts stage + narrative automatically; (2) **Direct**—advanced users provide their own caption/narration and optional scene prompt, bypassing the LLM for faster iteration.
-- **Local management & visibility**: Open WebUI manages Ollama models (download, organize, experiment) while Prometheus/Grafana offer GPU/queue/API metrics so users can observe performance, debug bottlenecks, and reason about trade‑offs (quality vs latency vs VRAM).
+- **Local management & visibility**: Open WebUI manages Ollama models (download, organize, experiment) while Prometheus/Grafana offer GPU/queue/API metrics so users can observe performance, debug bottlenecks, and reason about trade‑offs (quality vs latency vs VRAM). ComfyUI server is used for prototyping end-to-end pipelines before convert them into actual Python code to be executed by the workers.
 
 ## Why this matters
 
@@ -25,7 +25,7 @@ Generative media tools are increasingly cloud‑bound, license‑entangled, and 
 ## Scope and constraints
 
 - **In scope**: LoRA training (SD 1.5 baseline; SDXL optional), F5‑TTS or GPT‑SoVITS, image→video via Stable Video Diffusion (and/or SadTalker for talking heads), ESRGAN upscaling, Wav2Lip for lip alignment, LangGraph orchestration (Node.js + Python), Dramatiq task execution, Open WebUI + Ollama for LLMs, Prometheus/Grafana for metrics, Postgres/Redis/MinIO for state and storage.
-- **Constraints**: Single‑GPU execution, modest VRAM budgeting, batch‑size/resolution caps, short clip lengths (seconds) stitched if necessary, **strictly open‑source** tooling and weights, and security defaults suitable for a private LAN (Traefik TLS, role‑based access in the app).
+- **Constraints**: Runs on single GPU, modest VRAM budgeting, batch‑size/resolution caps, short clip lengths (seconds) stitched if necessary, **strictly open‑source** tooling and weights, and security defaults suitable for a private LAN (Traefik TLS, role‑based access in the app).
 - **Non‑goals (initial)**: Long‑form video synthesis, real‑time streaming avatars, multi‑GPU scheduling, cloud autoscaling, or training large base models from scratch.
 
 ## Who this is for

@@ -4,8 +4,154 @@ This document describes the current MySpinBot architecture at multiple levels: a
 
 ## 1) High‑Level System Architecture
 
-**Description:**  
-The platform is a local, multi-service stack organized around a **control plane** (Node.js backend) that orchestrates LangGraph workflows, a **data plane** (Python worker) that executes heavy GPU-powered tasks, a Next.js frontend, and shared infrastructure for storage, routing, and observability. All services run on a shared Docker network and expose metrics for unified monitoring.
+### Description  
+
+The platform is a comprehensive, local-first AI infrastructure deployed and managed using Docker Compose. It is designed around a **dual-plane LangGraph orchestration architecture**, integrating a Node.js-based **Control Plane** (backend) with a Python/GPU-powered **Data Plane** (worker). It also includes a Next.js frontend, and shared infrastructure for storage, routing, and observability. 
+
+The entire system is containerized, facilitating consistent environments across development and production. It includes core application services, a robust set of data stores, a full observability stack, and integrated AI inference engines (LLMs, diffusion models). A key aspect is the clear separation between a production-like deployment (`docker-compose.yml`) and a development overlay (`docker-compose.dev.yml`), allowing for efficient local development with live code reloading and debugging.
+
+The platform's architecture is a microservices-oriented approach, where specialized services communicate over a shared internal network. Traefik acts as the ingress controller, routing external traffic to the appropriate services and handling TLS.
+
+### Overall System Map 
+
+**Production Environment**
+
+The `docker-compose.yml` defines the core production-ready services.
+
+```mermaid
+graph TD
+    subgraph Traefik["Ingress & Edge (Traefik)"]
+        T[Traefik Proxy & TLS]
+    end
+
+    subgraph Application Services
+        UI["Frontend (Next.js)"]
+        API["Backend (Node.js)"]
+        WORKER["Worker (Python/GPU)"]
+        COMFYUI["ComfyUI (Python/GPU)"]
+        OLLAMA["Ollama (LLM)"]
+        OPENWEBUI["Open WebUI (Ollama GUI)"]
+    end
+
+    subgraph Data & Storage
+        REDIS[(Redis - Streams, Pub/Sub, Cache)]
+        POSTGRES[(PostgreSQL - Durable Job State)]
+        MINIO[(MinIO - Object Storage / S3)]
+        PGADMIN[pgAdmin - Postgres GUI]
+        REDISINSIGHT[Redis Insight - Redis GUI]
+    end
+
+    subgraph Observability["Observability (Profile: observability)"]
+        PROM[Prometheus - Metrics Collection]
+        GRAFANA[Grafana - Dashboards]
+        CADVISOR[cAdvisor - Container Metrics]
+        DCGM[NVIDIA DCGM Exporter - GPU Metrics]
+        REDIS_EXP[Redis Exporter]
+    end
+
+    subgraph Utility Services
+        DOWNLOADER[Downloader - AI Model Fetcher]
+        CODEGEN[Codegen - Schema Generators]
+    end
+
+    User --> T
+    T --> UI
+    T --> API
+    T --> GRAFANA
+    T --> REDISINSIGHT
+    T --> PGADMIN
+    T --> MINIO
+    T --> OPENWEBUI
+    T --> COMFYUI
+
+    UI <--> API
+    API <--> REDIS
+    API <--> POSTGRES
+    API <--> MINIO
+    API <--> OLLAMA
+
+    REDIS <--> WORKER
+    MINIO <--> WORKER
+    COMFYUI <--> WORKER
+    OLLAMA <--> OPENWEBUI
+
+    PROM --> GRAFANA
+    PROM -- Scrapes --> T
+    PROM -- Scrapes --> API
+    PROM -- Scrapes --> WORKER
+    PROM -- Scrapes --> REDIS_EXP
+    PROM -- Scrapes --> MINIO
+    PROM -- Scrapes --> CADVISOR
+    PROM -- Scrapes --> DCGM
+
+    DOWNLOADER -- Downloads Models --> OLLAMA
+    DOWNLOADER -- Downloads Models --> COMFYUI
+
+    CODEGEN -- Generates Schemas --> API
+    CODEGEN -- Generates Models --> WORKER
+
+    style WORKER fill:#f9f,stroke:#333,stroke-width:2px
+    style API fill:#9cf,stroke:#333,stroke-width:2px
+```
+
+**Development Environment (Overlay)**
+
+The `docker-compose.dev.yml` overlays `docker-compose.yml` to enable a developer-friendly environment. It replaces production application images with development-specific images that mount local source code, expose debugging ports, and provide interactive shells.
+
+```mermaid
+graph TD
+    subgraph Base Infra
+        T[Traefik]
+        REDIS[(Redis)]
+        POSTGRES[(PostgreSQL)]
+        MINIO[(MinIO)]
+        PROM[Prometheus]
+        GRAFANA[Grafana]
+        OLLAMA[Ollama]
+        OPENWEBUI[Open WebUI]
+        COMFYUI[ComfyUI]
+    end
+
+    subgraph Development Services
+        API_DEV["Backend:dev (Mounted Source, Debug)"]
+        UI_DEV["Frontend:dev (Mounted Source, Debug)"]
+        WORKER_DEV["Worker:dev (Mounted Source, Debug)"]
+        COMFYUI_DEV["ComfyUI:dev (Mounted Source, Debug)"]
+        SANDBOX["Sandbox (Entire Workspace)"]
+    end
+
+    T --- HTTP/WS --- API_DEV
+    T --- HTTP --- UI_DEV
+    API_DEV <--> REDIS
+    API_DEV <--> POSTGRES
+    API_DEV <--> MINIO
+    API_DEV <--> OLLAMA
+
+    REDIS <--> WORKER_DEV
+    MINIO <--> WORKER_DEV
+    COMFYUI <--> WORKER_DEV
+    OLLAMA <--> OPENWEBUI
+
+    SANDBOX -- Accesses --> API_DEV
+    SANDBOX -- Accesses --> UI_DEV
+    SANDBOX -- Accesses --> WORKER_DEV
+    SANDBOX -- Accesses --> COMFYUI_DEV
+
+    style API_DEV fill:#ace,stroke:#333,stroke-width:2px
+    style UI_DEV fill:#aec,stroke:#333,stroke-width:2px
+    style WORKER_DEV fill:#fce,stroke:#333,stroke-width:2px
+    style COMFYUI_DEV fill:#fcd,stroke:#333,stroke-width:2px
+```
+
+### Docker Profiles
+
+Docker Compose profiles are used to conditionally start groups of services, optimizing resource usage and allowing for flexible deployments.
+
+*   **Default (no profile specified):** Starts core application services (Traefik, Redis, Postgres, MinIO, `api`, `ui`, `worker`) along with core AI services offering inference capabilities (including Ollama and ComfyUI), ensuring a functional and complete AI stack.
+*   **`observability`:** Includes Prometheus, Grafana, cAdvisor, DCGM Exporter, and Redis Exporter for comprehensive monitoring.
+*   **`chatbot`:** Activates Open WebUI facility for managing llm models and providing prompting facilities.
+*   **`schemas`:** Activates the `codegen` service for generating validation schemas and data models.
+*   **`monorepo`:** Activates the `sandbox` container in development mode, providing a general-purpose environment with the entire monorepo mounted.
 
 **System Map**
 
@@ -87,26 +233,6 @@ flowchart LR
     TTS -. models .-> S3
 ```
 
-**Current implementation status:**
-
-- Fully implemented:
-  - Fastify HTTP API and WebSocket hub.
-  - Planner and control-plane executor.
-  - Redis-backed JobQueue and worker Redis Bridge.
-  - Python worker executor and task registry.
-  - MinIO integration for dummy artifacts.
-  - Shared JSON schemas and codegen for validators/models.
-  - Metrics endpoints for backend and worker.
-- Partially implemented / stubbed:
-  - Script generation via LLM (`script.generateScript`).
-  - GPU-specific workloads (`train_lora`, `train_voice`, `render_video`) — simulated but wired.
-  - Artifact handling, beyond dummy uploads.
-- Planned:
-  - Real LLM integration via Ollama.
-  - ComfyUI workflows for diffusion/video pipelines.
-  - TTS + lip-sync models and end-to-end video generation graphs.
-  - Richer agentic planner based on capabilities.
-
 ## 2) Dual‑Plane LangGraph Execution
 
 **Description:**  
@@ -156,43 +282,7 @@ Key properties:
 - **Redis Streams + Pub/Sub** – form the control/data bridge and carry status/progress.
 - **Idempotent executors** – both planes can resume partially completed graphs.
 
-## 3) Training & Capabilities Workflows
-
-### 3.1 Default Training Workflow
-
-The primary entrypoint is `POST /api/train`, which builds a default LangGraph via the Planner:
-
-- **Control-plane nodes** (Node.js):
-  - `script.generateScript` — stubbed script generator (future Ollama call).
-  - `script.postProcess` (conceptual) — space for post-script transformations.
-- **Data-plane nodes** (Python):
-  - `train_lora` — simulates LoRA training and uploads a dummy artifact to MinIO.
-  - `train_voice` — placeholder for voice fine-tuning.
-  - `render_video` — simulates a render and uploads a dummy video artifact.
-
-Conceptually:
-
-```mermaid
-flowchart TD
-    A[User POST /api/train] --> B["Planner (control plane)"]
-    B --> C["Node LangGraph: script.generateScript"]
-    C --> D["Python LangGraph: train_lora"]
-    D --> E["Python LangGraph: render_video"]
-    E --> F[Job completed + artifacts recorded]
-```
-
-The graph shape is intentionally generic so a future agentic planner can synthesize richer graphs from prompts and capability manifests.
-
-### 3.2 Capabilities Workflow
-
-`GET /api/capabilities` runs as a small hybrid graph:
-
-1. Python node `get_capabilities` — returns the worker capability manifest.
-2. Node node `capabilities.getManifest` — merges worker and control-plane capabilities into a single JSON object.
-
-This is the first concrete dual-plane workflow; additional features are expected to follow the same pattern.
-
-## 4) Shared Schemas, Job State & WebSockets
+## 3) Shared Schemas, Job State & WebSockets
 
 The system is **schema-driven**:
 
@@ -223,9 +313,36 @@ flowchart LR
 - The WebSocket hub polls the JobQueue at `configuration.websocket.updateInterval` and pushes consolidated state to subscribers.
 - Clients subscribe/unsubscribe per `jobId` and stop listening when the job reaches a terminal state.
 
+## 4) Custom & Capabilities Workflows
+
+### 4.1 InfiniteTalk Workflow
+
+The entrypoint is `POST /api/infinitetalk`, which builds a workflow LangGraph via the Planner:
+
+- **Control-plane nodes** (Node.js):
+  - `script.generateScript` — prompts appointend llm in ollama to generate narration structure.
+- **Data-plane nodes** (Python):
+  - `f5_to_tts` — converts the generated script text into a realistic speech audio file.
+  - `infinite_talk` —takes a source image and the audio file from the previous step and creates an animated talking-head video.
+  - `upscale_video` — processes the video to upscale it via AI upscaling and to restore and enhance facial details.
+
+For more details please read [InfiniteTalk Deep Dive](phase3/infinite_talk.md) 
+
+### 4.2 Capabilities Workflow
+
+`GET /api/capabilities` runs as a small hybrid graph:
+
+1. Python node `get_capabilities` — returns the worker capability manifest.
+2. Node node `capabilities.getManifest` — merges worker and control-plane capabilities into a single JSON object.
+
+This is the first concrete dual-plane workflow; additional features are expected to follow the same pattern.
+
+
 ## 5) Planned Video Generation Pipelines
 
-The long-term goal is an end-to-end, local video generation pipeline that combines LLM planning, diffusion/video models, TTS, and lip-sync. Two main variants are planned.
+The long-term goal is to provide more end-to-end, local video generation pipelines that combine LLM planning, diffusion/video models, TTS, lip-sync facilities and more. 
+
+Other than the implemented InfiniteTalk pipeline there are two other variants planned. One of which (SVD+Wav2Lip) includes training a character-specific LoRA (given a set of images as an input) to apply ontop of the video generation diffusion model. While both planned pipelines introduce the generation of novel character portrait images (in contrast to the user providing one, like in InfiniteTalk workflow) with their surrounding environment out of the descriptions that the llm provides.  
 
 ### 5.1 SVD + Wav2Lip
 
@@ -274,31 +391,26 @@ These pipelines are intentionally modular so components can be swapped (e.g., di
 
 Users primarily:
 
-- Trigger training jobs.
-- (In the future) generate videos from prompts or captions.
+- Trigger generation pipelines.
 - Monitor job progress via the Web UI.
+- (In the future) manage generated artifacts and browser through jobs history.
 
 **UI / State Flow**
 
+![alt text](resources/image.png)
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Home
-
-    %% Training branch
-    Home --> TrainProfile : Upload images/audio
-    TrainProfile --> Queued : Submit
-    Queued --> Training : Control plane emits job → Redis Streams
-    Training --> Trained : Data plane finishes, artifacts saved
-    Training --> Failed : Error
-    Failed --> Queued : Retry
-
-    %% Generation branch (planned)
-    Home --> Generate : Enter topic/caption
-    Generate --> Generating : Orchestrate video pipeline
-    Generating --> Reviewing : MP4 ready
-    Reviewing --> [*]
-    Generating --> FailedGen : Error
-    FailedGen --> Generating : Retry
+    User --> FileDialog1 : upload portrait
+    User --> FileDialog2 : upload voice sample
+    User --> TextInput1 : voice reference text
+    User --> TextInput2 : prompt 
+    TextInput1 --> Generate : submit 
+    TextInput2 --> Generate : submit 
+    FileDialog1 --> Generate : submit 
+    FileDialog2 --> Generate : submit 
+    Generate --> ProgressUpdate : queue/process job
+    ProgressUpdate --> VideoPreview : status updates
 ```
 
 **Notes on Extensibility**
