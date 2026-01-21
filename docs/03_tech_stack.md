@@ -1,6 +1,6 @@
 # Tech Stack Overview
 
-This document lists the core technologies used in MySpinBot as implemented today design choices. The stack has evolved iteratively; see `06_history.md`.
+This document lists the core technologies used in MySpinBot as implemented today design choices. The stack has evolved iteratively, see [history](./06_history.md).
 
 ## 1. Stack Snapshot
 
@@ -16,7 +16,7 @@ This document lists the core technologies used in MySpinBot as implemented today
 |                           | `ioredis`                       | `backend/`            | Redis Streams and Pub/Sub client for the JobQueue.                                            |
 |                           | AJV (generated validators)      | `backend/`            | Validates config, LangGraph graphs, and job messages against shared JSON Schemas.             |
 |                           | `prom-client`                   | `backend/`            | Exposes `/metrics` endpoint for API, queue, and WebSocket metrics.                            |
-| **Worker (Data Plane)**   | Python 3.12 + FastAPI           | `worker/`             | Lightweight API for `/health` and `/metrics`, worker lifecycle, and executor bootstrap.       |
+| **Worker (Data Plane)**   | Python 3.13 + FastAPI           | `worker/`             | Lightweight API for `/health` and `/metrics`, worker lifecycle, and executor bootstrap.       |
 |                           | LangGraph.py                    | `worker/`             | Executes `plane: "python"` nodes in LangGraph graphs.                                         |
 |                           | Async Redis client              | `worker/`             | Implements Redis Streams bridge and Pub/Sub progress channels.                                |
 |                           | Pydantic v2                     | `worker/`             | Generated data models for LangGraph graphs, job messages, and configuration.                  |
@@ -63,79 +63,3 @@ The following models are utilized by the implemented pipelines:
 | **[CodeFormer](https://huggingface.co/fofr/comfyui)** | AI-driven face restoration and detail enhancement for generated human subjects. |
 
 These models are downloaded the first time the infrastructure gets up during the one-time initialization step defined by the `downloader` sidecar.
-
-## 2. Control vs Data Plane Split
-
-MySpinBot leans heavily into a **control-plane / data-plane split**:
-
-```mermaid
-flowchart LR
-    subgraph Control["Control Plane (Node.js)"]
-        NJS[Node 20 + Fastify]
-        LJS[LangGraph.js]
-        AJV[Generated AJV Validators]
-        IOR["Redis Client (ioredis)"]
-    end
-
-    subgraph Data["Data Plane (Python)"]
-        PY[Python 3.12 + FastAPI]
-        LGPY[LangGraph.py]
-        PYD[Pydantic v2 Models]
-        RCL[Async Redis Client]
-    end
-
-    subgraph Shared["Shared"]
-        JSCH[JSON Schemas]
-        CGEN[Codegen Scripts]
-    end
-
-    JSCH --> CGEN
-    CGEN --> AJV
-    CGEN --> PYD
-    NJS --> LJS
-    NJS --> IOR
-    PY --> LGPY
-    PY --> RCL
-```
-
-Key decisions:
-
-- **Graphs as the primary abstraction** – orchestration is expressed as LangGraph graphs, not ad-hoc JSON or queue messages.
-- **Redis Streams + Pub/Sub as the only coordination fabric** – there is no BullMQ, Celery, or external broker.
-- **Generated validators/models** – JSON Schemas in `common/` feed codegen for AJV (backend) and Pydantic (worker), minimizing schema drift.
-
-## 3) Shared Schemas & Codegen
-
-The shared schema layer underpins cross-plane correctness:
-
-- Canonical schemas live under `common/config/schemas/**` (graphs, jobs, capabilities, redis config, storage).
-- Backend validators are generated into `backend/src/validators/**`.
-- Worker models are generated into `worker/src/worker/models/**`.
-- A small `codegen/` directory provides:
-  - `gen-backend-validators.sh` – regenerate AJV validators.
-  - `gen-worker-datamodel.sh` – regenerate Pydantic models.
-  - `gen-all.sh` – convenience wrapper for both.
-
-Both planes validate their configuration and job payloads against the same definitions, ensuring that graphs accepted by the backend are also executable by the worker.
-
-## 4) Development Workflow & Versioning
-
-- **Dev Containers per subsystem**  
-  `backend/`, `frontend/`, and `worker/` each ship a VS Code Dev Container configuration and Dockerfile. Development (including tests) happens inside these containers for parity with production images.
-
-- **Docker-based orchestration**  
-  A small set of Compose files under the root and `infra/` directory bring up Traefik, Redis, MinIO, Prometheus, Grafana, Redis Insight, and the app services.
-
-- **Versioning guidelines**  
-  - Pin base images and core dependencies (Node.js, Python, Redis, MinIO, Prometheus) to specific major/minor versions for reproducibility.
-  - Upgrade on a controlled cadence (e.g. quarterly) after integration testing.
-  - Keep schema changes backward-compatible where possible; regenerate validators/models as part of the upgrade process.
-
-## 5) Design Principles 
-
-- **All-open-source, local-first** – no proprietary APIs or hosted dependencies are required; everything runs on a single GPU box.
-- **Dual-LangGraph orchestration** – Node LangGraph handles user-facing workflows; Python LangGraph handles GPU-style DAGs.
-- **Schema-driven contracts** – shared schemas are the single source of truth for graphs, jobs, and configuration.
-- **Observability by default** – every service exposes metrics; Prometheus + Grafana provide a unified view of system health.
-- **Composable AI services** – planned diffusion, TTS, lip-sync, and LLM components are decoupled so they can be swapped or extended without rewriting the core orchestration.
-

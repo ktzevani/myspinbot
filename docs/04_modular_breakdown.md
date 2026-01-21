@@ -1,86 +1,152 @@
 # Modular Breakdown & Technical Analysis
 
-This section explains the internal composition of the MySpinBot system, detailing each subsystem, its responsibilities, interfaces, and extensibility points. It reflects the current implementation and its modular structure; for how the design evolved, see `06_history.md`.
+This section explains the internal composition of the MySpinBot system, detailing each subsystem, its responsibilities, interfaces, and extensibility points. It reflects the current implementation and its modular structure; for how the design evolved across phases, see [history](./06_history.md).
 
-## 1) Overview: Modular Composition
+## 1. Overview: Modular Composition
 
-At a high level, the repository is organized around four primary code modules and supporting infrastructure:
+At a high level, the repository is organized around its four primary core components and their supporting infrastructure:
 
 | Module                  | Location        | Primary Language | Responsibility                                                                                              | Key Interfaces                                                             |
 | :---------------------- | :------------- | :--------------- | :---------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
-| **Frontend (Next.js)**  | `frontend/`    | TypeScript       | User-facing UI for triggering training, monitoring job progress, and later inspecting artifacts.           | REST (HTTP, JSON), WebSocket for real-time job updates                     |
+| **Frontend (Next.js)**  | `frontend/`    | TypeScript       | User-facing UI for triggering generation/training jobs, monitoring jobs progress, and inspecting artifacts.           | REST (HTTP, JSON), WebSocket for real-time job updates                     |
 | **Backend (Control)**   | `backend/`     | JavaScript       | Fastify API + WebSocket hub, Planner, control-plane LangGraph executor, Redis bridge, metrics.            | REST, Redis Streams & Pub/Sub, LangGraph.js API                            |
-| **Worker (Data Plane)** | `worker/`      | Python           | FastAPI service, Redis bridge, data-plane LangGraph executor, task registry, MinIO artifact handling.     | Redis Streams & Pub/Sub, FastAPI `/metrics`, MinIO/S3 client               |
+| **Worker (Data Plane)** | `worker/`      | Python           | FastAPI service, Redis bridge, data-plane LangGraph executor, tasks registry, tasks implementations, MinIO artifact handling.     | Redis Streams & Pub/Sub, FastAPI `/metrics`, MinIO/S3 client               |
 | **Shared Schemas**      | `common/`      | JSON / Scripts   | Canonical JSON Schemas, baseline config, and codegen scripts for validators/models used by both planes.   | Filesystem (`common/config/**`), codegen scripts                            |
-| **Infrastructure**      | `infra/` + root| YAML / Docker    | Traefik, Redis, MinIO, Prometheus, Grafana, Redis Insight, Dev Containers, and Docker Compose definitions.| Traefik HTTP/TLS, Prometheus `/metrics`, Docker networking and volumes     |
+| **Infrastructure**      | `infra/` + root| YAML / Docker    | Traefik, Redis, PostgreSQL, MinIO, Ollama, ComfyUI, Prometheus, Grafana, OpenWebUI, Redis Insight, pgAdmin, Dev Containers, and Docker Compose definitions.| Traefik HTTP/TLS, Prometheus `/metrics`, Docker networking and volumes     |
 
-The sections below zoom into each module and highlight concrete implementation details.
+## 2. Deployment Topology
 
-## 2) Deployment Topology
-
-This section describes how the modules above are deployed using Docker Compose in both production-like and development setups.
+There are two deployment modes one for production and one for development. Below are the details.
 
 ### 2.1 Docker Compose Topology (Production)
 
 The primary deployment uses `docker-compose.yml` and runs:
 
-- Core app services: `api` (backend), `ui` (frontend), `worker` (Python data plane).
-- Infra services: Traefik, Redis, MinIO, Prometheus, Grafana, Redis Insight, exporters.
-- Optional utility services enabled via profiles: Redis exporter, cAdvisor, DCGM exporter (`observability` profile), and `codegen` (`generate-data-models` profile).
+- Core app services: `api` (control-plane backend), `ui` (frontend), `worker` (data-plane backend).
+- Core infrastructure services: Traefik, Redis, PostgreSQL, MinIO, Redis Insight, pgAdmin
+- Core AI services: Ollama, ComfyUI, OpenWebUI (up via `chatbot` profile)
+- Observability services (up via `observability` profile): Prometheus, Grafana, Redis Exporter, cAdvisor, DCGM exporter
+- Utility services: `codegen` (up via `schemas` profile), `downloader`.
+
+#### Default Profile
+
+`docker compose up -d` or `docker compose -f ./docker-compose.yml up -d`
+
+```mermaid
+flowchart TB
+    subgraph Traefik["Public Network"]
+      Proxy["Traefik (HTTPS:443)"]
+    end
+    subgraph Application
+      UI["Next.js Frontend"]
+      API["Node.js Backend"]
+      Worker["Python Worker"]
+    end
+    subgraph Storage["Cache/Persistence"]
+      S3[(MinIO)]
+      Redis[(Redis)]
+      Postgres[(PostgreSQL)]
+    end
+    subgraph Tools["GUI"]
+      RedisInsight[Redis Insight]
+      Pgadmin[pgAdmin]
+    end
+    subgraph AIInfa["AI Services"]
+      subgraph AIDevOps["Utilities"]
+        Downloader["Downloader"]
+      end
+      Ollama[Ollama]
+      Comfy[ComfyUI]
+    end
+
+    Downloader -- Volume --- Ollama
+    Downloader -- Volume --- Comfy
+    Proxy -- Network --- Comfy
+    Proxy -- Network --- UI
+    Proxy -- Network --- API
+    Proxy -- Network --- S3
+    Proxy -- Network --- RedisInsight
+    Proxy -- Network --- Pgadmin
+    RedisInsight -- Network --- Redis
+    Pgadmin -- Network --- Postgres
+    UI -- Network --- API
+    API -- Network --- Redis
+    API -- Network --- S3
+    API -- Network --- Ollama
+    Worker -- Volume --- Comfy
+    Worker -- Network --- Redis
+    Worker -- Network --- S3
+```
+
+### `observability` Profile
+
+`docker compose -f ./docker-compose.yml --profiles observability up -d`
 
 ```mermaid
 flowchart LR
-    subgraph Traefik["Traefik Proxy"]
-        T[HTTPS :443 / :80]
+    subgraph Traefik["Public Network"]
+      Proxy["Traefik (HTTPS:443)"]
+    end
+    subgraph Application
+        Rest3[...]
+        API["Node.js Backend"]
+        Worker["Python Worker"]
+    end
+    subgraph Storage["Cache/Persistence"]
+      Redis
+      Rest2[...]
+    end
+    subgraph GUI
+        Rest1[...]
+        Grafana[Grafana]
+    end
+    subgraph Observatility
+      direction BT
+      Prometheus
+      RedisExporter[Redis Exporter]
+      cAdvisor
+      DCGMExporter[NVIDIA DCGM Exporter]
     end
 
-    subgraph Frontend["Next.js Frontend"]
-        UI[myspinbot-frontend]
+    Proxy -- Network --- Grafana
+    Prometheus --- Grafana
+    Redis --- RedisExporter
+    RedisExporter --- Prometheus
+    cAdvisor --- Prometheus
+    DCGMExporter --- Prometheus
+    Proxy --- Prometheus
+    API --- Prometheus
+    Worker --- Prometheus
+
+    Traefik ~~~ GUI
+    GUI ~~~ Observatility
+    Observatility ~~~ Application
+    Application ~~~ Storage
+```
+
+#### `schemas` Profile
+
+`docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml --profiles schemas up -d`
+
+```mermaid
+flowchart LR
+    subgraph Application
+        subgraph AppDevOps["Utilities"]
+            CodeGen["codegen"]
+        end
+        API["Node.js Backend"]
+        Worker["Python Worker"]
     end
-
-    subgraph Backend["Node Backend"]
-        API[myspinbot-backend]
-        R[(Redis)]
-        S3[(MinIO)]
+    subgraph RestInfra1["..."]
+        Rest1[...]
     end
-
-    subgraph Worker["Python Worker"]
-        W[myspinbot-worker]
+    subgraph RestInfra2["..."]
+        Rest2[...]
     end
-
-    subgraph Monitoring["Prometheus / Grafana / Exporters"]
-        PR[Prometheus]
-        GF[Grafana]
-        CA[cAdvisor]
-        NV[DCGM Exporter]
-        RE[Redis Exporter]
-    end
-
-    subgraph Tools["Dev / Ops Tools"]
-        RI[Redis Insight]
-        CG["Codegen (generate-data-models)"]
-    end
-
-    T --> UI
-    T --> API
-    T --> GF
-    T --> PR
-    T --> RI
-    T --> S3
-
-    UI --> API
-    API --> R
-    API --> S3
-    W --> R
-    W --> S3
-
-    PR --> GF
-    PR --> API
-    PR --> W
-    PR --> R
-    PR --> NV
-    PR --> CA
-    PR --> RE
+    RestInfra1 --> Application
+    Application --> RestInfra2
+    CodeGen -- Mapped Directory --> API
+    CodeGen -- Mapped Directory --> Worker
 ```
 
 **Topology notes (production):**
@@ -88,7 +154,7 @@ flowchart LR
 - **Network** – all services share the `internal-network` bridge; Traefik attaches to the same network and exposes selected HTTP endpoints via `*.myspinbot.local` hostnames.
 - **Storage** – named volumes are used for Redis data (`redis-data`), MinIO buckets (`minio-data`), Redis Insight configuration (`redis-insight-data`), and worker model cache (`models-cache`).
 - **GPU access** – the `worker` service reserves all NVIDIA devices (`gpus: all`) and is monitored by the DCGM exporter; other services are CPU-only.
-- **Profiles** – observability-related services (Prometheus, Grafana, exporters) run under the `observability` profile; the `codegen` service runs on demand under the `generate-data-models` profile.
+- **Profiles** – observability-related services (Prometheus, Grafana, exporters) run under the `observability` profile; the `codegen` service runs on demand under the `schemas` profile.
 
 ### 2.2 Development vs Production
 

@@ -83,6 +83,17 @@ services:
     volumes:
       - ./infra/worker/.vscode:/opt/comfyui/.vscode
 
+  codegen:
+    build:
+      context: ./infra/codegen
+      dockerfile: Dockerfile
+    image: myspinbot/codegen:dev
+    container_name: myspinbot-codegen
+    volumes:
+      - .:/work
+    entrypoint: ["infra/codegen/gen-all.sh"]
+    profiles: ["schemas"]
+
   sandbox:
     image: myspinbot/sandbox:dev
     build:

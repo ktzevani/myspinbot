@@ -404,17 +404,6 @@ services:
     volumes:
       - comfyui-data:/opt/comfyui
 
-  codegen:
-    build:
-      context: ./infra/codegen
-      dockerfile: Dockerfile
-    image: myspinbot/codegen:prod
-    container_name: myspinbot-codegen
-    volumes:
-      - .:/work
-    entrypoint: ["infra/codegen/gen-all.sh"]
-    profiles: ["schemas"]
-
   downloader:
     build:
       context: ./infra/downloader

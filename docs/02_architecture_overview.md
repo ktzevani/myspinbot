@@ -232,6 +232,8 @@ The system is **schema-driven**:
 - Backend: generated **AJV validators** enforce graph and config correctness.
 - Worker: generated **Pydantic models** enforce the same contracts.
 
+The shared schema layer underpins cross-plane correctness: both planes validate their configuration and job payloads against the same definitions, ensuring that graphs accepted/produced in control plane are also executable in data plane.
+
 **Job State & WebSocket Flow**
 
 ```mermaid
