@@ -1,12 +1,22 @@
 # Architecture Overview
 
-This document describes the current MySpinBot architecture at multiple levels: a high-level component map, the dual-plane execution model, concrete training and capabilities workflows, and user interaction flows. The design has evolved through multiple planned development cycles; see `06_history.md` for a summary of that evolution.
+The project's main goal is **educational**. The intention is for this to provide a blueprint for putting together complete and functional AI infrastructures in which one can research/prototype/optimize AI workflows. 
 
-## 1) High‑Level System Architecture
+### In a nutshell
+
+---
+
+The architecture features a **React UI** and a **Node.js orchestration layer**, which manages **LangGraph distributed workflows** across both **Node.js and Python runtimes**. The backend integrates **specialized AI facilities**, including **ComfyUI diffusion pipelines** and **Ollama-hosted local LLMs**. High-intensity machine learning tasks—such as LoRA training, Text-to-Speech (TTS), and lip-syncing—are handled by **Python-based workers managed via Dramatiq**. To ensure production-grade reliability, the entire ecosystem is supported by a full observability suite using **Prometheus and Grafana**. To ensure robustness the orchestration layer is build on-top of **Redis** and is backed by a **PostGreSQL persistence layer**. The latter can act also as a **vector database** for adding components like **RAG** in the future. Furthermore, to facilitate input/output and staged data management the system contains its own **MinIO object storage**. Finally it all comes together via a **Traefix proxy** which manages routing to infastructure's services.
+
+---
+
+This rest of the document describes the current MySpinBot architecture at multiple levels: a high-level component map, the dual-plane execution model, concrete training and capabilities workflows, and user interaction flows. The design has evolved through multiple planned development cycles; see `06_history.md` for a summary of that evolution.
+
+## 1. High‑Level System Architecture
 
 ### Description  
 
-The platform is a comprehensive, local-first AI infrastructure deployed and managed using Docker Compose. It is designed around a **dual-plane LangGraph orchestration architecture**, integrating a Node.js-based **Control Plane** (backend) with a Python/GPU-powered **Data Plane** (worker). It also includes a Next.js frontend, and shared infrastructure for storage, routing, and observability. 
+The platform is a comprehensive, local-first AI infrastructure deployed and managed using Docker Compose. It is designed around a **dual-plane LangGraph orchestration architecture**, integrating a Node.js-based **Control Plane** (backend) with a Python/GPU-powered **Data Plane** (worker). It also includes a Next.js frontend, and shared infrastructure for prototyping, state persistence, storage/data management, routing, and observability. 
 
 The entire system is containerized, facilitating consistent environments across development and production. It includes core application services, a robust set of data stores, a full observability stack, and integrated AI inference engines (LLMs, diffusion models). A key aspect is the clear separation between a production-like deployment (`docker-compose.yml`) and a development overlay (`docker-compose.dev.yml`), allowing for efficient local development with live code reloading and debugging.
 
@@ -19,39 +29,38 @@ The platform's architecture is a microservices-oriented approach, where speciali
 The `docker-compose.yml` defines the core production-ready services.
 
 ```mermaid
-graph LR
-    subgraph Traefik["Ingress & Edge (Traefik)"]
+graph BT
+    subgraph Traefik[Ingress & Edge]
         T[Traefik Proxy & TLS]
     end
 
-    subgraph Application Services
+    subgraph AppServices[Application Services]
+        subgraph UtilityServices[Utility Services]
+            DOWNLOADER[Downloader - Models Staging]
+            CODEGEN[Codegen - Schema Generators]
+        end
         UI["Frontend (Next.js)"]
         API["Backend (Node.js)"]
         WORKER["Worker (Python/GPU)"]
-        COMFYUI["ComfyUI (Python/GPU)"]
-        OLLAMA["Ollama (LLM)"]
-        OPENWEBUI["Open WebUI (Ollama GUI)"]
+        COMFYUI["ComfyUI Server"]
+        OLLAMA["Ollama Server"]
+        OPENWEBUI["OpenWebUI (Ollama GUI)"]
     end
 
-    subgraph Data & Storage
+    subgraph DataServices[Data & Storage]
         REDIS[(Redis - Streams, Pub/Sub, Cache)]
-        POSTGRES[(PostgreSQL - Durable Job State)]
-        MINIO[(MinIO - Object Storage / S3)]
-        PGADMIN[pgAdmin - Postgres GUI]
-        REDISINSIGHT[Redis Insight - Redis GUI]
+        POSTGRES[(PostgreSQL - Persistence Layer, Vector DB)]
+        MINIO[(MinIO - Object Storage / S3, Own GUI)]
+        PGADMIN[pgAdmin - Postgres Management GUI]
+        REDISINSIGHT[Redis Insight - Redis Management GUI]
     end
 
-    subgraph Observability["Observability (Profile: observability)"]
+    subgraph Observability["Observability"]
         PROM[Prometheus - Metrics Collection]
         GRAFANA[Grafana - Dashboards]
-        CADVISOR[cAdvisor - Container Metrics]
-        DCGM[NVIDIA DCGM Exporter - GPU Metrics]
-        REDIS_EXP[Redis Exporter]
-    end
-
-    subgraph Utility Services
-        DOWNLOADER[Downloader - AI Model Fetcher]
-        CODEGEN[Codegen - Schema Generators]
+        CADVISOR[cAdvisor - Docker Telemetry]
+        DCGM[NVIDIA DCGM Exporter - GPU Telemetry]
+        REDIS_EXP[Redis Exporter - Redis Telemetry]
     end
 
     User --> T
@@ -70,28 +79,33 @@ graph LR
     API <--> MINIO
     API <--> OLLAMA
 
+    PGADMIN --> POSTGRES
+    REDISINSIGHT --> REDIS
+
     REDIS <--> WORKER
     MINIO <--> WORKER
     COMFYUI <--> WORKER
     OLLAMA <--> OPENWEBUI
 
     PROM --> GRAFANA
-    PROM -- Scrapes --> T
-    PROM -- Scrapes --> API
-    PROM -- Scrapes --> WORKER
-    PROM -- Scrapes --> REDIS_EXP
-    PROM -- Scrapes --> MINIO
-    PROM -- Scrapes --> CADVISOR
-    PROM -- Scrapes --> DCGM
+    T -- Traffic Telemetry --> PROM
+    API -- Control Plane Telemetry --> PROM
+    WORKER -- Data Plane Telemetry --> PROM
+    REDIS_EXP --> PROM
+    MINIO -- Object Store Telemetry --> PROM
+    CADVISOR --> PROM
+    DCGM --> PROM
 
-    DOWNLOADER -- Downloads Models --> OLLAMA
-    DOWNLOADER -- Downloads Models --> COMFYUI
+    DOWNLOADER -- Initialize --> OLLAMA
+    DOWNLOADER -- Initialize --> COMFYUI
 
-    CODEGEN -- Generates Schemas --> API
-    CODEGEN -- Generates Models --> WORKER
+    CODEGEN -- Validator Definitions --> API
+    CODEGEN -- Data Model Definitions --> WORKER
 
-    style WORKER fill:#f9f,stroke:#333,stroke-width:2px
+    style UtilityServices fill:#a8fc9d,stroke:#333,stroke-width:2px
+    style WORKER fill:#b2df2f,stroke:#333,stroke-width:2px
     style API fill:#9cf,stroke:#333,stroke-width:2px
+
 ```
 
 **Development Environment (Overlay)**
@@ -99,61 +113,63 @@ graph LR
 The `docker-compose.dev.yml` overlays `docker-compose.yml` to enable a developer-friendly environment. It replaces production application images with development-specific images that mount local source code, expose debugging ports, and provide interactive shells.
 
 ```mermaid
-graph RL
-    subgraph Base Infra
-        T[Traefik]
+graph LR
+    subgraph BaseInfra[Infrastructure Services]
+        direction RL
+        T[Traefik Proxy]
         REDIS[(Redis)]
         POSTGRES[(PostgreSQL)]
         MINIO[(MinIO)]
         PROM[Prometheus]
         GRAFANA[Grafana]
         OLLAMA[Ollama]
-        OPENWEBUI[Open WebUI]
-        COMFYUI[ComfyUI]
     end
 
-    subgraph Development Services
-        API_DEV["Backend:dev (Mounted Source, Debug)"]
-        UI_DEV["Frontend:dev (Mounted Source, Debug)"]
-        WORKER_DEV["Worker:dev (Mounted Source, Debug)"]
-        COMFYUI_DEV["ComfyUI:dev (Mounted Source, Debug)"]
+    subgraph DevServices[Development Services]
+        API_DEV["Backend:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        UI_DEV["Frontend:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        WORKER_DEV["Worker:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        COMFYUI_DEV["ComfyUI:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
         SANDBOX["Sandbox (Entire Workspace)"]
     end
 
-    T --- HTTP/WS --- API_DEV
-    T --- HTTP --- UI_DEV
-    API_DEV <--> REDIS
-    API_DEV <--> POSTGRES
-    API_DEV <--> MINIO
-    API_DEV <--> OLLAMA
 
-    REDIS <--> WORKER_DEV
-    MINIO <--> WORKER_DEV
-    COMFYUI <--> WORKER_DEV
-    OLLAMA <--> OPENWEBUI
+    API_DEV <--> BaseInfra
+    UI_DEV <--> BaseInfra
+    COMFYUI_DEV <--> BaseInfra
+    WORKER_DEV <--> BaseInfra
 
-    SANDBOX -- Accesses --> API_DEV
-    SANDBOX -- Accesses --> UI_DEV
-    SANDBOX -- Accesses --> WORKER_DEV
-    SANDBOX -- Accesses --> COMFYUI_DEV
+    SANDBOX -- Src Access --> API_DEV
+    SANDBOX -- Src Access --> UI_DEV
+    SANDBOX -- Src Access --> WORKER_DEV
+    SANDBOX -- Src Access --> COMFYUI_DEV
 
-    style API_DEV fill:#ace,stroke:#333,stroke-width:2px
+    User -- Dev Container --> SANDBOX
+    User -- Dev Container --> API_DEV
+    User -- Dev Container --> UI_DEV
+    User -- Dev Container --> WORKER_DEV
+    User -- Dev Container --> COMFYUI_DEV
+    User -- HTTPS --> T
+
     style UI_DEV fill:#aec,stroke:#333,stroke-width:2px
     style WORKER_DEV fill:#fce,stroke:#333,stroke-width:2px
     style COMFYUI_DEV fill:#fcd,stroke:#333,stroke-width:2px
+    style API_DEV fill:#9cf,stroke:#333,stroke-width:2px
 ```
+
+More information on this can be found [here](./phase2/development_workflow_revisited.md).
 
 ### Docker Profiles
 
 Docker Compose profiles are used to conditionally start groups of services, optimizing resource usage and allowing for flexible deployments.
 
-*   **Default (no profile specified):** Starts core application services (Traefik, Redis, Postgres, MinIO, `api`, `ui`, `worker`) along with core AI services offering inference capabilities (including Ollama and ComfyUI), ensuring a functional and complete AI stack.
-*   **`observability`:** Includes Prometheus, Grafana, cAdvisor, DCGM Exporter, and Redis Exporter for comprehensive monitoring.
+*   **Default (no profile specified):** Starts the core application services (Traefik, Redis, Postgres, MinIO, `api`, `ui`, `worker`) along with the AI services that provide inference capabilities (Ollama and ComfyUI), ensuring a functional and complete AI stack.
+*   **`observability`:** Introduces Prometheus, Grafana, cAdvisor, DCGM Exporter, and Redis Exporter for comprehensive monitoring.
 *   **`chatbot`:** Activates Open WebUI facility for managing llm models and providing prompting facilities.
-*   **`schemas`:** Activates the `codegen` service for generating validation schemas and data models.
-*   **`monorepo`:** Activates the `sandbox` container in development mode, providing a general-purpose environment with the entire monorepo mounted.
+*   **`schemas`:** Activates the `codegen` service for re-generating validation schemas and data models.
+*   **`monorepo`:** Activates the `sandbox` container in development mode, providing a general-purpose environment with the entire monorepo mounted at its root workspace level.
 
-## 2) Dual‑Plane LangGraph Execution
+## 2. Dual‑Plane LangGraph Execution
 
 **Description:**  
 MySpinBot uses a dual-plane LangGraph orchestration model:
@@ -202,7 +218,9 @@ Key properties:
 - **Redis Streams + Pub/Sub** – form the control/data bridge and carry status/progress.
 - **Idempotent executors** – both planes can resume partially completed graphs.
 
-## 3) Shared Schemas, Job State & WebSockets
+A more detailed description of dual-plane orchestration is found [here](./phase2/dual_orchestration.md).
+
+## 3. Shared Schemas, Job State & WebSockets
 
 The system is **schema-driven**:
 
@@ -233,7 +251,9 @@ flowchart LR
 - The WebSocket hub polls the JobQueue at `configuration.websocket.updateInterval` and pushes consolidated state to subscribers.
 - Clients subscribe/unsubscribe per `jobId` and stop listening when the job reaches a terminal state.
 
-## 4) Custom & Capabilities Workflows
+[This document](./phase2/shared_schemas.md) provides detailed explanations on these topics.
+
+## 4. Custom Workflows
 
 ### 4.1 InfiniteTalk Workflow
 
@@ -257,21 +277,20 @@ For more details please read [InfiniteTalk Deep Dive](phase3/infinite_talk.md)
 
 This is the first concrete dual-plane workflow; additional features are expected to follow the same pattern.
 
-
-## 5) Planned Video Generation Pipelines
+### 4.3 Future (Planned) Workflows 
 
 The long-term goal is to provide more end-to-end, local video generation pipelines that combine LLM planning, diffusion/video models, TTS, lip-sync facilities and more. 
 
 Other than the implemented InfiniteTalk pipeline there are two other variants planned. One of which (SVD+Wav2Lip) includes training a character-specific LoRA (given a set of images as an input) to apply ontop of the video generation diffusion model. While both planned pipelines introduce the generation of novel character portrait images (in contrast to the user providing one, like in InfiniteTalk workflow) with their surrounding environment out of the descriptions that the llm provides.  
 
-### 5.1 SVD + Wav2Lip
+#### SVD + Wav2Lip
 
 _(“Scene → Video → Speech → Lip Sync”)_
 
 **Idea:** A local LLM (via Ollama) generates a stage description and narrative; ComfyUI and Stable Video Diffusion create the video; TTS and Wav2Lip synchronize speech and lip motion; ESRGAN and ffmpeg polish the final MP4.
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[User Prompt or Caption] --> B[Node API]
     B --> C[LangGraph - Node + Ollama LLM]
     C --> |Stage Description| D[ComfyUI TTI with LoRA]
@@ -285,14 +304,14 @@ flowchart TD
     K --> L[Frontend Playback]
 ```
 
-### 5.2 SadTalker Path
+#### SadTalker Path
 
 _(“Portrait → Talking Head → Speech Sync”)_
 
 **Idea:** SadTalker animates a portrait directly from synthesized speech, bypassing SVD + Wav2Lip. The LLM still produces a narrative; ComfyUI prepares imagery where needed.
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[User Prompt or Caption] --> B[Node API]
     B --> C[LangGraph - Node + Ollama LLM]
     C --> |Stage Description| D[ComfyUI TTI with LoRA]
@@ -307,7 +326,7 @@ flowchart TD
 
 These pipelines are intentionally modular so components can be swapped (e.g., different diffusion or TTS models) without changing the overall orchestration.
 
-## 6) User Interaction & States
+## 5. User Interaction & States
 
 Users primarily:
 
@@ -317,10 +336,9 @@ Users primarily:
 
 **UI / State Flow**
 
-![alt text](resources/image.png)
-
 ```mermaid
 stateDiagram-v2
+    direction LR
     User --> FileDialog1 : upload portrait
     User --> FileDialog2 : upload voice sample
     User --> TextInput1 : voice reference text
@@ -329,13 +347,13 @@ stateDiagram-v2
     TextInput2 --> Generate : submit 
     FileDialog1 --> Generate : submit 
     FileDialog2 --> Generate : submit 
-    Generate --> ProgressUpdate : queue/process job
-    ProgressUpdate --> VideoPreview : status updates
+    Generate --> VideoPreview : queue/process job/progress updates
+    
 ```
 
 **Notes on Extensibility**
 
-- Model swaps: ComfyUI and TTS blocks are parameterized to allow model changes without altering orchestration.
+- Model swaps: ComfyUI and TTS blocks are parameterized and support model changes without altering orchestration.
 - Scalability: Multiple worker replicas can consume from the same Redis Streams, scaling the data plane independently.
 - Security: Traefik and optional auth layers can front management UIs (Open WebUI, Grafana, etc.).
 - Observability: Both planes expose `/metrics`; higher-level job and node metrics can be added incrementally.
