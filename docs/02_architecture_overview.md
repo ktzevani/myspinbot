@@ -10,7 +10,7 @@ The architecture features a **React UI** and a **Node.js orchestration layer**, 
 
 ---
 
-This rest of the document describes the current MySpinBot architecture at multiple levels: a high-level component map, the dual-plane execution model, concrete training and capabilities workflows, and user interaction flows. The design has evolved through multiple planned development cycles; see `06_history.md` for a summary of that evolution.
+This rest of the document describes the current MySpinBot architecture at multiple levels: a high-level component map, overview of the dual-plane execution model, description of custom ai workflows, and user interaction flow. The design has evolved through multiple planned development cycles, see [history document](./06_history.md) for a summary of that evolution.
 
 ## 1. High‑Level System Architecture
 
@@ -103,7 +103,7 @@ graph BT
     CODEGEN -- Data Model Definitions --> WORKER
 
     style UtilityServices fill:#a8fc9d,stroke:#333,stroke-width:2px
-    style WORKER fill:#b2df2f,stroke:#333,stroke-width:2px
+    style WORKER fill:#9cf,stroke:#333,stroke-width:2px
     style API fill:#9cf,stroke:#333,stroke-width:2px
 
 ```
@@ -152,7 +152,7 @@ graph LR
     User -- HTTPS --> T
 
     style UI_DEV fill:#aec,stroke:#333,stroke-width:2px
-    style WORKER_DEV fill:#fce,stroke:#333,stroke-width:2px
+    style WORKER_DEV fill:#fcd,stroke:#333,stroke-width:2px
     style COMFYUI_DEV fill:#fcd,stroke:#333,stroke-width:2px
     style API_DEV fill:#9cf,stroke:#333,stroke-width:2px
 ```
