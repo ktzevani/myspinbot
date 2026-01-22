@@ -18,45 +18,59 @@ At a high level, the repository is organized around its four primary core compon
 
 There are two deployment modes one for production and one for development. Below are the details.
 
-### 2.1 Docker Compose Topology (Production)
+### 2.1 Docker Compose Topology (Production vs Development)
 
-The primary deployment uses `docker-compose.yml` and runs:
+The production deployment uses `docker-compose.yml` and runs:
 
-- Core app services: `api` (control-plane backend), `ui` (frontend), `worker` (data-plane backend).
-- Core infrastructure services: Traefik, Redis, PostgreSQL, MinIO, Redis Insight, pgAdmin
-- Core AI services: Ollama, ComfyUI, OpenWebUI (up via `chatbot` profile)
-- Observability services (up via `observability` profile): Prometheus, Grafana, Redis Exporter, cAdvisor, DCGM exporter
-- Utility services: `codegen` (up via `schemas` profile), `downloader`.
+- **Core app services**: `api` (control-plane backend), `ui` (frontend), `worker` (data-plane backend).
+- **Core infrastructure services**: Traefik, Redis, PostgreSQL, MinIO, Redis Insight, pgAdmin
+- **Core AI services**: Ollama, ComfyUI, OpenWebUI (up via `chatbot` profile)
+- **Observability services** (up via `observability` profile): Prometheus, Grafana, Redis Exporter, cAdvisor, DCGM exporter
+- **Utility services**: `codegen` (up via `schemas` profile), `downloader`.
 
-#### Default Profile
+The development deployment overlays `docker-compose.dev.yml` on top of the production one (services are overriden).
+
+- **Dev app containers**
+  - `api`, `ui`, and `worker` have `*-dev` images, open interactive shells, and mount local source directories for live editing.
+  - Dev container feature isolated sandboxes for safely deploy coding agents.
+  - Processes management (start/stop) is manual.
+  - Debug ports are exposed (`9229` for backend, `9230` for frontend, `5678` for worker) while still connecting to the same Redis, MinIO, Postgres services as defined in `docker-compose.yml`.
+- **Sandbox container**: A `sandbox` service provides a generic development shell with the entire repository mounted at `/workspace` for ad-hoc scripts and experiments.
+- **Shared infra**: All other services including (optionally) observability ones the base `docker-compose.yml` and are reused unchanged in development.
+
+This arrangement keeps the **app layer mutable** (hot-reload, debugging, test runs) while the **infra layer** remains stable and close to the production topology.
+
+## 2.2 Compose Profiles
+
+#### Default profile
 
 `docker compose up -d` or `docker compose -f ./docker-compose.yml up -d`
 
 ```mermaid
 flowchart TB
-    subgraph Traefik["Public Network"]
-      Proxy["Traefik (HTTPS:443)"]
+    subgraph PublicNetwork["HTTPS (:443)"]
+      Proxy["myspinbot-proxy (Traefik)"]
     end
-    subgraph Application
-      UI["Next.js Frontend"]
-      API["Node.js Backend"]
-      Worker["Python Worker"]
+    subgraph ApplicationServices[Application Services]
+      UI["myspinbot-frontend (Next.js/React)"]
+      API["myspinbot-backend (Node.js/Fastify)"]
+      Worker["myspinbot-worker (Python/PyTorch/CUDA)"]
     end
-    subgraph Storage["Cache/Persistence"]
-      S3[(MinIO)]
-      Redis[(Redis)]
-      Postgres[(PostgreSQL)]
+    subgraph StorageServices["Cache/Persistence Services"]
+      S3[("myspinbot-minio (MinIO/S3)")]
+      Redis[("myspinbot-redis (Redis/Streams/PubSub)")]
+      Postgres[("myspinbot-postgres (PostgreSQL/pgvector)")]
     end
-    subgraph Tools["GUI"]
-      RedisInsight[Redis Insight]
-      Pgadmin[pgAdmin]
+    subgraph ManagementServices["Management Services"]
+      RedisInsight["myspinbot-redis-insight (Redis Insight GUI)"]
+      Pgadmin["myspinbot-pgAdmin (pgAdmin GUI)"]
     end
-    subgraph AIInfa["AI Services"]
-      subgraph AIDevOps["Utilities"]
-        Downloader["Downloader"]
+    subgraph AIServices["AI Services"]
+      subgraph AIUtilities["Utilities"]
+        Downloader["myspinbot-downloader (Data staging sidecar)"]
       end
-      Ollama[Ollama]
-      Comfy[ComfyUI]
+      Ollama["myspinbot-ollama (Ollama Server)"]
+      Comfy["myspinbot-comfyui (ComfyUI/CUDA)"]
     end
 
     Downloader -- Volume --- Ollama
@@ -78,64 +92,79 @@ flowchart TB
     Worker -- Network --- S3
 ```
 
-### `observability` Profile
+### `observability` profile
 
 `docker compose -f ./docker-compose.yml --profiles observability up -d`
 
 ```mermaid
-flowchart LR
-    subgraph Traefik["Public Network"]
-      Proxy["Traefik (HTTPS:443)"]
+flowchart TB
+    subgraph PublicNetwork["HTTPS (:443)"]
+      Proxy["myspinbot-proxy (Traefik)"]
     end
-    subgraph Application
-        Rest3[...]
-        API["Node.js Backend"]
-        Worker["Python Worker"]
+    subgraph ApplicationServices[Application Services]
+      API["myspinbot-backend (Node.js/Fastify)"]
+      Worker["myspinbot-worker (Python/PyTorch/CUDA)"]
     end
-    subgraph Storage["Cache/Persistence"]
-      Redis
-      Rest2[...]
+    subgraph StorageServices["Cache/Persistence Services"]
+      Redis[("myspinbot-redis (Redis/Streams/PubSub)")]
     end
-    subgraph GUI
-        Rest1[...]
-        Grafana[Grafana]
+    subgraph ManagementServices["Management Services"]
+      Grafana["myspinbot-grafana (Grafana GUI)"]
     end
-    subgraph Observatility
+    subgraph ObservabilityServices[Observability Services]
       direction BT
-      Prometheus
-      RedisExporter[Redis Exporter]
-      cAdvisor
-      DCGMExporter[NVIDIA DCGM Exporter]
+      Prometheus["myspinbot-prometheus (Prometheus)"]
+      RedisExporter["myspinbot-redis-exporter (Redis Exporter)"]
+      cAdvisor["myspinbot-cadvisor (Docker Exporter)"]
+      DCGMExporter["myspinbot-dcgm-exporter (NVIDIA DCGM Exporter)"]
     end
 
     Proxy -- Network --- Grafana
-    Prometheus --- Grafana
-    Redis --- RedisExporter
-    RedisExporter --- Prometheus
-    cAdvisor --- Prometheus
-    DCGMExporter --- Prometheus
-    Proxy --- Prometheus
-    API --- Prometheus
-    Worker --- Prometheus
+    Prometheus -- Network --- Grafana
+    Redis -- Network --- RedisExporter
+    RedisExporter -- Network --- Prometheus
+    cAdvisor -- Network --- Prometheus
+    DCGMExporter -- Network --- Prometheus
+    Proxy -- Network --- Prometheus
+    API -- Network --- Prometheus
+    Worker -- Network --- Prometheus
 
-    Traefik ~~~ GUI
-    GUI ~~~ Observatility
-    Observatility ~~~ Application
-    Application ~~~ Storage
+    PublicNetwork ~~~ ManagementServices
+    ManagementServices ~~~ ObservabilityServices
+    ObservabilityServices ~~~ ApplicationServices
+    ApplicationServices ~~~ StorageServices
 ```
 
-#### `schemas` Profile
+#### `chatbot` profile
+
+```mermaid
+flowchart BT
+    subgraph PublicNetwork["HTTPS (:443)"]
+      Proxy["myspinbot-proxy (Traefik)"]
+    end
+    subgraph ManagementServices["Management Services"]
+      OpenWebUI["myspinbot-openwebui (OpenWebUI)"]
+    end
+    subgraph AIServices["AI Services"]
+      Ollama["myspinbot-ollama (Ollama Server)"]
+    end
+
+    Ollama -- Network --- OpenWebUI
+    OpenWebUI -- Network --- Proxy
+```
+
+#### `schemas` profile (development)
 
 `docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml --profiles schemas up -d`
 
 ```mermaid
 flowchart LR
-    subgraph Application
-        subgraph AppDevOps["Utilities"]
-            CodeGen["codegen"]
-        end
-        API["Node.js Backend"]
-        Worker["Python Worker"]
+    subgraph ApplicationServices[Application Services]
+      subgraph ApplicationUtilities["Utilities"]
+        CodeGen["myspinbot-codegen (Data Model Generator)"]
+      end
+      API["myspinbot-backend (Node.js/Fastify)"]
+      Worker["myspinbot-worker (Python/PyTorch/CUDA)"]
     end
     subgraph RestInfra1["..."]
         Rest1[...]
@@ -143,72 +172,77 @@ flowchart LR
     subgraph RestInfra2["..."]
         Rest2[...]
     end
-    RestInfra1 --> Application
-    Application --> RestInfra2
+    RestInfra1 --- ApplicationServices
+    ApplicationServices --- RestInfra2
     CodeGen -- Mapped Directory --> API
     CodeGen -- Mapped Directory --> Worker
 ```
 
-**Topology notes (production):**
+#### `monorepo` profile (development)
 
-- **Network** – all services share the `internal-network` bridge; Traefik attaches to the same network and exposes selected HTTP endpoints via `*.myspinbot.local` hostnames.
-- **Storage** – named volumes are used for Redis data (`redis-data`), MinIO buckets (`minio-data`), Redis Insight configuration (`redis-insight-data`), and worker model cache (`models-cache`).
+`docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml --profiles monorepo up -d`
+
+```mermaid
+graph LR
+    subgraph BaseInfra[Infrastructure Services]
+        direction RL
+        T[Traefik Proxy]
+        Rest[...]
+    end
+
+    subgraph ApplicationServices["Application Services (dev)"]
+        API_DEV["myspinbot-backend:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        UI_DEV["myspinbot-frontent:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        WORKER_DEV["myspinbot-worker:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        COMFYUI_DEV["myspinbot-comfyui:dev (Mounted Source, Debug Port, Manual Start/Stop)"]
+        SANDBOX["Sandbox"]
+    end
+
+
+    API_DEV <--> BaseInfra
+    UI_DEV <--> BaseInfra
+    COMFYUI_DEV <--> BaseInfra
+    WORKER_DEV <--> BaseInfra
+
+    SANDBOX["myspinbot-sandbox"]
+
+    SANDBOX -- Src Access --> API_DEV
+    SANDBOX -- Src Access --> UI_DEV
+    SANDBOX -- Src Access --> WORKER_DEV
+    SANDBOX -- Src Access --> COMFYUI_DEV
+
+    User["Developer"]
+
+    User -- Dev Container (VS Code) --> SANDBOX
+    User -- Dev Container (VS Code) --> API_DEV
+    User -- Dev Container (VS Code) --> UI_DEV
+    User -- Dev Container (VS Code) --> WORKER_DEV
+    User -- Dev Container (VS Code) --> COMFYUI_DEV
+    User -- HTTPS --> T
+
+    style UI_DEV fill:#aec,stroke:#333,stroke-width:2px
+    style WORKER_DEV fill:#fcd,stroke:#333,stroke-width:2px
+    style COMFYUI_DEV fill:#fcd,stroke:#333,stroke-width:2px
+    style API_DEV fill:#9cf,stroke:#333,stroke-width:2px
+```
+
+**Additional topology notes:**
+
+- **Network** – all services share the `internal-network` bridge; Traefik attaches to the same network and exposes selected HTTP endpoints via `*.${DOMAIN-myspinbot.local}` hostnames.
+- **Storage** – named volumes are used for:
+  - Redis data (`redis-data`)
+  - Redis Insight configuration (`redis-insight-data`)
+  - MinIO buckets (`minio-data`)
+  - PostgreSQL data (`postgres-data`)
+  - Ollama data (`ollama-data`) - This is where LLMs go
+  - OpenWebUI configuration (`openwebui-data`)
+  - ComfyUI data (`comfyui-data`) - This is where diffusion models go
 - **GPU access** – the `worker` service reserves all NVIDIA devices (`gpus: all`) and is monitored by the DCGM exporter; other services are CPU-only.
 - **Profiles** – observability-related services (Prometheus, Grafana, exporters) run under the `observability` profile; the `codegen` service runs on demand under the `schemas` profile.
 
-### 2.2 Development vs Production
-
-Development uses `docker-compose.dev.yml` as an overlay on top of the base stack:
-
-- **Dev app containers**
-  - `api`, `ui`, and `worker` have `*-dev` images, open interactive shells, and mount local source directories for live editing.
-  - Debug ports are exposed (`9229` for backend, `9230` for frontend, `5678` for worker) while still connecting to the same Redis and MinIO services defined in `docker-compose.yml`.
-- **Sandbox container**
-  - A `sandbox` service provides a generic development shell with the entire repository mounted at `/workspace` for ad-hoc scripts and experiments.
-- **Shared infra**
-  - Traefik, Redis, MinIO, and (optionally) observability services come from the base `docker-compose.yml` and are reused unchanged in development.
-
-```mermaid
-flowchart LR
-    subgraph Infra["Base Infra (docker-compose.yml)"]
-        T[Traefik]
-        R[Redis]
-        S3[MinIO]
-        PR["Prometheus (opt)"]
-        GF["Grafana (opt)"]
-    end
-
-    subgraph DevApp["Dev App Containers (docker-compose.dev.yml)"]
-        API_DEV[api: myspinbot-backend:dev]
-        UI_DEV[ui: myspinbot-frontend:dev]
-        W_DEV[worker: myspinbot/worker:dev]
-    end
-
-    subgraph Sandbox["Sandbox"]
-        SBX[myspinbot-sandbox]
-    end
-
-    T --> UI_DEV
-    T --> API_DEV
-    T --> GF
-    T --> PR
-
-    UI_DEV --> API_DEV
-    API_DEV --> R
-    API_DEV --> S3
-    W_DEV --> R
-    W_DEV --> S3
-
-    SBX --> API_DEV
-    SBX --> UI_DEV
-    SBX --> W_DEV
-```
-
-This arrangement keeps the **app layer mutable** (hot-reload, debugging, test runs) while the **infra layer** remains stable and close to the production topology.
-
 ## 3) Backend (Control Plane) — `backend/`
 
-The backend is the **control plane**: it owns HTTP/WS APIs, builds LangGraph jobs, runs control-plane nodes, and mirrors worker progress into WebSocket updates.
+The Node.js backend (`myspinbot-backend`) is also the **control plane**: it owns HTTP/WS APIs, builds LangGraph jobs, executes control-plane nodes, and mirrors worker progress into WebSocket updates.
 
 ### 2.1 Internal Structure
 
@@ -220,14 +254,22 @@ backend/
 │  ├─ index.js                 # Fastify bootstrap, CORS, route registration
 │  ├─ config.js                # Load + validate configuration, capabilities
 │  ├─ api/
-│  │  ├─ http/                 # HTTP route handlers (health, metrics, train, status, capabilities)
+│  │  ├─ http/                 # HTTP route handlers 
 │  │  └─ ws/                   # WebSocket route wiring
-│  ├─ core/
-│  │  ├─ job-queue.js          # Redis Streams + Pub/Sub wrapper
-│  │  ├─ planner.js            # LangGraph template builder + graph validation
-│  │  └─ executor.js           # Control-plane LangGraph executor
-│  ├─ services/                # Service registry (script, capabilities, artifacts, etc.)
-│  ├─ infra/                   # Metrics registry, WebSocket hub
+│  ├─ core/                    # Core backend facilities
+│  │  ├─ executor.js           # LangGraph executor
+│  │  ├─ job-queue.js          # Redis Streams + Pub/Sub wrapper for Jobs
+│  │  ├─ job-repository.js     # Persistence layer for Jobs
+│  │  ├─ pipelines.js          # Fixed pipelines definitions
+│  │  └─ planner.js            # LangGraph template builder + graph validation
+│  ├─ infra/                   # Control-plane infrastructure facilities
+│  │  ├─ database.js           # Database layer over pg pool
+│  │  ├─ metrics.js            # Telemetry layer over Prometheus client (prom-client)
+│  │  ├─ minio.js              # Object store layer over minio client
+│  │  └─ websocket.js          # WebSockets server
+│  ├─ services/                # Control-plane services
+│  │  ├─ artifacts.js          # Artifacts management services
+│  │  └─ storage.js            # WebSockets server
 │  └─ validators/              # AJV validators (generated from common schemas)
 └─ tests/                      # Vitest test suite
 ```
