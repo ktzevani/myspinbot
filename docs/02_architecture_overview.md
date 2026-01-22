@@ -14,7 +14,7 @@ This rest of the document describes the current MySpinBot architecture at multip
 
 ## 1. High‑Level System Architecture
 
-### 📝 Description  
+### 📝 Description
 
 The platform is a comprehensive, local-first AI infrastructure deployed and managed using Docker Compose. It is designed around a **dual-plane LangGraph orchestration architecture**, integrating a Node.js-based **Control Plane** (backend) with a Python/GPU-powered **Data Plane** (worker). It also includes a Next.js frontend, and shared infrastructure for prototyping, state persistence, storage/data management, routing, and observability. 
 
@@ -159,7 +159,7 @@ graph LR
 
 More information on this can be found [here](./phase2/development_workflow_revisited.md).
 
-### Docker Profiles
+### 🧩 Docker Profiles
 
 Docker Compose profiles are used to conditionally start groups of services, optimizing resource usage and allowing for flexible deployments.
 
@@ -171,7 +171,7 @@ Docker Compose profiles are used to conditionally start groups of services, opti
 
 ## 2. Dual‑Plane LangGraph Execution
 
-**Description:**  
+### 📝Description  
 MySpinBot uses a dual-plane LangGraph orchestration model:
 
 - A **LangGraph graph JSON** represents each job, including both control-plane and data-plane nodes.

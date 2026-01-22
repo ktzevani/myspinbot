@@ -143,7 +143,7 @@ By the end of Phase 3, a user can initiate the generation of short, high-quality
 | Document                                         | Purpose                                                                      |
 | ------------------------------------------------ | ---------------------------------------------------------------------------- |
 | [phase3_overview.md](./phase3_overview.md)       | **This document**, phase overview and implementation plan.  |
-| [ai_pipelines.md](./ai_pipelines.md)             | AI pipeline variants, LangGraph workflow shapes, and API contracts.         |
+| [infinite_talk.md](./infinite_talk.md)             | Description of InfiniteTalk speech video generation pipelines.         |
 
 ## 🧭 Quick Navigation
 
