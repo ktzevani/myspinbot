@@ -10,9 +10,13 @@ WorkerTask: TypeAlias = Callable[[Dict[str, Any], Dict[str, Any]], Awaitable[Non
 
 _TASK_MAP: dict[str, WorkerTask] = {}
 
+# While development progresses this logic will be revisited now it simply maps
+# service ids to function object in this module. In the future the logic will
+# support multi-module service to task resolution.
+
 
 def task(name: str):
-    """Decorator to register async task functions by name."""
+    """Decorator to register async task functions by service name."""
 
     def wrapper(func):
         _TASK_MAP[name] = func
@@ -35,7 +39,7 @@ class StreamAdapter:
         self.cb()
 
 
-@task("dummy_task")
+@task("dummy.dummy_task")
 async def dummy_task(params: Dict[str, Any], node_input: Dict[str, Any]):
     """Showcases the logic of a worker task. Intercepts stdout logs to bump progress"""
 
@@ -85,7 +89,7 @@ async def dummy_task(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
-@task("f5_to_tts")
+@task("generate.f5_to_tts")
 async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
 
     progress_weight, publish_progress_cb = (
@@ -152,7 +156,7 @@ async def f5_to_tts(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
-@task("infinite_talk")
+@task("generate.infinite_talk")
 async def infinite_talk(params: Dict[str, Any], node_input: Dict[str, Any]):
 
     progress_weight, publish_progress_cb = (
@@ -301,7 +305,7 @@ async def infinite_talk(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
-@task("upscale_video")
+@task("generate.upscale_video")
 async def upscale_video(params: Dict[str, Any], node_input: Dict[str, Any]):
     progress_weight, publish_progress_cb = (
         params.get("progress_weight", 0),
@@ -373,7 +377,7 @@ async def upscale_video(params: Dict[str, Any], node_input: Dict[str, Any]):
     return result
 
 
-@task("get_capabilities")
+@task("info.get_capabilities")
 async def get_capabilities(_params: Dict[str, Any], _input: Dict[str, Any]):
     """Return the registered capabilities manifest to callers."""
 

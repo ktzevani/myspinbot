@@ -19,15 +19,10 @@
       "io": {
         "input": {
           "type": "object",
-          "required": [
-            "images"
-          ],
+          "required": ["images"],
           "properties": {
             "artifactId": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "description": "Optional id override"
             },
             "images": {
@@ -39,10 +34,7 @@
               }
             },
             "audio": {
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": ["string", "null"],
               "description": "Optional audio sample (Base64 / presigned URL)"
             },
             "metadata": {
@@ -70,10 +62,7 @@
                   }
                 },
                 "audio": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
+                  "type": ["string", "null"]
                 }
               }
             }
@@ -97,9 +86,7 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": [
-          "minio_upload_bytes"
-        ]
+        "metrics": ["minio_upload_bytes"]
       },
       "security": {
         "requiresSecrets": false
@@ -121,27 +108,20 @@
         "concurrency": 1
       },
       "handler": {
-        "module": "services/scriptGenerator.js",
+        "module": "services/script.js",
         "method": "generateScript"
       },
       "io": {
         "input": {
           "type": "object",
-          "required": [
-            "prompt"
-          ],
+          "required": ["prompt"],
           "properties": {
             "prompt": {
               "type": "string"
             },
             "tone": {
               "type": "string",
-              "enum": [
-                "casual",
-                "formal",
-                "playful",
-                "dramatic"
-              ]
+              "enum": ["casual", "formal", "playful", "dramatic"]
             },
             "length": {
               "type": "number",
@@ -185,9 +165,7 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": false,
-        "metrics": [
-          "llm_tokens_total"
-        ]
+        "metrics": ["llm_tokens_total"]
       },
       "security": {
         "requiresSecrets": false
@@ -195,6 +173,64 @@
       "contracts": {
         "idempotent": false,
         "sideEffects": "bounded"
+      }
+    },
+    {
+      "id": "info.get_capabilities",
+      "label": "Get Control-Plane Capabilities",
+      "description": "Returns the current control-plane capability manifest for planner agents.",
+      "version": "2025.02.0",
+      "plane": "node",
+      "runtime": {
+        "kind": "cpu",
+        "timeoutSeconds": 60,
+        "concurrency": 2
+      },
+      "handler": {
+        "module": "services/capabilities.js",
+        "method": "getManifest"
+      },
+      "io": {
+        "input": {
+          "type": "object",
+          "properties": {
+            "includeSchema": {
+              "type": "boolean",
+              "description": "If true, include schema metadata alongside capabilities."
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "plane": {
+              "type": "string"
+            },
+            "generatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "parameters": [],
+      "examples": [],
+      "telemetry": {
+        "emitsProgressEvents": true,
+        "metrics": ["worker_job_duration_seconds"]
+      },
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": true,
+        "sideEffects": "read-only"
       }
     }
   ]

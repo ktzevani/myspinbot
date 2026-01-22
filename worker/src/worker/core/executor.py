@@ -221,7 +221,7 @@ class Executor:
         return "handoff"
 
     async def _execute_node(self, graph: Dict[str, Any], node: Dict[str, Any]) -> None:
-        task_name: str = node.get("task", "")
+        task_name: str = node.get("service", "")
         handler = self.task_registry.get(task_name)
         node["status"] = NodeStatus.running
         self._metrics_inc("worker_active_tasks")

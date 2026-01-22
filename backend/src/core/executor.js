@@ -31,25 +31,25 @@ class Executor {
       try {
         const job = await jobQueue.pollControlJob(
           this.consumerId,
-          this.consumerGroup
+          this.consumerGroup,
         );
         if (job) {
           const result = await this.#processJob(job.id, job.fields);
           if (result.status === "completed") {
             await jobQueue.acknowledgeControlJob(
               result.entryId,
-              this.consumerGroup
+              this.consumerGroup,
             );
             await jobQueue.publishProgress(result.jobId, 1);
             await jobQueue.publishStatus(result.jobId, JobStatus.COMPLETED);
           } else if (result.status === "handoff") {
             await jobQueue.acknowledgeControlJob(
               result.entryId,
-              this.consumerGroup
+              this.consumerGroup,
             );
             await jobQueue.enqueueDataJob(
               result.jobId,
-              JSON.stringify(result.graph)
+              JSON.stringify(result.graph),
             );
           }
         }
@@ -125,7 +125,7 @@ class Executor {
   #validateGraph(graph) {
     if (!validateGraph(graph)) {
       const details = (validateGraph.errors || []).map(
-        (e) => `${e.instancePath || "/"} ${e.message}`
+        (e) => `${e.instancePath || "/"} ${e.message}`,
       );
       throw new Error(`Graph validation failed: ${details.join("; ")}`);
     }
@@ -139,7 +139,7 @@ class Executor {
     while (readyNodes.length > 0) {
       try {
         await Promise.all(
-          readyNodes.map((node) => this.#executeNode(jobId, graph, node))
+          readyNodes.map((node) => this.#executeNode(jobId, graph, node)),
         );
       } catch (err) {
         throw { ...ret, message: err?.message || String(err), cause: err };
@@ -189,7 +189,7 @@ class Executor {
 
   async #executeNode(jobId, graph, node) {
     try {
-      const handler = this.taskRegistry.get(node.task);
+      const handler = this.taskRegistry.get(node.service);
       if (!handler) {
         node.status = "failed";
         node.error = { message: `No handler for task ${node.task}` };
@@ -205,7 +205,7 @@ class Executor {
               jobQueue.publishData(jobId, data);
             },
           },
-          node.input || {}
+          node.input || {},
         );
         node.status = "completed";
       }

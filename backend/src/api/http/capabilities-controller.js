@@ -10,7 +10,7 @@ const capsGraph = {
     {
       id: "worker.info",
       name: "Get Worker Capabilities",
-      task: "get_capabilities",
+      service: "info.get_capabilities",
       plane: "python",
       status: "pending",
       progressWeight: 0.5,
@@ -18,7 +18,7 @@ const capsGraph = {
     {
       id: "control.info",
       name: "Combined Capabilities Manifests",
-      task: "capabilities.getManifest",
+      service: "info.get_capabilities",
       plane: "node",
       status: "pending",
       progressWeight: 0.5,

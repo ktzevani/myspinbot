@@ -1,35 +1,25 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { getCapabilities } from "../config.js";
 
+const __planeCapabilities = getCapabilities();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function factory() {
-  const files = fs
-    .readdirSync(__dirname)
-    .filter((file) => file.endsWith(".js") && file !== "registry.js");
-
-  const allEntries = await Promise.all(
-    files.map(async (file) => {
-      const moduleUrl = pathToFileURL(path.join(__dirname, file)).href;
-      const mod = await import(moduleUrl);
-      const moduleName = path.basename(file, ".js");
-
-      return Object.entries(mod)
-        .filter(
-          ([exportName, value]) =>
-            exportName !== "default" && typeof value === "function"
-        )
-        .map(([exportName, fn]) => [`${moduleName}.${exportName}`, fn]);
-    })
-  );
-
   const registry = new Map();
-  for (const entries of allEntries) {
-    for (const [key, fn] of entries) {
-      registry.set(key, fn);
+  for (const cap of __planeCapabilities.capabilities) {
+    const file = path.join(__dirname, cap.handler.module.split("/")[1]);
+    const moduleUrl = pathToFileURL(file).href;
+    const mod = await import(moduleUrl);
+    const entry = Object.entries(mod).filter(
+      ([exportName, value]) =>
+        exportName === cap.handler.method && typeof value === "function",
+    );
+    if (entry.length == 1) {
+      registry.set(cap.id, entry[0][1]);
     }
   }
+
   return registry;
 }
 

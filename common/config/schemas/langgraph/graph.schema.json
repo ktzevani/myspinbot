@@ -104,7 +104,7 @@
       "additionalProperties": false,
       "required": [
         "id",
-        "task",
+        "service",
         "plane",
         "status"
       ],
@@ -117,9 +117,9 @@
           "type": "string",
           "description": "Optional human-friendly label for the node."
         },
-        "task": {
+        "service": {
           "type": "string",
-          "description": "Symbolic task/capability identifier (e.g. a capabilities.json `id` like 'train.train_lora')."
+          "description": "Symbolic service/capability identifier (e.g. a capabilities.json `id` like 'generate.f5_to_tts')."
         },
         "plane": {
           "$ref": "#/$defs/plane"
