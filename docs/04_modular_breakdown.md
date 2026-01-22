@@ -73,14 +73,14 @@ flowchart TB
       Comfy["myspinbot-comfyui (ComfyUI/CUDA)"]
     end
 
-    Downloader -- Volume --- Ollama
-    Downloader -- Volume --- Comfy
     Proxy -- Network --- Comfy
     Proxy -- Network --- UI
     Proxy -- Network --- API
     Proxy -- Network --- S3
     Proxy -- Network --- RedisInsight
     Proxy -- Network --- Pgadmin
+    Downloader -- Volume --- Ollama
+    Downloader -- Volume --- Comfy
     RedisInsight -- Network --- Redis
     Pgadmin -- Network --- Postgres
     UI -- Network --- API
@@ -120,12 +120,13 @@ flowchart TB
     end
 
     Proxy -- Network --- Grafana
+    Proxy -- Network --- Prometheus
+
     Prometheus -- Network --- Grafana
     Redis -- Network --- RedisExporter
     RedisExporter -- Network --- Prometheus
     cAdvisor -- Network --- Prometheus
     DCGMExporter -- Network --- Prometheus
-    Proxy -- Network --- Prometheus
     API -- Network --- Prometheus
     Worker -- Network --- Prometheus
 
@@ -149,8 +150,8 @@ flowchart BT
       Ollama["myspinbot-ollama (Ollama Server)"]
     end
 
-    Ollama -- Network --- OpenWebUI
     OpenWebUI -- Network --- Proxy
+    Ollama -- Network --- OpenWebUI
 ```
 
 #### `schemas` profile (development)
@@ -448,48 +449,46 @@ The infrastructure layer consolidates shared services and development tooling:
 
 From a modular standpoint, each subsystem is effectively a self-contained module with its own runtime environment, while sharing infra services via Compose.
 
-## 8. Services Dependency Diagram
+## 8. Service Startup Dependencies (`depends_on`)
 
 ```mermaid
 graph TD
-    subgraph Frontend["frontend/ (Next.js)"]
-        FUI[Components + lib/api.ts + lib/ws.ts]
+    subgraph "Root Services"
+        traefik
+        prometheus
+        redis
+        postgres
+        minio
+        ollama
     end
 
-    subgraph Backend["backend/ (Control Plane)"]
-        BAPI[API & WS Routes]
-        BCFG[Config & Validators]
-        BJQ[JobQueue]
-        BPLN[Planner]
-        BEX[Control Executor]
-        BSVC[Services Registry]
+    subgraph "Dependent Services"
+        grafana
+        redis_exporter["redis-exporter"]
+        redis_insight["redis-insight"]
+        pgadmin
+        openwebui
+        comfyui
+        api
+        ui
+        worker
+        downloader
     end
 
-    subgraph Worker["worker/ (Data Plane)"]
-        WCFG[Config & Models]
-        WBR[Redis Bridge]
-        WEX[Python Executor]
-        WTSK[Task Registry]
-    end
-
-    subgraph Shared["common/ + codegen/"]
-        SCHEMAS[JSON Schemas]
-        GEN[Codegen Scripts]
-    end
-
-    FUI --> BAPI
-    BAPI --> BJQ
-    BJQ --> BEX
-    BEX --> BSVC
-    BJQ <--> WBR
-    WBR --> WEX
-    WEX --> WTSK
-
-    SCHEMAS --> GEN
-    GEN --> BCFG
-    GEN --> WCFG
-    BCFG --> BAPI
-    WCFG --> WEX
+    grafana -- depends_on --> prometheus
+    redis_exporter -- depends_on --> redis
+    redis_insight -- depends_on --> redis
+    pgadmin -- depends_on --> postgres
+    openwebui -- depends_on --> ollama
+    comfyui -- depends_on --> traefik
+    api -- depends_on --> redis
+    api -- depends_on --> postgres
+    ui -- depends_on --> api
+    worker -- depends_on --> redis
+    worker -- depends_on --> minio
+    worker -- depends_on --> downloader
+    downloader -- depends_on --> comfyui
+    downloader -- depends_on --> ollama
 ```
 
-This diagram reflects how code modules are connected today — not just conceptually, but in actual imports and runtime flows.
+This diagram shows the literal startup dependencies as defined by `depends_on` in the `docker-compose.yml` file across all profiles. An arrow from service A to service B means that service A will wait for service B to start before it starts itself.
