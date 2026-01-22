@@ -7,7 +7,11 @@
       "description": "Persists user-provided images (and optional audio) into MinIO as a versioned artifact.",
       "version": "2025.02.0",
       "plane": "node",
-      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
+      "runtime": {
+        "kind": "cpu",
+        "timeoutSeconds": 120,
+        "concurrency": 1
+      },
       "handler": {
         "module": "services/artifacts.js",
         "method": "uploadArtifact"
@@ -15,10 +19,15 @@
       "io": {
         "input": {
           "type": "object",
-          "required": ["images"],
+          "required": [
+            "images"
+          ],
           "properties": {
             "artifactId": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Optional id override"
             },
             "images": {
@@ -30,22 +39,42 @@
               }
             },
             "audio": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Optional audio sample (Base64 / presigned URL)"
             },
-            "metadata": { "type": "object", "additionalProperties": true }
+            "metadata": {
+              "type": "object",
+              "additionalProperties": true
+            }
           }
         },
         "output": {
           "type": "object",
           "properties": {
-            "artifactId": { "type": "string" },
-            "bucket": { "type": "string" },
+            "artifactId": {
+              "type": "string"
+            },
+            "bucket": {
+              "type": "string"
+            },
             "objects": {
               "type": "object",
               "properties": {
-                "images": { "type": "array", "items": { "type": "string" } },
-                "audio": { "type": ["string", "null"] }
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "audio": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
               }
             }
           }
@@ -68,83 +97,17 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": true,
-        "metrics": ["minio_upload_bytes"]
+        "metrics": [
+          "minio_upload_bytes"
+        ]
       },
-      "security": { "requiresSecrets": false },
+      "security": {
+        "requiresSecrets": false
+      },
       "contracts": {
         "idempotent": false,
         "sideEffects": "persistent-storage-write"
       }
-    },
-    {
-      "id": "artifacts.prepare_assets",
-      "label": "Prepare Assets",
-      "description": "Builds an asset manifest describing stored artifact contents (locations, checksums, media metadata).",
-      "version": "2025.02.0",
-      "plane": "node",
-      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
-      "handler": {
-        "module": "services/artifacts.js",
-        "method": "prepareAssets"
-      },
-      "io": {
-        "input": {
-          "type": "object",
-          "required": ["artifactId"],
-          "properties": {
-            "artifactId": { "type": "string" },
-            "requestedKinds": {
-              "type": "array",
-              "items": { "type": "string", "enum": ["images", "audio"] }
-            },
-            "enrichments": {
-              "type": "object",
-              "properties": {
-                "imageHashes": { "type": "boolean" },
-                "audioDuration": { "type": "boolean" }
-              }
-            }
-          }
-        },
-        "output": {
-          "type": "object",
-          "properties": {
-            "artifactId": { "type": "string" },
-            "manifest": {
-              "type": "object",
-              "properties": {
-                "images": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "key": { "type": "string" },
-                      "checksum": { "type": "string" },
-                      "width": { "type": "number" },
-                      "height": { "type": "number" }
-                    }
-                  }
-                },
-                "audio": {
-                  "type": ["object", "null"],
-                  "properties": {
-                    "key": { "type": "string" },
-                    "durationSeconds": { "type": "number" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "parameters": [],
-      "examples": [],
-      "telemetry": {
-        "emitsProgressEvents": false,
-        "metrics": ["asset_manifest_latency_ms"]
-      },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": true, "sideEffects": "bounded" }
     },
     {
       "id": "llm.generate_script",
@@ -152,7 +115,11 @@
       "description": "Transforms a user prompt into a stage description + narration using a local LLM and prompt template.",
       "version": "2025.02.0",
       "plane": "node",
-      "runtime": { "kind": "cpu", "timeoutSeconds": 120, "concurrency": 1 },
+      "runtime": {
+        "kind": "cpu",
+        "timeoutSeconds": 120,
+        "concurrency": 1
+      },
       "handler": {
         "module": "services/scriptGenerator.js",
         "method": "generateScript"
@@ -160,26 +127,43 @@
       "io": {
         "input": {
           "type": "object",
-          "required": ["prompt"],
+          "required": [
+            "prompt"
+          ],
           "properties": {
-            "prompt": { "type": "string" },
+            "prompt": {
+              "type": "string"
+            },
             "tone": {
               "type": "string",
-              "enum": ["casual", "formal", "playful", "dramatic"]
+              "enum": [
+                "casual",
+                "formal",
+                "playful",
+                "dramatic"
+              ]
             },
             "length": {
               "type": "number",
               "description": "Desired narration length in seconds"
             },
-            "persona": { "type": "string" }
+            "persona": {
+              "type": "string"
+            }
           }
         },
         "output": {
           "type": "object",
           "properties": {
-            "stagePrompt": { "type": "string" },
-            "narration": { "type": "string" },
-            "tokensUsed": { "type": "number" }
+            "stagePrompt": {
+              "type": "string"
+            },
+            "narration": {
+              "type": "string"
+            },
+            "tokensUsed": {
+              "type": "number"
+            }
           }
         }
       },
@@ -201,10 +185,17 @@
       "examples": [],
       "telemetry": {
         "emitsProgressEvents": false,
-        "metrics": ["llm_tokens_total"]
+        "metrics": [
+          "llm_tokens_total"
+        ]
       },
-      "security": { "requiresSecrets": false },
-      "contracts": { "idempotent": false, "sideEffects": "bounded" }
+      "security": {
+        "requiresSecrets": false
+      },
+      "contracts": {
+        "idempotent": false,
+        "sideEffects": "bounded"
+      }
     }
   ]
 }

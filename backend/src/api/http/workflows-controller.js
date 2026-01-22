@@ -1,6 +1,6 @@
 import { getConfiguration } from "../../config.js";
 import { submitJob } from "./job-controller.js";
-import { uploadBuffer } from "../../services/storage.js";
+import { uploadArtifact } from "../../services/artifacts.js";
 
 const appConfig = getConfiguration();
 
@@ -13,9 +13,9 @@ export async function submitInfiniteTalkWorkflow(req) {
     if (part.type === "file") {
       const buffer = await part.toBuffer();
       if (part.fieldname === "image_file") {
-        imagePath = await uploadBuffer("input", buffer, part.filename, "images");
+        imagePath = await uploadArtifact("input", buffer, part.filename, "images");
       } else if (part.fieldname === "audio_file") {
-        audioPath = await uploadBuffer("input", buffer, part.filename, "audio");
+        audioPath = await uploadArtifact("input", buffer, part.filename, "audio");
       }
     } else {
       if (part.fieldname === "data") {
