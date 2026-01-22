@@ -158,7 +158,7 @@ When the production infrastructure goes up you will have access to all included 
    - ComfyUI Workspace: https://comfyui.myspinbot.local
    - OpenWebUI Portal[^5]: https://openwebui.myspinbot.local
 
-[^5]: Only active if you start up [`chatbot` profile](docs/04_modular_breakdown.md#chatbot-profile)
+[^5]: Only active if you start up `chatbot` [profile](./docs/04_modular_breakdown.md#chatbot-profile)
 
 ## 🧱 Current Status
 
