@@ -4,6 +4,8 @@
 
 Welcome to **MySpinBot**, the open-source, fully local platform for generating short personalized AI videos of talking “bots” — the kind that spin their way through LoRA training, voice cloning, and lip-syncing, all while pretending not to melt your GPU.
 
+![Alt text for the GIF](/docs/resources/myspinbot_sample.gif)
+
 Think of it as a creative factory where:
 
 - You upload a few images and a short audio clip,
