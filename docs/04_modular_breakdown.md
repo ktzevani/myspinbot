@@ -138,6 +138,8 @@ flowchart TB
 
 #### `chatbot` profile
 
+`docker compose -f ./docker-compose.yml --profiles chatbot up -d`
+
 ```mermaid
 flowchart BT
     subgraph PublicNetwork["HTTPS (:443)"]
