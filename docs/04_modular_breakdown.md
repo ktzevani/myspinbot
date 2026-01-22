@@ -240,22 +240,24 @@ graph LR
 - **GPU access** – the `worker` service reserves all NVIDIA devices (`gpus: all`) and is monitored by the DCGM exporter; other services are CPU-only.
 - **Profiles** – observability-related services (Prometheus, Grafana, exporters) run under the `observability` profile; the `codegen` service runs on demand under the `schemas` profile.
 
-## 3) Backend (Control Plane) — `backend/`
+## 3. Backend (Control Plane) — `backend/`
 
 The Node.js backend (`myspinbot-backend`) is also the **control plane**: it owns HTTP/WS APIs, builds LangGraph jobs, executes control-plane nodes, and mirrors worker progress into WebSocket updates.
 
-### 2.1 Internal Structure
+### 3.1 Internal Structure
 
 Typical layout (details may evolve, but these are the current conceptual modules):
 
 ```text
 backend/
 ├─ src/
-│  ├─ index.js                 # Fastify bootstrap, CORS, route registration
-│  ├─ config.js                # Load + validate configuration, capabilities
-│  ├─ api/
+│  ├─ api/                     # Backend API
 │  │  ├─ http/                 # HTTP route handlers 
+│  │  │  │  *-controller.js    # Controllers definition
+│  │  │  └─ routes.js          # Central endpoint registration (routes-controllers mapping) facility
 │  │  └─ ws/                   # WebSocket route wiring
+│  │     |  ws-controller.js   # WebSocket controller definition
+│  │     └─ routes.js          # WebSocket endpoint registration
 │  ├─ core/                    # Core backend facilities
 │  │  ├─ executor.js           # LangGraph executor
 │  │  ├─ job-queue.js          # Redis Streams + Pub/Sub wrapper for Jobs
@@ -267,17 +269,22 @@ backend/
 │  │  ├─ metrics.js            # Telemetry layer over Prometheus client (prom-client)
 │  │  ├─ minio.js              # Object store layer over minio client
 │  │  └─ websocket.js          # WebSockets server
+│  ├─ model/                   # Data models
 │  ├─ services/                # Control-plane services
 │  │  ├─ artifacts.js          # Artifacts management services
-│  │  └─ storage.js            # WebSockets server
-│  └─ validators/              # AJV validators (generated from common schemas)
+│  │  ├─ capabilities.js       # Capabilities advertising service
+│  │  ├─ registry.js           # Internal services registry
+│  │  └─ script.js             # Narration script generation services
+│  ├─ validators/              # AJV validators (generated from common schemas)
+│  ├─ config.js                # Load + validate configuration, capabilities
+│  └─ index.js                 # Fastify bootstrap, CORS, route registration
 └─ tests/                      # Vitest test suite
 ```
 
-### 2.2 Responsibilities
+### 3.2 Responsibilities
 
 - **Fastify API / WebSocket**
-  - Routes: `/health`, `/metrics`, `/api/capabilities`, `/api/status/:jobId`, `/api/train`, `/ws`.
+  - Routes: `/health`, `/metrics`, `/api/capabilities`, `/api/status/:jobId`, `/api/infinitetalk`, `/ws`.
   - WebSocket hub supports `SUBSCRIBE` / `UNSUBSCRIBE` per `jobId`.
 - **Configuration Layer**
   - `config.js` merges multiple JSON config files (including Redis bridge) and validates everything using generated AJV validators.
@@ -287,8 +294,9 @@ backend/
   - Owns Streams for control/data processing (`${streams.process}:control` / `:data`).
   - Persists job state in `job:<id>` keys (status, progress, last graph).
   - Subscribes to worker Pub/Sub channels and mirrors state into Redis keys and WebSocket metrics.
+- **Pipelines**
+  - Assembles fixed LangGraph templates for public custom (e.g. `/api/infinitetalk`) and internal workflows (e.g. `/api/capabilities`).
 - **Planner**
-  - Assembles default LangGraph templates for `/api/train` and internal flows.
   - Validates graph JSON using a generated `graph.schema-validator` from `common/`.
   - Ensures metadata consistency (e.g. `workflowId` matches `jobId`, valid `plane` values).
 - **Control Executor**
@@ -297,41 +305,50 @@ backend/
   - Updates node status/output, recomputes progress, and persists the updated graph.
   - Hands off to the data stream when python-plane nodes remain; otherwise finalizes and publishes status.
 - **Services Registry**
-  - Dynamically loads services such as:
+  - Dynamically loads services (tasks) such as:
     - `script.generateScript` — stubbed script generation.
     - `capabilities.getManifest` — merges control and worker capability manifests.
     - `artifacts.uploadArtifact` / `prepareAssets` — stubs for future MinIO integration.
 
-## 4) Worker (Data Plane) — `worker/`
+## 4. Worker (Data Plane) — `worker/`
 
-The worker is the **data plane**: it executes python-plane LangGraph nodes, simulates GPU work, writes artifacts to MinIO, and exposes metrics via FastAPI.
+The worker is the **data plane**: it processes python-plane LangGraph nodes, executes GPU work, writes artifacts to MinIO, and exposes metrics via FastAPI.
 
-### 3.1 Internal Structure
+### 4.1 Internal Structure
 
 ```text
 worker/
 ├─ src/worker/
-│  ├─ main.py                 # FastAPI app, lifespan, /health, /metrics
-│  ├─ config.py               # WorkerConfiguration (Pydantic), capabilities loader
-│  ├─ core/
-│  │  ├─ bridge.py            # Redis Streams + Pub/Sub bridge (data plane)
-│  │  └─ executor.py          # Python-plane LangGraph executor
-│  ├─ services/
-│  │  └─ tasks.py             # Task registry (train_lora, train_voice, render_video, get_capabilities)
-│  ├─ models/                 # Generated Pydantic models (LangGraph, jobs, capabilities, redis, storage)
-│  └─ infra/
-│     └─ metrics/             # Prometheus metrics helpers
-└─ tests/                     # pytest test suite
+│  ├─ api/                     # Public API
+│  │  ├─ endpoints/            # Controllers
+│  │  └─ router.py             # Central enpoint registration (routes-controllers mapping) facility
+│  ├─ core/                    # Core worker facilities
+│  │  ├─ bridge.py             # Redis Streams + Pub/Sub bridge (data plane)
+│  │  └─ executor.py           # Python-plane LangGraph executor
+│  ├─ infra/                   # Data-plane infrastructure facilities
+│  │  └─ metrics/              # Telemetry layer over Prometheus client
+│  ├─ models/                  # Generated Pydantic models 
+│  ├─ services/                # Data-plane services
+│  │  ├─ storage.py            # Artifacts management helpers
+│  │  └─ tasks.py              # Tasks definitions
+│  ├─ utils/                   # Misc helpers
+│  ├─ workflows/               # Diffusion workflow components
+│  │  ├─ infinitetalk.py       # InfiniteTalk pipeline implementation 
+│  │  ├─ tts.py                # Text-to-Speech pipeline implementation
+│  │  └─ upscaler.py           # AI upscaling implementation
+│  ├─ config.py                # WorkerConfiguration (Pydantic), capabilities loader
+│  └─ main.py                  # FastAPI app, lifespan control loop, router registration
+└─ tests/                      # pytest test suite
 ```
 
-### 3.2 Responsibilities
+### 4.2 Responsibilities
 
 - **FastAPI App**
   - Provides `/health` and `/metrics` endpoints.
-  - Startup lifespan connects to Redis and starts the executor loop.
+  - lifespan context manager connects to Redis and starts the executor loop.
 - **Configuration**
   - `config.py` merges JSON config and environment variables into a `WorkerConfiguration` singleton (Pydantic).
-  - Loads `config/capabilities.json` to advertise worker abilities (`train_lora`, `render_video`, etc.).
+  - Loads `config/capabilities.json` to advertise worker services (`f5_to_tts`, `infinite_talk`, etc.).
 - **Redis Bridge**
   - Mirrors the behavior of the backend JobQueue on the data plane:
     - Consumes from `${streams.process}:data`.
@@ -346,13 +363,13 @@ worker/
   - Records per-node and per-job metrics (e.g. `gpu_worker_jobs_total`, `gpu_worker_job_duration_seconds`).
 - **Task Registry (`services/tasks.py`)**
   - Decorated with `@task` to register handlers:
-    - `train_lora` — simulates LoRA training, uploads a dummy `.safetensors` artifact to MinIO.
-    - `train_voice` — placeholder for voice training (stubbed).
-    - `render_video` — simulates video render, uploads a dummy MP4 artifact.
+    - `dummy_task` — placeholder task for compiling dummy workflows
+    - `f5_to_tts` — text to speech with F5TTS_v1_Base model
+    - `infinite_talk` — infinite talk image+audio to video diffusion pipeline (wan 2.1)
+    - `upscale_video` — ai upscaling pipeline (RealESRGAN and codeformer)
     - `get_capabilities` — returns a JSON manifest string from configuration.
-  - Includes helpers like `connect_minio`, `simulate_progress`, `upload_dummy_artifact`.
 
-## 5) Shared Schemas & Codegen — `common/` + `codegen/`
+## 5. Shared Schemas & Codegen — `common/` + `codegen/`
 
 The shared schema and code generation layer keeps the two planes aligned:
 
@@ -387,6 +404,7 @@ The frontend is intentionally small and focused on **job lifecycle visualization
 ```text
 frontend/
 ├─ app/
+│  ├─ global.css          # App styling (using tailwind compiler)
 │  ├─ layout.tsx          # App shell, branding
 │  └─ page.tsx            # Main page (upload + jobs)
 ├─ components/
@@ -394,14 +412,15 @@ frontend/
 │  ├─ StatusCard.tsx      # Status pill + prompt + progress
 │  └─ ProgressBar.tsx     # Visual progress indicator
 ├─ lib/
-│  ├─ api.ts              # REST helpers (postTrain, status)
+│  ├─ api.ts              # REST helpers (postGenerate, getJobResult)
+│  ├─ enum.ts             # Common enums used in frontend
 │  └─ ws.ts               # WebSocket hook for /ws
 └─ tests/                 # Vitest + React Testing Library
 ```
 
 ### 5.2 Responsibilities
 
-- Triggers training by POSTing to `/api/train`.
+- Triggers video generation by POSTing to `/api/infinitetalk`.
 - Establishes a WebSocket connection to `/ws` and subscribes to specific job IDs.
 - Renders a StatusCard per job with up-to-date progress and status.
 - Unsubscribes once a job reaches a terminal state.
@@ -416,16 +435,20 @@ The infrastructure layer consolidates shared services and development tooling:
   - Traefik proxy, TLS, and routing.
   - Redis + Redis Insight.
   - MinIO for artifacts.
+  - PostgreSQL for job persistence.
   - Prometheus + Grafana for metrics and dashboards.
   - cAdvisor + DCGM Exporter for container and GPU metrics.
+  - Ollama + OpenWebUI for llm management.
+  - ComfyUI for diffusion pipelines management/prototyping.
 - **Dev Containers**:
   - Each of `backend/`, `frontend/`, and `worker/` has its own `.devcontainer/` configuration.
   - Development happens inside these containers for parity with production images.
+  - Development sandboxes make use of coding agents safe and more efficient.
   - Tests (Vitest / pytest) run inside their respective Dev Containers.
 
 From a modular standpoint, each subsystem is effectively a self-contained module with its own runtime environment, while sharing infra services via Compose.
 
-## 8) Module Dependency Diagram
+## 8. Services Dependency Diagram
 
 ```mermaid
 graph TD
@@ -470,16 +493,3 @@ graph TD
 ```
 
 This diagram reflects how code modules are connected today — not just conceptually, but in actual imports and runtime flows.
-
-## 9) Planned External AI Services (Module View)
-
-Beyond the core modules, several AI services are planned as separate, optional modules:
-
-| Module               | Responsibility                                                | Integration Point                       |
-| :------------------- | :----------------------------------------------------------- | :-------------------------------------- |
-| **ComfyUI Service**  | Visual workflows for text-to-image, image-to-video, etc.     | Called from worker tasks / LangGraph.   |
-| **Ollama + Open WebUI** | LLM runtime and management/chat UI for script planning.    | Called from backend LangGraph nodes.    |
-| **TTS / Voice Stack** (F5-TTS, GPT-SoVITS) | Text-to-speech and voice cloning.               | Implemented as worker tasks.            |
-| **Lip-sync / Talking-Head** (Wav2Lip, SadTalker) | Lip-sync or talking-head animation.           | Implemented as worker tasks.            |
-
-These remain modular add-ons: they are not required to run the current training flows but are part of the long-term architecture and can be integrated without changing the core module boundaries described above.
