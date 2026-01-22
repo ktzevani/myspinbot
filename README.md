@@ -16,7 +16,7 @@ All this **locally**, **privately**, and **under your control**.
 [^1]: Still in TODOs. Current version supports uploading an existing portrait image instead of prompting for character creation or LoRA training.
 
 <div align="center">
-  <img height=500 src="/docs/resources/myspinbot_sample.gif" />
+  <img height=700 src="/docs/resources/myspinbot_sample.gif" />
 </div>
 
 I took this on, after watching Computerphile’s [_MikeBot3000: Can We Build an AI Mike from Open Source Tools?_](https://www.youtube.com/watch?v=cP8xpkvs_UI) some months ago and used all the help I could get out of my trusty old pals **ChatGPT-5** and **Gemini 2.5** to make it spin — figuratively, literally, and sometimes uncontrollably.
@@ -161,7 +161,7 @@ When the production infrastructure goes up you will have access to all included 
 [^5]: Only active if you start up `chatbot` [profile](./docs/04_modular_breakdown.md#chatbot-profile)
 
 <div align="center">
-  <img height=500 src="/docs/resources/infra_sample.gif" />
+  <img src="/docs/resources/infra_sample.gif" />
 </div>
 
 ## 🧱 Current Status
