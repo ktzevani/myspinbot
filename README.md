@@ -160,6 +160,10 @@ When the production infrastructure goes up you will have access to all included 
 
 [^5]: Only active if you start up `chatbot` [profile](./docs/04_modular_breakdown.md#chatbot-profile)
 
+<div align="center">
+  <img height=500 src="/docs/resources/infra_sample.gif" />
+</div>
+
 ## 🧱 Current Status
 
 | Phase      | Title                                  | Status       |
