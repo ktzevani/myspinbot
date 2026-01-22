@@ -1,8 +1,8 @@
-# Architecture Overview
+# 🧱 Architecture Overview
 
 The project's main goal is **educational**. The intention is for this to provide a blueprint for putting together complete and functional AI infrastructures in which one can research/prototype/optimize AI workflows. 
 
-### In a nutshell
+### 🥜 In a nutshell
 
 ---
 
@@ -14,7 +14,7 @@ This rest of the document describes the current MySpinBot architecture at multip
 
 ## 1. High‑Level System Architecture
 
-### Description  
+### 📝 Description  
 
 The platform is a comprehensive, local-first AI infrastructure deployed and managed using Docker Compose. It is designed around a **dual-plane LangGraph orchestration architecture**, integrating a Node.js-based **Control Plane** (backend) with a Python/GPU-powered **Data Plane** (worker). It also includes a Next.js frontend, and shared infrastructure for prototyping, state persistence, storage/data management, routing, and observability. 
 
@@ -22,7 +22,7 @@ The entire system is containerized, facilitating consistent environments across 
 
 The platform's architecture is a microservices-oriented approach, where specialized services communicate over a shared internal network. Traefik acts as the ingress controller, routing external traffic to the appropriate services and handling TLS.
 
-### Overall System Map 
+### 🗺️ Overall System Map 
 
 **Production Environment**
 
@@ -360,3 +360,7 @@ stateDiagram-v2
 - Security: Traefik and optional auth layers can front management UIs (Open WebUI, Grafana, etc.).
 - Observability: Both planes expose `/metrics`; higher-level job and node metrics can be added incrementally.
 
+## 🧭 Quick Navigation
+
+➡️ [Go to Technologies Stack](./03_tech_stack.md)  
+⬅️ [Back to Project Description](./01_project_description.md)

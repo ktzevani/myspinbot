@@ -1,8 +1,8 @@
-# Project Planning & Implementation Roadmap
+# 📋 Project Planning & Implementation Roadmap
 
 This section outlines both a **formal project plan** and a **narrative roadmap**, showing how MySpinBot will evolve from foundational setup to a fully integrated, observable system.
 
-## 📘 Formal Project Plan
+##  ✒️ Formal Project Plan
 
 ### 1️⃣ Objectives
 
@@ -55,7 +55,7 @@ This section outlines both a **formal project plan** and a **narrative roadmap**
 - **Backup strategy**: periodic MinIO snapshots; Postgres dump every 24 h.
 - **Monitoring**: Grafana dashboards for GPU utilization, API latency, and job duration.
 
-## 📙 Narrative Roadmap
+## 📝 Narrative Roadmap
 
 ### **Phase 0 — Foundations**
 
@@ -85,6 +85,11 @@ Detailed telemetry analysis emerges in Grafana. Error handling and retries becom
 
 Security and polish take center stage. Authentication, detailed documentation, and one-command deployment make the project ready for open release. Dashboards display everything from GPU load to job throughput, encapsulating a full-stack showcase of local AI orchestration.
 
-## 🎯 Outcome
+## 📦 Outcome
 
 At completion, the system will be reproducible from scratch, deployable on any single-GPU workstation, and documented to the standard of an internal technical whitepaper. Its modular phases mirror real-world AI integration lifecycles, providing both a production-quality tool and a reference architecture for future self-hosted AI media systems.
+
+## 🧭 Quick Navigation
+
+➡️ [Go to History](./06_history.md)  
+⬅️ [Back to Modules Breakdown](./04_modular_breakdown.md)

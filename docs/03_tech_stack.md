@@ -2,7 +2,7 @@
 
 This document lists the core technologies used in MySpinBot as implemented today design choices. The stack has evolved iteratively, see [history](./06_history.md).
 
-## 1. Stack Snapshot
+## ⚙️ Stack Snapshot
 
 ### Core Components
 
@@ -43,7 +43,7 @@ This document lists the core technologies used in MySpinBot as implemented today
 |                           | OpenWebUI                       | `.`                   | LLM management facilities and prompting UI placed in front of ollama. |
 |                           | ComfyUI                         | `infra/worker`        | The popular diffusion workbench that provides a GUI for visual programming/prototyping of ai workflows. |
 
-### AI Models Used
+### 🧠 AI Models Used
 
 The following models are utilized by the implemented pipelines:
 
@@ -63,3 +63,8 @@ The following models are utilized by the implemented pipelines:
 | **[CodeFormer](https://huggingface.co/fofr/comfyui)** | AI-driven face restoration and detail enhancement for generated human subjects. |
 
 These models are downloaded the first time the infrastructure gets up during the one-time initialization step defined by the `downloader` sidecar.
+
+## 🧭 Quick Navigation
+
+➡️ [Go to Modules Breakdown](./04_modular_breakdown.md)  
+⬅️ [Back to Architecture Overview](./02_architecture_overview.md)

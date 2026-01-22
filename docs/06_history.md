@@ -1,8 +1,8 @@
-# Architecture & Stack History
+# ⏱️ Architecture & Stack History
 
 This document captures how the current MySpinBot architecture and tech stack evolved from an original design, organised by **development phase**. Treat it as release notes for each iteration.
 
-## 1. How to Read This
+## ❓ How to Read This
 
 - Each phase section follows the same pattern:
   - **Original plan** – intent from the roadmap and early docs.
@@ -10,7 +10,7 @@ This document captures how the current MySpinBot architecture and tech stack evo
   - **What’s new / notable** – concise, “release notes” style bullets.
 - Details are grouped by architecture, modular boundaries, and tech stack where useful, but the primary axis is **phase order** (Phase 0 → Phase 1 → Phase 2 → …).
 
-## 2. Phase 0 — Infrastructure Bootstrap
+## 1. Phase 0 — Infrastructure Bootstrap
 
 ### Original plan
 
@@ -36,7 +36,7 @@ This document captures how the current MySpinBot architecture and tech stack evo
 - Metrics-first posture: every infra component either exposes metrics directly or via exporters.
 - TLS and routing patterns (e.g. `*.myspinbot.local`) defined from day one and reused in later phases.
 
-## 3. Phase 1 — Backend & Frontend Scaffold
+## 2. Phase 1 — Backend & Frontend Scaffold
 
 ### Original plan
 
@@ -62,11 +62,11 @@ This document captures how the current MySpinBot architecture and tech stack evo
 - WebSocket-based job updates and REST APIs established as the primary client contract.
 - Early LangGraph usage on the Node side to describe workflows, paving the way for Phase 2.
 
-## 4. Phase 2 — Dual-Plane Orchestration Snapshot
+## 3. Phase 2 — Dual-Plane Orchestration Snapshot
 
 Phase 2 is where the architecture becomes recognisably dual-plane and graph-centric.
 
-### 4.1 Original plan
+### 3.1 Original plan
 
 - Introduce a Python GPU worker connected to the backend via Redis:
   - Execute LoRA/TTS/video tasks on the worker.
@@ -76,7 +76,7 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
   - Python LangGraph for GPU task DAGs.
   - Redis as the bridge between the two.
 
-### 4.2 Outcome in the repo
+### 3.2 Outcome in the repo
 
 **Architecture & Flows**
 
@@ -114,7 +114,7 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
   - VS Code Dev Containers per subsystem (`backend/`, `frontend/`, `worker/`).
   - `docker-compose.dev.yml` for live coding and debugging on top of the production-like infra.
 
-### 4.3 What’s new / changed in Phase 2 (release-notes style)
+### 3.3 What’s new / changed in Phase 2 (release-notes style)
 
 **Architecture**
 
@@ -143,15 +143,15 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
 
 - Planner currently uses static graph templates; future phases are expected to make planning more intelligent while preserving the dual-plane and schema-driven foundations established here.
 
-## 5. Phase 3 — AI Pipeline Implementation Snapshot
+## 4. Phase 3 — AI Pipeline Implementation Snapshot
 
 Phase 3 marks the transition of MySpinBot into a real AI video pipeline, building on the dual-plane LangGraph foundation from Phase 2. This phase focused on integrating core AI services, establishing durable persistence, and advancing the orchestration capabilities.
 
-### 5.1 Original plan
+### 4.1 Original plan
 
 The plan for Phase 3 was ambitious, aiming to introduce end-to-end LLM → diffusion/video → TTS → lip-sync workflows with multiple pipeline variants (e.g., SVD+Wav2Lip, SadTalker). It also included a persistent job and artifact store (PostgreSQL), a first version of an Agentic Planner, a **Dramatiq-backed worker execution model**, and dedicated AI runtime services (Ollama, Open WebUI, ComfyUI) managed by Docker Compose and Traefik. The ultimate goal was for users to be able to train basic profiles and generate short, low-resolution videos driven by local LLM scripts.
 
-### 5.2 Outcome in the repo
+### 4.2 Outcome in the repo
 
 **Architecture & Flows**
 
@@ -175,7 +175,7 @@ The plan for Phase 3 was ambitious, aiming to introduce end-to-end LLM → diffu
 - **ComfyUI:** Integrated for diffusion and image/video generation workflows.
 - The existing dual-plane LangGraph orchestration with Redis Streams remains central, now with PostgreSQL providing the long-term historical record.
 
-### 5.3 What’s new / changed in Phase 3 (release-notes style)
+### 4.3 What’s new / changed in Phase 3 (release-notes style)
 
 **Architecture**
 
@@ -206,3 +206,7 @@ The plan for Phase 3 was ambitious, aiming to introduce end-to-end LLM → diffu
 - Implementing additional video/audio generation workflows.
 - Deepening observability for AI pipelines with more granular, task-specific latency and GPU metrics.
 - Expanding artifact and profile management functionalities for greater user control.
+
+## 🧭 Quick Navigation
+
+⬅️ [Back to Roadmap](./05_roadmap.md)

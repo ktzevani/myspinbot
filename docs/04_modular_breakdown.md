@@ -1,4 +1,4 @@
-# Modular Breakdown & Technical Analysis
+# 🧱➜🧱 Modular Breakdown & Technical Analysis
 
 This section explains the internal composition of the MySpinBot system, detailing each subsystem, its responsibilities, interfaces, and extensibility points. It reflects the current implementation and its modular structure; for how the design evolved across phases, see [history](./06_history.md).
 
@@ -396,11 +396,11 @@ codegen/
 - Backend validators (AJV) and worker models (Pydantic v2) are generated from the same schemas.
 - Both planes validate configuration and graph payloads against these canonical definitions to avoid drift.
 
-## 6) Frontend — `frontend/`
+## 6. Frontend — `frontend/`
 
 The frontend is intentionally small and focused on **job lifecycle visualization** rather than full profile management or artifact browsing.
 
-### 5.1 Structure
+### 6.1 Structure
 
 ```text
 frontend/
@@ -419,7 +419,7 @@ frontend/
 └─ tests/                 # Vitest + React Testing Library
 ```
 
-### 5.2 Responsibilities
+### 6.2 Responsibilities
 
 - Triggers video generation by POSTing to `/api/infinitetalk`.
 - Establishes a WebSocket connection to `/ws` and subscribes to specific job IDs.
@@ -428,7 +428,7 @@ frontend/
 
 The UI is minimal but wired to the same job and progress semantics that future, richer UIs will use.
 
-## 7) Infrastructure & Dev Workflow — `infra/` + Dev Containers
+## 7. Infrastructure & Dev Workflow — `infra/` + Dev Containers
 
 The infrastructure layer consolidates shared services and development tooling:
 
@@ -492,3 +492,8 @@ graph TD
 ```
 
 This diagram shows the literal startup dependencies as defined by `depends_on` in the `docker-compose.yml` file across all profiles. An arrow from service A to service B means that service A will wait for service B to start before it starts itself.
+
+## 🧭 Quick Navigation
+
+➡️ [Go to Roadmap](./05_roadmap.md)  
+⬅️ [Back to Technologies Stack](./03_tech_stack.md)
