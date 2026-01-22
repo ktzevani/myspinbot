@@ -8,7 +8,7 @@ Think of it as a creative factory where:
 
 - You upload one or more images and a short audio voice clip along with some reference text,
 - You prompt a local llm for creating a proper narrative and even a scene description,
-- Then it creates the character and a setting[1^] for a portrait image, trains a voice clone and optionally a mini-LoRA[1^],
+- Then it creates the character and a setting[^1] for a portrait image, trains a voice clone and optionally a mini-LoRA[^1],
 - And finally it stitches everything together by generating a staged, narrated, lip-synced video
 
 All this **locally**, **privately**, and **under your control**.
@@ -23,7 +23,7 @@ I took this on, after watching Computerphile’s [_MikeBot3000: Can We Build an 
 
 My motivation was initially **educational** but also I needed a facility in my home lab to act as an AI workbench. That is to enable me do things like: examine the inner workings of complex AI pipelines at the code level, testing new models that keeps popping up, especially in the **ComfyUI** ecosystem and in the domain of **Computer Vision**, and also play around with local agents. At the same time I also wanted the ability to quickly produce end-to-end prototypes (thus the frontend layer of the platform).
 
-Hence, I developed a fully local platform which brings many open source components together into a unified AI infrastructure that one can freely use without the need to resolve to paid services. Extra details along with a more thoroughly-written (that is AI-generated 😎) project description can be found [here](docs/01_project_description.md)[2^].
+Hence, I developed a fully local platform which brings many open source components together into a unified AI infrastructure that one can freely use without the need to resolve to paid services. Extra details along with a more thoroughly-written (that is AI-generated 😎) project description can be found [here](docs/01_project_description.md)[^2].
 
 [^2]: At this point, I'd like to stress that... I genuinely, with my own eyes and keyboard, reviewed and edited ...most of the documentation/code that the AI produced.
 
@@ -39,7 +39,7 @@ For example one of my focus points for building this, was to get in position to 
 
 ## 🕸️ How much distributed can you get? 
 
-*MySpinBot's* [Dual-plane orchestration layer](docs/phase2/dual_orchestration.md) makes it a platform which supports distributed processing, which in combination to the use of **LangGraph** and [Common Data Schemas](docs/phase2/shared_schemas.md) is able to manage, publish and execute heterogeneous workflows, i.e. workflows which contain tasks to be executed by **Node.js** and **Python** processes (targeting both CPU an GPU execution). At the same time it provides the means to (own-managed or external) llm agents, to plan and compile such workflows, by having its backend components advertise their capabilities via well defined services manifests[3^].
+*MySpinBot's* [Dual-plane orchestration layer](docs/phase2/dual_orchestration.md) makes it a platform which supports distributed processing, which in combination to the use of **LangGraph** and [Common Data Schemas](docs/phase2/shared_schemas.md) is able to manage, publish and execute heterogeneous workflows, i.e. workflows which contain tasks to be executed by **Node.js** and **Python** processes (targeting both CPU an GPU execution). At the same time it provides the means to (own-managed or external) llm agents, to plan and compile such workflows, by having its backend components advertise their capabilities via well defined services manifests[^3].
 
 [^3]: Some more work to be done there, foundational components are all laid out though.
 
@@ -47,7 +47,7 @@ For example one of my focus points for building this, was to get in position to 
 
 > _“Deep breath...”_
 
-The [architecture](docs/02_architecture_overview.md) features a **React UI** and a **Node.js orchestration layer**, which manages **LangGraph distributed workflows** across both **Node.js and Python runtimes**. The backend integrates **specialized AI facilities**, including **ComfyUI diffusion pipelines** and **Ollama-hosted local LLMs**. High-intensity machine learning tasks—such as LoRA training, Text-to-Speech (TTS), and lip-syncing—are handled by **Python-based workers managed via Dramatiq**[4^]. To ensure production-grade reliability, the entire ecosystem is supported by a full observability suite using **Prometheus and Grafana**. To ensure robustness the orchestration layer is build on-top of **Redis** and is backed by a **PostGreSQL persistence layer**. The latter can act also as a **vector database** for facilitating components like **RAG** in the future. Furthermore, to management input/output and staged data the system contains its own **MinIO object storage**. Finally it all comes together via a **Traefix proxy** which manages routing and publishes underlying infrastructure's services endpoints.
+The [architecture](docs/02_architecture_overview.md) features a **React UI** and a **Node.js orchestration layer**, which manages **LangGraph distributed workflows** across both **Node.js and Python runtimes**. The backend integrates **specialized AI facilities**, including **ComfyUI diffusion pipelines** and **Ollama-hosted local LLMs**. High-intensity machine learning tasks—such as LoRA training, Text-to-Speech (TTS), and lip-syncing—are handled by **Python-based workers managed via Dramatiq**[^4]. To ensure production-grade reliability, the entire ecosystem is supported by a full observability suite using **Prometheus and Grafana**. To ensure robustness the orchestration layer is build on-top of **Redis** and is backed by a **PostGreSQL persistence layer**. The latter can act also as a **vector database** for facilitating components like **RAG** in the future. Furthermore, to management input/output and staged data the system contains its own **MinIO object storage**. Finally it all comes together via a **Traefix proxy** which manages routing and publishes underlying infrastructure's services endpoints.
 
 [^4]: Dramatiq to be introduced, right now Python tasks are managed by the running process and not by actors.
 
@@ -156,7 +156,7 @@ When the production infrastructure goes up you will have access to all included 
    - MinIO Panel/Console: https://s3.myspinbot.local
    - pgAdmin Panel (PostgreSQL): https://pgadmin.myspinbot.local
    - ComfyUI Workspace: https://comfyui.myspinbot.local
-   - OpenWebUI Portal[5^]: https://openwebui.myspinbot.local
+   - OpenWebUI Portal[^5]: https://openwebui.myspinbot.local
 
 [^5]: Only active if you start up [`chatbot` profile](docs/04_modular_breakdown.md#chatbot-profile)
 
