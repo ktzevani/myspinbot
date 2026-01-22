@@ -2,7 +2,7 @@
 
 This document captures how the current MySpinBot architecture and tech stack evolved from an original design, organised by **development phase**. Treat it as release notes for each iteration.
 
-## 1) How to Read This
+## 1. How to Read This
 
 - Each phase section follows the same pattern:
   - **Original plan** – intent from the roadmap and early docs.
@@ -10,7 +10,7 @@ This document captures how the current MySpinBot architecture and tech stack evo
   - **What’s new / notable** – concise, “release notes” style bullets.
 - Details are grouped by architecture, modular boundaries, and tech stack where useful, but the primary axis is **phase order** (Phase 0 → Phase 1 → Phase 2 → …).
 
-## 2) Phase 0 — Infrastructure Bootstrap
+## 2. Phase 0 — Infrastructure Bootstrap
 
 ### Original plan
 
@@ -36,7 +36,7 @@ This document captures how the current MySpinBot architecture and tech stack evo
 - Metrics-first posture: every infra component either exposes metrics directly or via exporters.
 - TLS and routing patterns (e.g. `*.myspinbot.local`) defined from day one and reused in later phases.
 
-## 3) Phase 1 — Backend & Frontend Scaffold
+## 3. Phase 1 — Backend & Frontend Scaffold
 
 ### Original plan
 
@@ -62,7 +62,7 @@ This document captures how the current MySpinBot architecture and tech stack evo
 - WebSocket-based job updates and REST APIs established as the primary client contract.
 - Early LangGraph usage on the Node side to describe workflows, paving the way for Phase 2.
 
-## 4) Phase 2 — Dual-Plane Orchestration Snapshot
+## 4. Phase 2 — Dual-Plane Orchestration Snapshot
 
 Phase 2 is where the architecture becomes recognisably dual-plane and graph-centric.
 
@@ -143,7 +143,7 @@ Phase 2 is where the architecture becomes recognisably dual-plane and graph-ce
 
 - Planner currently uses static graph templates; future phases are expected to make planning more intelligent while preserving the dual-plane and schema-driven foundations established here.
 
-## 5) Phase 3 — AI Pipeline Implementation Snapshot
+## 5. Phase 3 — AI Pipeline Implementation Snapshot
 
 Phase 3 marks the transition of MySpinBot into a real AI video pipeline, building on the dual-plane LangGraph foundation from Phase 2. This phase focused on integrating core AI services, establishing durable persistence, and advancing the orchestration capabilities.
 
