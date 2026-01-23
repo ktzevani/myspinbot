@@ -90,7 +90,7 @@ For the human reader though, it is best to start from [documentation index](./do
 
 ## 🚀 Quick Start
 
-There are basically **four** things you need to take care in order to set this beast up and running. First you need to **make sure your system covers the prerequisites**. Then, you **clone the repo** locally. After that, you need to **execute the provision script** according to your platform (Linux, Windows). Finally, you must **use compose to start the infrastructure**. Thats it!
+There are basically **four** things you need to take care in order to get this beast up and running. First you need to **make sure your system covers the prerequisites**. Then, you **clone the repo** locally. After that, you need to **execute the provision script** according to your platform (Linux, Windows). Finally, you must **use compose to start the infrastructure**. Thats it!
 
 1. **Prerequisites**
 
@@ -109,7 +109,7 @@ There are basically **four** things you need to take care in order to set this b
    - RTX 5070 Ti 16 GB VRAM
    - Core Ultra 9 285K (24 Cores)
 
-   > 💡 If you are using Docker Desktop, make sure to have provide it enough of your system resources. My `.wslconfig` looks like this:
+   > 💡 If you are using Docker Desktop, make sure to provide it enough of your system resources. My `.wslconfig` looks like this:
    > ```
    > [wsl2]
    > memory=80GB
