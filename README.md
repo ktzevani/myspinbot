@@ -1,6 +1,32 @@
 # 🌀 MySpinBot
 
+<div align="center">
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg?style=flat-square)](LICENSE)
+[![Phase](https://img.shields.io/badge/Phase-3_AI_Pipeline-orange?style=flat-square)](docs/05_roadmap.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/ktzevani/myspinbot/pulls)
+
+![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=flat-square&logo=node.js&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=ffdd54)
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat-square&logo=react&logoColor=%2361DAFB)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat-square&logo=docker&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat-square&logo=PyTorch&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-76B900?style=flat-square&logo=nvidia&logoColor=white)
+![PyCUDA](https://img.shields.io/badge/PyCUDA-76B900?style=flat-square&logo=nvidia&logoColor=white)
+
+![ComfyUI](https://img.shields.io/badge/ComfyUI-4285F4?style=flat-square)
+![Ollama](https://img.shields.io/badge/Ollama-white?style=flat-square&logo=Ollama&logoColor=black)
+![Open WebUI](https://img.shields.io/badge/Open_WebUI-303030?style=flat-square)
+
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=flat-square&logo=redis&logoColor=white)
+![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=flat-square&logo=postgresql&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-C72E49?style=flat-square&logo=MinIO&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=Prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=Grafana&logoColor=white)
+
 > _“Blurring the line of truth... Responsibly?...”_
+
+</div>
 
 Welcome to **MySpinBot**, the open-source, containerized platform for generating short personalized AI videos of talking “bots” — the kind that spin their way through voice cloning, LoRA training, and lip-syncing, all while making an effort not to melt your GPU.
 
