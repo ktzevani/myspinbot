@@ -41,7 +41,7 @@ Think of it as a creative factory where:
 - Then it creates the character and a setting[^1] for a portrait image, trains a voice clone and optionally a mini-LoRA[^1],
 - And finally it stitches everything together by generating a staged, narrated, lip-synced video
 
-All this **locally**, **privately**, and **under your control**.
+All this **locally**, **privately**, and **under your control**. Here's a [sample output](docs/resources/carl_jung-output.mp4).
 
 [^1]: Still in TODOs. Current version supports uploading an existing portrait image instead of prompting for character creation or LoRA training.
 
