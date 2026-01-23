@@ -40,7 +40,7 @@ By default, this script will:
 To customize credentials or domain:
 
 ```bash
-AUTH_USER=ktzev AUTH_PASS=UltraSecret DOMAIN=myspinbot.dev ./scripts/provision_secrets.sh
+AUTH_USER=myuser AUTH_PASS=UltraSecret DOMAIN=myspinbot.local ./scripts/provision_secrets.sh
 ```
 
 To regenerate existing secrets:
@@ -63,7 +63,7 @@ By default, this script will:
 To customize credentials or domain:
 
 ```powershell
-$env:AUTH_USER = "ktzev"
+$env:AUTH_USER = "myuser"
 $env:AUTH_PASS = "UltraSecret"
 $env:DOMAIN    = "myspinbot.dev"
 
