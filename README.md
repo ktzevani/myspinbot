@@ -4,6 +4,10 @@
 
 Welcome to **MySpinBot**, the open-source, containerized platform for generating short personalized AI videos of talking “bots” — the kind that spin their way through voice cloning, LoRA training, and lip-syncing, all while making an effort not to melt your GPU.
 
+<div align="center">
+  <img height=600 src="/docs/resources/myspinbot_sample.gif" />
+</div>
+
 Think of it as a creative factory where:
 
 - You upload one or more images and a short audio voice clip along with some reference text,
@@ -14,10 +18,6 @@ Think of it as a creative factory where:
 All this **locally**, **privately**, and **under your control**.
 
 [^1]: Still in TODOs. Current version supports uploading an existing portrait image instead of prompting for character creation or LoRA training.
-
-<div align="center">
-  <img height=700 src="/docs/resources/myspinbot_sample.gif" />
-</div>
 
 I took this on, after watching Computerphile’s [_MikeBot3000: Can We Build an AI Mike from Open Source Tools?_](https://www.youtube.com/watch?v=cP8xpkvs_UI) some months ago and used all the help I could get out of my trusty old pals **ChatGPT-5** and **Gemini 2.5** to make it spin — figuratively, literally, and sometimes uncontrollably.
 
@@ -56,7 +56,7 @@ The [system architecture](docs/02_architecture_overview.md) features a **React U
 
 The full set of project documents lives in [`/docs`](./docs) — it explains everything from [_why this madness exists_](docs/01_project_description.md) to [_how it will be contained_](docs/04_modular_breakdown.md).
 
-[`/docs`](./docs) directory also functions as a repository for providing context to coding agents. As better described [here](docs/phase2/development_workflow_revisited.md) the project is being developed with the use of **VS Code** and **Dev Containers Extension**. The latter provides proper sandboxing for one to deploy coding agents and let them go nuts if one likes. The idea is that initialy the agent will get in character by examining the root-level `GEMINI.md` which will trigger a context bootstrap process as the one described [here](./GEMINI.md#4-context-bootstrap-sequence), to make it go through the documentation in the proper order and fill its context window. Provisions are also been made for orchestrating different agents from their dev containers, centrally by a master-architect agent[^6]. At this point agents from different sandboxes share a common place which can use for communication amongst each other. 
+[`/docs`](./docs) directory also functions as a repository for providing context to coding agents. As better described [here](docs/phase2/development_workflow_revisited.md) the project is being developed with the use of **VS Code** and **Dev Containers Extension**. The latter provides proper sandboxing for one to deploy coding agents and let them go nuts if one likes. The idea is that initialy the agent will get in character by examining the root-level `GEMINI.md` which will trigger a context bootstrap process as the one described [here](./GEMINI.md#4-context-bootstrap-sequence), to make it go through the documentation in the proper order and fill its context window. Provisions are also been made for orchestrating different agents from their dev containers, centrally by a master-architect agent[^6]. At this point agents in separate sandboxes are linked via a shared directory, enabling cross-container communication and coordination.
 
 For the human reader though, it is best to start from [documentation index](./docs/README.md) or [project description](docs/01_project_description.md).
 
