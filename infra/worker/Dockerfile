@@ -164,6 +164,7 @@ RUN uv pip install \
     jieba \
     kokoro_onnx \
     langgraph \
+    llvmlite \
     lpips \
     minio \
     moviepy \
