@@ -2,9 +2,17 @@
 
 ## Overview
 
-The **Dual-Plane LangGraph Orchestration** model defines how the MySpinBot infrastructure coordinates complex AI workflows between two execution environments—the **Node.js Control Plane** and the **Python Data Plane**. A single shared **LangGraph JSON** describes the full workflow and travels back and forth between these planes as execution progresses. Each side performs only the tasks assigned to its respective plane, ensuring modularity, transparency, and resilience.
+The **Dual-Plane LangGraph Orchestration** model defines how MySpinBot infrastructure coordinates complex AI workflows across execution environments—i.e. the **Node.js Control Plane** environment and the **Python Data Plane** environment. 
 
-Building upon this foundation, MySpinBot introduces an **Agentic Planning Layer** that lives in the Control Plane. This agent takes as input a **structure prompt** (a textual goal or high-level instruction) and a **capabilities manifest** (advertised by the Data Plane). It then **generates a hybrid LangGraph orchestration** aware of the two-plane separation, producing nodes that are automatically distributed between the Control and Data planes.
+Each environment implements its own **executor** facility able to poll designated Redis Streams and process incoming jobs. Each job contains an end-to-end AI workflow defined as a DAG graph in a common **LangGraph JSON** format shared among the facilities of myspinbot monorepo (for more information read [shared shemas](./shared_schemas.md)). This workflow is typically a *hybrid execution graph* which contains two type of nodes, one for describing processing tasks that target the control plane and are meant to be handled by the plane's (Node.js control process) executor, and another that targets the data plane that is being handled by its corresponding (Python worker process) executor. 
+
+At any given time a job can be active on either the control plane or the data plane, but not both. Hence, parallel execution of the same job is not supported across planes. 
+
+> ❗ [NOTE]: This limitation will not apply during in-plane processing though, so **in-plane parallel execution of independent sub-tasks** is planned to be supported. Data plane executor will support this with the introduction of **Dramatiq**, while control plane one with **BullMQ**. In both cases horizontal scaling will be additionally introduced to enable multiple job processing in parallel (i.e. multiple instances of control plane backends and data plane workers will get in play).
+
+During the distributed processing of a job, the graph is being communicated back and forth across the planes through the Redis Streams as execution progresses. Each side performs the ready-to-be-executed sub-tasks assigned to its respective plane, ensuring modularity, transparency, and resilience while at the same time respecting node inter-dependencies guaranteeing the execution order that the workflow imposes.
+
+> 🚀 [Future Work] Building upon this foundation, myspinbot will introduce down the road an **Agentic Planning Layer** along with an **Evaluation Layer** to close the agentic loop. The agent will be bootstrapped by taking a **structure prompt** (a textual goal or high-level instruction) and will consume the **capabilities manifest** that is produced by the control and data planes in order to plan and execute. Essentially it will **generate a hybrid LangGraph orchestration workflow** (plan) and set it in motion (publish it to Redis Streams). The **evaluator** will score the outcome to trigger either a change of plan (in which case a new job will be produced out of it and will be placed in queue for execution) or will label the finished job as success and return the final outcome to the user.
 
 ## 1. Architectural Concept
 
@@ -13,28 +21,15 @@ Building upon this foundation, MySpinBot introduces an **Agentic Planning Layer*
 | **Control Plane** | Node.js + LangGraph.js           | Defines and initializes graphs, executes API and LLM-related nodes, manages workflow state, produces hybrid graphs via the Agentic Planner, and coordinates handoffs. |
 | **Data Plane**    | Python + LangGraph.py + Dramatiq | Executes GPU-intensive tasks such as LoRA training, TTS synthesis, rendering, or diffusion; publishes progress metrics and returns updated graph state.               |
 
-Both planes operate on the same declarative LangGraph representation, which describes **what** should happen (the DAG structure and parameters) but not **how** each node is implemented. The actual implementation is bound dynamically at runtime by each plane using its local task registry.
+Both planes operate on the same declarative LangGraph representation, which describes **what** should happen (the DAG structure and parameters) but not **how** each node is implemented. The actual implementation is bound dynamically at runtime by each plane using its local task registry which is advertised in the **plane's capabilities manifest**.
 
-## 2. Agentic Planning Layer
+## 2. Fixed Custom Workflows (Single Pass Planning)
 
-### Function
+>  ⚠️ **To be replaced by the Planning Layer**
 
-An **Agentic Planner** node in the Control Plane uses a language model to synthesize a workflow dynamically. It receives:
+TODO: Expand section
 
-- **Structure prompt:** a natural-language goal (e.g., _"Generate a 30-second explainer video about solar panels"_).
-- **Capabilities manifest:** a JSON object advertised by the Data Plane that enumerates all available task types, resources, and configuration limits.
-
-### Output
-
-The agent produces a **hybrid LangGraph JSON**, where:
-
-- Each node is tagged with its corresponding `plane` ("node" or "python").
-- Node dependencies are ordered logically based on available capabilities.
-- The result is directly compatible with the dual-plane orchestration flow described below.
-
-This enables true **dynamic graph synthesis** while respecting the runtime separation between Control and Data planes.
-
-## 3. Core Execution Model
+## 3. Core Execution Model (TO BE REVISED)
 
 1. **Graph Definition (Agentic Planner in Node.js)**
 
@@ -100,18 +95,18 @@ Each serialized graph JSON includes:
 | `params` | Optional task parameters.                                      |
 | `output` | Optional output payload or artifact URI.                       |
 
-## 5. Serialization Rules
+## 5. Serialization Rules (TO BE REVISED)
 
 - **Declarative only:** no executable code crosses boundaries; both planes share only data.
 - **Bindings:** each runtime attaches its own `TASKS` registry mapping `task` identifiers to local functions or Dramatiq actors.
 - **Outputs:** must be JSON-serializable or referenced via URIs (e.g., MinIO paths) for large artifacts.
 - **Status updates:** each node updates its status and output fields before the next handoff.
 
-## 6. Execution Flow (Mermaid Diagram)
+## 6. Execution Flow (TO BE REVISED)
 
 ```mermaid
 graph TD
-    A[Agentic Planner in Node.js] --> B["graph.invoke(plane='node')"]
+    A[Planning Phase] --> B["graph.invoke(plane='node')"]
     B -->|Redis Stream: jobs:python| C[Python Worker]
     C --> D["graph.invoke(plane='python')"]
     D --> E[Update context + status]
