@@ -1,14 +1,14 @@
 # ⚙️ Development, Debugging & Testing Guide (Phase 2)
 
-This document defines the **development workflow** for MySpinBot as was shaped during Phase 2. It explains how development, debugging, and testing are performed across the three main subsystems:
+This document defines the **development workflow** for MySpinBot as was shaped during Phase 2. It explains how development, debugging, and testing are performed across the workspaces of the three main subsystems:
 
 * **Backend Workspace** (Node.js + Fastify + LangGraph.js)
 * **Frontend Workspace** (Next.js 15 + React)
 * **Worker Workspace** (Python GPU Worker + LangGraph.py + Dramatiq)
 
-All infrastructure services (Traefik, Redis, Redis Insight, MinIO, Prometheus, Grafana, etc.) have been consolidated, in this phase, into the **`infra/`** directory and run automatically during development.
+All infrastructure services (Traefik, Redis, Redis Insight, MinIO, Prometheus, Grafana, etc.) have been consolidated, under phase 2, into the **`infra/`** directory and run automatically during development.
 
-This guide reflects the **new, unified Dev Container–based workflow**, where each subsystem is developed in isolation inside its own VS Code Dev Container.
+This guide reflects the **new, unified Dev Container–based workflow**, where each module is developed in isolation inside its own VS Code Dev Container.
 
 # 1. Architecture Overview
 
@@ -37,7 +37,7 @@ Uses `myspinbot-<service>:dev` images and automatically launches into Dev Contai
 In development mode:
 
 * Backend, frontend, and worker each run inside dedicated **Dev Containers**.
-* Each subsystem is worked on in isolation by opening its folder directly in VS Code.
+* Each module is worked on in isolation by opening its folder directly in VS Code.
 * Testing and debugging happen **inside** each Dev Container.
 * Infrastructure is automatically started via `infra/`.
 
@@ -60,7 +60,7 @@ myspinbot/
 └── docker-compose.dev.yml
 ```
 
-Each subsystem workspace includes:
+Each workspace includes:
 
 ```
 .vscode/
@@ -83,11 +83,11 @@ This launches:
 
 * All infrastructure services under `infra/`
 * Dev-layer containers for backend, frontend, and worker
-* Automatic execution of subsystem entrypoints
+* Suppresses automatic execution of dev container entrypoints
 
-## **Step 2 — Open the subsystem folder in VS Code**
+## **Step 2 — Open the workspace sub-folder in VS Code**
 
-You always open the **subsystem directory**, not the project root.
+You always open the **sub-project directory**, not the project root.
 
 Examples:
 
@@ -105,13 +105,13 @@ Choose this to enter the isolated development environment.
 
 Once inside the Dev Container:
 
-* All runtimes, dependencies, and tools are preconfigured.
+* All runtimes, dependencies, and tools are preconfigured[^1].
 * Code edits are mirrored instantly (mounted volume).
-* Debugging uses the subsystem's `.vscode/launch.json`.
+* Debugging uses the sub-workspace's `.vscode/launch.json` configuration.
 * Testing is executed via Test Explorer or terminal.
-* No manual server or process startup is required.
+* Manual server or process startup is required.
 
-The container entrypoint handles all runtime execution.
+[^1]: One may need to manually fetch deps and tools depending on the project dev state.
 
 ## **Step 4 — Rebuild the Dev Container when environment changes**
 
@@ -119,7 +119,7 @@ If you update dependencies, Dockerfiles, or `.devcontainer` settings:
 
 * Use VS Code → **Dev Containers: Rebuild and Reopen in Container**
 
-This rebuilds only the subsystem you are working on.
+This rebuilds only the dev container you are working on.
 
 ## **Step 5 — Stop the development stack**
 
@@ -131,12 +131,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml [--profile <name>
 
 This ensures a clean and accurate teardown.
 
-
 # 4. Backend Workspace
 
 ### Execution
 
-Backend starts automatically from its Dev Container entrypoint—no manual commands required.
+Backend needs manual invocation to start the backend server, you can do this via the preconfigured launch configuration. Before this though, you will also need to run the preconfigured VS code task upon dev container first initialization in order to acquire the necessary dependencies as a one-time action. 
 
 ### Debugging
 
@@ -194,11 +193,7 @@ Covers:
 
 ### Execution
 
-The Dev Container entrypoint launches:
-
-* FastAPI metrics server
-* Redis Streams polling loop
-* Python worker (executor)
+The worker process needs to be invoked manually or either from the related launch configuration option. 
 
 ### Debugging
 
@@ -228,7 +223,7 @@ Covers:
 
 # 7. Infrastructure Workspace
 
-Infrastructure services under `infra/` run automatically in development mode:
+Infrastructure services under `infra/` run automatically in production mode since they are not redifined in the dev compose overlay:
 
 * Traefik
 * Redis + Redis Insight
