@@ -4,7 +4,7 @@
 
 The **Dual-Plane LangGraph Orchestration** model defines how MySpinBot infrastructure coordinates complex AI workflows across execution environments—the **Node.js Control Plane** environment and the **Python Data Plane** environment. 
 
-Each environment implements its own **executor** facility able to poll designated Redis Streams and process incoming jobs. Each job contains an end-to-end AI workflow defined as a DAG graph in a common **LangGraph JSON** format shared among the facilities of myspinbot monorepo (for more information read [shared shemas](./shared_schemas.md)). This workflow is typically a *hybrid execution graph* which composes of two types of nodes, one for describing processing tasks that target the control plane and are meant to be handled by the plane's (**Node.js control process**) executor, and another that targets the data plane that is being handled by its corresponding (**Python worker process**) executor. 
+Each environment implements its own **executor** facility able to poll designated Redis Streams and process incoming jobs. Each job contains an end-to-end AI workflow defined as a DAG graph in a common **LangGraph JSON** format shared among the facilities of MySpinBot monorepo (for more information read [shared shemas](./shared_schemas.md)). This workflow is typically a *hybrid execution graph* which composes of two types of nodes, one for describing processing tasks that target the control plane and are meant to be handled by the plane's (**Node.js control process**) executor, and another that targets the data plane that is being handled by its corresponding (**Python worker process**) executor. 
 
 At any given time a job can be active on either the control plane or the data plane, but not both. Hence, parallel execution of the same job is not supported across planes. 
 
@@ -12,7 +12,7 @@ At any given time a job can be active on either the control plane or the data pl
 
 During the distributed processing of a job, the graph is being communicated back and forth across the planes through the Redis Streams as execution progresses. Each side processes the ready-to-be-executed nodes of it's respective type reflecting sub-tasks assigned to the specific plane, ensuring modularity, transparency, and resilience while at the same time respecting node inter-dependencies guaranteeing the execution order that the workflow imposes.
 
-> 🚀 **[Future Work]:** Building upon this foundation, myspinbot will introduce a fully autonomous **Agentic Planning Layer**, for details see [below](#7-future-work).
+> 🚀 **[Future Work]:** Building upon this foundation, MySpinBot will introduce a fully autonomous **Agentic Planning Layer**, for details see [below](#7-future-work).
 
 ## 1. Architectural Concept
 
@@ -27,7 +27,7 @@ Both planes operate on the same declarative LangGraph representation, which desc
 
 >  🚀 **[Future Work]:** To be replaced by the **Planning Layer**, see [below](#7-future-work).
 
-At current project phase instead of a fully autonomous planning layer as is planned in projects roadmap, **myspinbot** supports the definition and consumption of custom workflows in JSON format. The *backend API* provides endpoints their internal logic of which configure and invoke these predefined custom workflows which in turn the *frontend layer* makes use of to provide to users the means to initiate the execution, e.g. generation of a video of a speaking avatar taking as input a single image, an audio voice sample and a reference text for that sample to train the voice synthesis.
+At current project phase instead of a fully autonomous planning layer as is planned in projects roadmap, **MySpinBot** supports the definition and consumption of custom workflows in JSON format. The *backend API* provides endpoints their internal logic of which configure and invoke these predefined custom workflows which in turn the *frontend layer* makes use of to provide to users the means to initiate the execution, e.g. generation of a video of a speaking avatar taking as input a single image, an audio voice sample and a reference text for that sample to train the voice synthesis.
 
 This custom workflows are looking like following:
 
