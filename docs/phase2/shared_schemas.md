@@ -1,14 +1,14 @@
 #  Shared Schema Architecture, Codegen Workflow & Config System
 
-## Overview
+## 📖 Overview
 
-This document explains the unified JSON Schema strategy used across **backend** (Node.js) and **worker** (Python), the automated **codegen workflow**, and the shared **configuration system**.
+This document explains the unified JSON Schema strategy used across **Control Plane** (Node.js backend) and **Data Plane** (Python worker), the automated **codegen workflow**, and the shared **configuration system**.
 
 It is designed as a high‑level explanation suitable for onboarding new contributors or AI agents, without duplicating project code.
 
 # 1. Motivation & Design Philosophy
 
-Modern multi‑language systems often duplicate data models, leading to:
+Modern multi‑language ystems often duplicate data models, leading to:
 
 * Drift between backend & worker definitions
 * Hard‑to‑debug inconsistencies
@@ -78,7 +78,7 @@ sequenceDiagram
   participant BE as Backend Validators
   participant WK as Worker Models
 
-  Dev ->> DC: docker compose run --rm codegen
+  Dev ->> DC: docker compose run -f docker-compose.dev.yml --profile schemas --rm codegen
   DC ->> SCH: Read all schemas
   DC ->> BE: Generate AJV validators
   DC ->> WK: Generate Pydantic V2 models
@@ -171,47 +171,20 @@ flowchart LR
 
 This ensures that the worker’s advertised capabilities match what backend expects.
 
-# 9. Redis Job Handling Architecture
+# 9. Quick Start Guide for Developers
 
-Backend enqueues jobs and listens to worker‑published events.
-
-## Full Job Lifecycle
-
-```mermaid
-sequenceDiagram
-    participant BE as Backend
-    participant RS as Redis Streams
-    participant WK as Worker
-    participant PUB as Redis PubSub
-
-    BE ->> RS: XADD job to stream
-    BE ->> BE: Persist "advertised"
-
-    WK ->> RS: XREAD group consume
-    WK ->> PUB: PUBLISH status:jobId running
-    WK ->> PUB: PUBLISH progress:jobId 0.4
-    WK ->> PUB: PUBLISH status:jobId completed
-    WK ->> BE: Update DB mirror
-
-    BE ->> BE: getJobState() or getJobResult()
-```
-
-Backend mirrors worker updates using Pub/Sub and TTL‑backed Redis keys.
-
-# 10. Quick Start Guide for Developers
-
-## 10.1 Adding or Editing a JSON Schema
+## 9.1 Adding or Editing a JSON Schema
 
 1. Open `/common/config/schemas/`
 2. Add or update a `*.schema.json`
 3. Run codegen:
 
    ```bash
-   docker compose run --rm codegen
+   docker compose run -f docker-compose.dev.yml --profile schemas --rm codegen
    ```
 4. Backend + Worker artifacts regenerate automatically.
 
-## 10.2 Running Backend or Worker
+## 9.2 Running Backend or Worker
 
 Backend:
 
@@ -229,7 +202,7 @@ Both depend on the generated models.
 
 ---
 
-## 10.3 Adding a New Worker Capability
+## 9.3 Adding a New Worker Capability
 
 1. Define capability in `common/config/schemas/capabilities/...`
 2. Add handler implementation in worker
@@ -239,7 +212,7 @@ Both depend on the generated models.
 
 ---
 
-## 10.4 Adding New Config Properties
+## 9.4 Adding New Config Properties
 
 1. Update the JSON schema in:
    `/common/config/schemas/config/configuration.schema.json`
@@ -249,7 +222,7 @@ Both depend on the generated models.
 
 ---
 
-# 11. Summary
+# 10. Summary
 
 This architecture provides:
 

@@ -275,7 +275,7 @@ For more details please read [InfiniteTalk Deep Dive](phase3/infinite_talk.md)
 `GET /api/capabilities` runs as a small hybrid graph:
 
 1. Python node `get_capabilities` — sub-task for querying the worker capability manifest.
-2. Node node `capabilities.getManifest` — subt-taks that merges worker and control-plane capabilities into a single JSON object.
+2. Node node `capabilities.getManifest` — subt-taks that merges worker and control-plane [capabilities](./phase2/shared_schemas.md#8-capabilities-system-overview) into a single JSON object.
 
 This is the first concrete dual-plane workflow; additional features are expected to follow the same pattern.
 

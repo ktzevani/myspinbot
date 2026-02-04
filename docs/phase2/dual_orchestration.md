@@ -21,7 +21,7 @@ During the distributed processing of a job, the graph is being communicated back
 | **Control Plane** | Node.js + LangGraph.js           | Defines and initializes graphs, executes API and LLM-related nodes, manages workflow state, load hybrid graphs from file (to be replaced by agentic planning), and coordinates handoffs. |
 | **Data Plane**    | Python + LangGraph.py | Executes GPU-intensive tasks such as LoRA training, TTS synthesis, rendering, or diffusion; publishes progress metrics and places updated graph state back in streams.               |
 
-Both planes operate on the same declarative LangGraph representation, which describes **what** should happen (the DAG structure and parameters) but not **how** each node is implemented. Each node references the actual task by a qualified service name which acts as service/task ID. The list of available services each plane support along with descriptions of each service (to be used by the planner) are advertised in the **plane's capabilities manifest**. The actual implementation is bound dynamically at runtime by each plane using its plane-local task registry.
+Both planes operate on the same declarative LangGraph representation, which describes **what** should happen (the DAG structure and parameters) but not **how** each node is implemented. Each node references the actual task by a qualified service name which acts as service/task ID. The list of available services each plane support along with descriptions of each service (to be used by the planner) are advertised in the [**plane's capabilities manifest**](./shared_schemas.md#8-capabilities-system-overview). The actual implementation is bound dynamically at runtime by each plane using its plane-local task registry.
 
 ## 2. Fixed Custom Workflows
 
